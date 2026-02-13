@@ -18,12 +18,20 @@ On your target server, you only need two files:
 1.  `stphub_unified_deployment.tar`
 2.  `docker-compose.yml`
 
-### 1. Load the Package
+### 1. Requirements
+- Docker and Docker Compose installed.
+- **Git LFS**: If you are cloning the repository, ensure you have [Git LFS installed](https://git-lfs.com/) and run:
+  ```bash
+  git lfs pull
+  ```
+  *(Otherwise the `.tar` file will just be a small pointer file and won't load!)*
+
+### 2. Load the Package
 ```bash
 docker load -i stphub_unified_deployment.tar
 ```
 
-### 2. Start Everything
+### 3. Start Everything
 ```bash
 docker-compose up -d
 ```
