@@ -1,0 +1,53 @@
+import crypto from 'crypto';
+
+// Generate a secure random secret if not provided via env (production)
+// Use fixed secret in development to persist sessions across restarts
+const isDev = process.env.NODE_ENV !== 'production';
+const JWT_SECRET = process.env.JWT_SECRET || (isDev ? 'dev-secret-key-change-in-prod' : crypto.randomBytes(64).toString('hex'));
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || (isDev ? 'dev-refresh-secret-key-change-in-prod' : crypto.randomBytes(64).toString('hex'));
+
+export const config = {
+    port: parseInt(process.env.PORT || '5000', 10),
+    mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/stphub',
+    jwtSecret: JWT_SECRET,
+    jwtRefreshSecret: JWT_REFRESH_SECRET,
+    jwtExpiresIn: '15m',
+    jwtRefreshExpiresIn: '7d',
+    bcryptRounds: 12,
+    cookieOptions: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax' as const,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/',
+    },
+    corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    uploadDir: process.env.UPLOAD_DIR || 'uploads',
+    maxFileSize: 10 * 1024 * 1024, // 10MB
+    rateLimits: {
+        auth: { windowMs: 15 * 60 * 1000, max: 50 },        // 50 per 15 min
+        api: { windowMs: 15 * 60 * 1000, max: 1000 },       // 1000 per 15 min
+        upload: { windowMs: 60 * 60 * 1000, max: 50 },      // 50 per hour
+    },
+    aws: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+        region: process.env.AWS_REGION || 'us-east-1',
+        bucketName: process.env.AWS_BUCKET_NAME || '',
+    },
+    razorpay: {
+        keyId: process.env.RAZORPAY_KEY_ID || '',
+        keySecret: process.env.RAZORPAY_KEY_SECRET || '',
+    },
+} as const;
+
+// Warn if using auto-generated secrets in production
+if (process.env.NODE_ENV === 'production') {
+    if (!process.env.JWT_SECRET) {
+        console.warn('⚠️  WARNING: JWT_SECRET not set in environment. Using auto-generated secret.');
+        console.warn('   Set JWT_SECRET env variable for persistent sessions across restarts.');
+    }
+    if (!process.env.JWT_REFRESH_SECRET) {
+        console.warn('⚠️  WARNING: JWT_REFRESH_SECRET not set in environment.');
+    }
+}

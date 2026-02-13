@@ -1,0 +1,14 @@
+node_modules
+dist
+.env
+*.log
+*.tar
+!stphub_unified_deployment.tar
+client/node_modules
+client/dist
+server/node_modules
+server/dist
+server/uploads
+.vscode
+.idea
+.DS_Store

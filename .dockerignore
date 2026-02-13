@@ -1,0 +1,13 @@
+node_modules
+dist
+.env
+.git
+Dockerfile
+docker-compose.yml
+*.tar
+*.log
+client/node_modules
+client/dist
+server/node_modules
+server/dist
+server/uploads
