@@ -41,7 +41,7 @@ RUN echo '#!/bin/sh' > /app/start.sh && \
     echo 'echo "🚀 Starting Nginx..."' >> /app/start.sh && \
     echo 'nginx' >> /app/start.sh && \
     echo 'echo "🚀 Starting Backend Server..."' >> /app/start.sh && \
-    echo 'cd /app/server && node dist/index.js' >> /app/start.sh && \
+    echo 'cd /app/server && node dist/src/index.js' >> /app/start.sh && \
     chmod +x /app/start.sh
 
 # Environment Variables
