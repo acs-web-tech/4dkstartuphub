@@ -31,11 +31,14 @@ services:
       - AWS_REGION=us-east-1
       - AWS_BUCKET_NAME=4dkstartups
       # Razorpay Configuration
-      - RAZORPAY_KEY_ID=YOUR_RAZORPAY_KEY_ID
-      - RAZORPAY_KEY_SECRET=YOUR_RAZORPAY_KEY_SECRET
+      - RAZORPAY_KEY_ID=rzp_test_SEsbosl3t0RcoK
+      - RAZORPAY_KEY_SECRET=bToWYlXGVWcYgTF8SpUVyaP0
+      # VAPID Keys for Push Notifications
+      - VAPID_PUBLIC_KEY=BFZr3byvJte9PbaOWgCDC4kEK4RK1g8Ub-1kX0RMQBeGPAfdBb1c06zVt9sseFBWk8f5rw0OnYuCsdT4tauT9AU
+      - VAPID_PRIVATE_KEY=EvXUaB6A2_S1DsOX3AvH7GLwBYt7Mibe1KFY9jDw3vM
       # JWT & Security
-      - JWT_SECRET=CHANGE_THIS_TO_A_RANDOM_STRING
-      - JWT_REFRESH_SECRET=CHANGE_THIS_TO_A_RANDOM_STRING
+      - JWT_SECRET=askdlsdko0r9r3874763426272099%#@!
+      - JWT_REFRESH_SECRET=45094rkejerkjlew;le@*(1!jkldelk)
       - CORS_ORIGIN=https://startup.4dk.in
     volumes:
       - stp_uploads:/app/server/uploads

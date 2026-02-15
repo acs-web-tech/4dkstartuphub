@@ -5,8 +5,8 @@ import { config } from '../config/env';
 
 const router = Router();
 
-// GET /api/notifications/vapid-key — Get public VAPID key
-router.get('/vapid-key', authenticate, (req, res) => {
+// GET /api/notifications/vapid-key — Get public VAPID key (Public)
+router.get('/vapid-key', (req, res) => {
     res.json({ publicKey: config.vapid.publicKey });
 });
 
