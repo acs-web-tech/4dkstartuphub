@@ -41,27 +41,28 @@ RUN cd server && npm install --omit=dev && mkdir -p uploads
 # 2. Copy Frontend to Nginx directory
 COPY --from=frontend-builder /app/client/dist /usr/share/nginx/html
 
-# 3. Copy Nginx Configurations
-COPY nginx.conf /etc/nginx/http.d/ssl.conf
-COPY nginx-initial.conf /etc/nginx/http.d/initial.conf
+# 3. Copy Nginx Configurations to TEMPLATES directory (not http.d)
+RUN mkdir -p /etc/nginx/templates
+COPY nginx.conf /etc/nginx/templates/ssl.conf
+COPY nginx-initial.conf /etc/nginx/templates/initial.conf
 
 # 4. Create Start Script
 RUN printf '#!/bin/sh\n\
 DOMAIN="startup.4dk.in"\n\
 CERT_PATH="/etc/letsencrypt/live/$DOMAIN/fullchain.pem"\n\
 \n\
+# Clear default configs to avoid conflicts\n\
+rm -f /etc/nginx/http.d/*.conf\n\
+\n\
 # --- Step 1: Choose Nginx config based on SSL cert availability ---\n\
 if [ -f "$CERT_PATH" ]; then\n\
   echo "✅ SSL certificate found. Starting Nginx with HTTPS..."\n\
-  cp /etc/nginx/http.d/ssl.conf /etc/nginx/http.d/default.conf\n\
+  cp /etc/nginx/templates/ssl.conf /etc/nginx/http.d/default.conf\n\
 else\n\
   echo "⚠️  No SSL certificate yet. Starting Nginx in HTTP-only mode..."\n\
-  echo "   Run: docker compose run --rm certbot certonly --webroot -w /var/www/certbot -d $DOMAIN --agree-tos -m your@email.com"\n\
-  echo "   Then: docker compose restart app"\n\
-  cp /etc/nginx/http.d/initial.conf /etc/nginx/http.d/default.conf\n\
+  cp /etc/nginx/templates/initial.conf /etc/nginx/http.d/default.conf\n\
 fi\n\
-# Clean up named configs\n\
-rm -f /etc/nginx/http.d/ssl.conf /etc/nginx/http.d/initial.conf\n\
+\n\
 # Start Nginx in background\n\
 nginx\n\
 \n\
@@ -84,7 +85,7 @@ echo "✅ Found entry point: $ENTRY"\n\
 node "$ENTRY"\n' > /app/start.sh && chmod +x /app/start.sh
 
 # Environment Variables
-ENV BUILD_VERSION=v3
+ENV BUILD_VERSION=v4
 ENV NODE_ENV=production
 ENV PORT=5000
 ENV MONGODB_URI=mongodb://mongodb:27017/stphub
