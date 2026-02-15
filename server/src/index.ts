@@ -17,11 +17,59 @@ import pitchRoutes from './routes/pitch';
 import uploadRoutes from './routes/upload';
 import paymentRoutes from './routes/payment';
 
-// ── Force restart to pick up .env changes ────────────────────
+// ── Environment Flag ─────────────────────────────────────────
+const isProd = process.env.NODE_ENV === 'production';
+
 const app = express();
 
-// Trust the Nginx reverse proxy (needed for rate limiting & X-Forwarded-For)
-app.set('trust proxy', 1);
+// ── Proxy Trust ──────────────────────────────────────────────
+// Production: behind Nginx reverse proxy, so trust 1 hop for correct
+// client IP detection (rate limiting, logging, X-Forwarded-For).
+// Development: direct connection from browser, no proxy to trust.
+if (isProd) {
+    app.set('trust proxy', 1);
+}
+
+// ── Development-only origins ─────────────────────────────────
+// These are ONLY needed when running `npm run dev` locally.
+const DEV_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://192.168.31.152:5173',
+    'http://localhost:5000',
+    'http://127.0.0.1:5000',
+    'http://192.168.31.152:5000',
+    'http://localhost',
+];
+
+const DEV_WS_ORIGINS = [
+    'ws://localhost:5000',
+    'ws://127.0.0.1:5000',
+    'ws://192.168.31.152:5000',
+    'ws://localhost:5173',
+    'ws://127.0.0.1:5173',
+    'ws://192.168.31.152:5173',
+];
+
+// ── Build the CSP connectSrc list based on environment ───────
+const connectSrc: string[] = [
+    "'self'",
+    "https://api.razorpay.com",
+    "https://lumberjack.razorpay.com",
+    "capacitor://localhost",
+];
+
+if (isProd) {
+    // Production: ONLY allow the configured domain (HTTP + HTTPS + WSS)
+    connectSrc.push(config.corsOrigin);
+    if (config.corsOrigin.startsWith('https')) {
+        connectSrc.push(config.corsOrigin.replace('https', 'wss'));
+    }
+} else {
+    // Development: allow all local dev servers and WebSocket connections
+    connectSrc.push(...DEV_ORIGINS, ...DEV_WS_ORIGINS);
+    connectSrc.push(config.corsOrigin);
+}
 
 // ── Security Middleware ──────────────────────────────────────
 app.use(helmet({
@@ -34,51 +82,39 @@ app.use(helmet({
             mediaSrc: ["'self'", "https://*.amazonaws.com"],
             scriptSrc: ["'self'", "https://checkout.razorpay.com", "'unsafe-inline'"],
             frameSrc: ["'self'", "https://api.razorpay.com", "https://checkout.razorpay.com"],
-            connectSrc: [
-                "'self'",
-                "https://api.razorpay.com",
-                "https://lumberjack.razorpay.com",
-                ...(process.env.NODE_ENV === 'production' ? [] : [
-                    "ws://localhost:5000",
-                    "ws://127.0.0.1:5000",
-                    "ws://192.168.31.152:5000",
-                    "ws://localhost:5173",
-                    "ws://127.0.0.1:5173",
-                    "ws://192.168.31.152:5173",
-                    "http://localhost:5000",
-                    "http://127.0.0.1:5000",
-                    "http://192.168.31.152:5000",
-                    "http://localhost:5173",
-                    "http://127.0.0.1:5173",
-                    "http://192.168.31.152:5173",
-                ]),
-                "http://localhost",
-                "capacitor://localhost",
-                ...(config.corsOrigin.startsWith('https') ? [config.corsOrigin, config.corsOrigin.replace('https', 'wss')] : [config.corsOrigin])
-            ],
+            connectSrc,
         },
     },
     crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 
+// ── CORS ─────────────────────────────────────────────────────
+// Production: strict — only the configured production origin.
+// Development: permissive — all localhost variations for hot-reload.
 app.use(cors({
     origin: (origin, callback) => {
-        const allowedOrigins = [
-            'http://localhost:5173',
-            'http://127.0.0.1:5173',
-            'http://192.168.31.152:5173',
-            'http://localhost',
-            'capacitor://localhost',
-            config.corsOrigin
-        ];
-        // Allow requests with no origin (same-origin, server-to-server, mobile apps)
+        // No origin = same-origin request, server-to-server, or mobile app — always allow
         if (!origin) {
-            callback(null, true);
-        } else if (allowedOrigins.includes(origin)) {
-            callback(null, true);
+            return callback(null, true);
+        }
+
+        if (isProd) {
+            // Production: only config.corsOrigin is allowed
+            if (origin === config.corsOrigin) {
+                callback(null, true);
+            } else {
+                console.warn(`🚫 CORS blocked in production: ${origin}`);
+                callback(new Error('Not allowed by CORS'));
+            }
         } else {
-            console.warn(`CORS blocked origin: ${origin}`);
-            callback(new Error('Not allowed by CORS'));
+            // Development: allow all dev origins + configured origin
+            const allowedOrigins = [...DEV_ORIGINS, 'capacitor://localhost', config.corsOrigin];
+            if (allowedOrigins.includes(origin)) {
+                callback(null, true);
+            } else {
+                console.warn(`🚫 CORS blocked in development: ${origin}`);
+                callback(new Error('Not allowed by CORS'));
+            }
         }
     },
     credentials: true,
@@ -91,7 +127,8 @@ app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 app.use(cookieParser());
 
 // ── Global Rate Limiter (production only) ────────────────────
-if (process.env.NODE_ENV === 'production') {
+// In development, no rate limiting so you can iterate quickly.
+if (isProd) {
     app.use('/api', apiLimiter);
 }
 
@@ -140,12 +177,11 @@ app.use('/api', (_req, res) => {
 });
 
 // ── Global Error Handler ────────────────────────────────────
+// Production: hide internal details. Development: show full error message.
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('Unhandled error:', err.message);
     res.status(500).json({
-        error: process.env.NODE_ENV === 'production'
-            ? 'Internal server error'
-            : err.message,
+        error: isProd ? 'Internal server error' : err.message,
     });
 });
 

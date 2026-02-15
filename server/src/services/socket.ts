@@ -24,21 +24,38 @@ class SocketService {
     private static readonly KICK_BLOCK_DURATION_MS = 30 * 60 * 1000; // 30 minutes
 
     initialize(server: HttpServer) {
+        const isProd = process.env.NODE_ENV === 'production';
+
         this.io = new SocketIOServer(server, {
             cors: {
                 origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-                    const allowedOrigins = [
-                        'http://localhost:5173',
-                        'http://127.0.0.1:5173',
-                        'http://192.168.31.152:5173',
-                        'http://localhost',
-                        'capacitor://localhost',
-                        config.corsOrigin
-                    ];
-                    if (!origin || (process.env.NODE_ENV !== 'production' && allowedOrigins.includes(origin)) || origin === config.corsOrigin) {
-                        callback(null, true);
+                    // No origin = same-origin / server-to-server — always allow
+                    if (!origin) {
+                        return callback(null, true);
+                    }
+
+                    if (isProd) {
+                        // Production: only the configured origin
+                        if (origin === config.corsOrigin) {
+                            callback(null, true);
+                        } else {
+                            callback(new Error('Not allowed by CORS'));
+                        }
                     } else {
-                        callback(new Error('Not allowed by CORS'));
+                        // Development: allow all local dev origins
+                        const devOrigins = [
+                            'http://localhost:5173',
+                            'http://127.0.0.1:5173',
+                            'http://192.168.31.152:5173',
+                            'http://localhost',
+                            'capacitor://localhost',
+                            config.corsOrigin
+                        ];
+                        if (devOrigins.includes(origin)) {
+                            callback(null, true);
+                        } else {
+                            callback(new Error('Not allowed by CORS'));
+                        }
                     }
                 },
                 credentials: true
