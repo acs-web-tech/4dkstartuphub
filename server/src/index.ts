@@ -183,7 +183,7 @@ async function start() {
         console.log(`
   ╔══════════════════════════════════════════╗
   ║   🚀 StartupHub API Server Running      ║
-  ║   Version: v2 (FIXED)                             ║
+  ║   Version: v3 (ROBUST)                            ║
   ║   Port: ${config.port}                            ║
   ║   Mode: ${process.env.NODE_ENV || 'development'}                    ║
   ║   CORS: ${config.corsOrigin || 'ALL'}                     ║

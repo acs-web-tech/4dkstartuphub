@@ -19,10 +19,14 @@ RUN npm run build
 # --- Stage 3: Final Production Image (Node + Nginx) ---
 FROM node:20-alpine
 
-# Install Nginx only (certbot runs in its own container)
+# Install Nginx only
 RUN apk add --no-cache nginx
 
-# Create directory for Certbot challenges (served by Nginx)
+# Forward Nginx logs to Docker logs (Crucial for debugging)
+RUN ln -sf /dev/stdout /var/log/nginx/access.log && \
+    ln -sf /dev/stderr /var/log/nginx/error.log
+
+# Create directory for Certbot challenges
 RUN mkdir -p /var/www/certbot
 
 WORKDIR /app
@@ -38,7 +42,6 @@ RUN cd server && npm install --omit=dev && mkdir -p uploads
 COPY --from=frontend-builder /app/client/dist /usr/share/nginx/html
 
 # 3. Copy Nginx Configurations
-# Main SSL config + initial HTTP-only config for first-time cert setup
 COPY nginx.conf /etc/nginx/http.d/ssl.conf
 COPY nginx-initial.conf /etc/nginx/http.d/initial.conf
 
@@ -59,25 +62,29 @@ else\n\
 fi\n\
 # Clean up named configs\n\
 rm -f /etc/nginx/http.d/ssl.conf /etc/nginx/http.d/initial.conf\n\
+# Start Nginx in background\n\
 nginx\n\
 \n\
 # --- Step 2: Start Backend Server ---\n\
 echo "🚀 Starting Backend Server..."\n\
 cd /app/server\n\
-# With rootDir: ./src in tsconfig, the output is GUARANTEED to be at dist/index.js\n\
-ENTRY=dist/index.js\n\
-if [ -f "$ENTRY" ]; then\n\
-  echo "Found entry: $ENTRY"\n\
-  node "$ENTRY"\n\
+\n\
+# ROBUST AUTO-DETECT: Check all possible locations\n\
+if [ -f dist/index.js ]; then\n\
+  ENTRY=dist/index.js\n\
+elif [ -f dist/src/index.js ]; then\n\
+  ENTRY=dist/src/index.js\n\
 else\n\
-  echo "❌ ERROR: Cannot find $ENTRY"\n\
-  echo "Debug: Listing dist contents:"\n\
+  echo "❌ ERROR: Cannot find index.js. Listing dist contents:"\n\
   ls -R dist/\n\
   exit 1\n\
-fi\n' > /app/start.sh && chmod +x /app/start.sh
+fi\n\
+\n\
+echo "✅ Found entry point: $ENTRY"\n\
+node "$ENTRY"\n' > /app/start.sh && chmod +x /app/start.sh
 
 # Environment Variables
-ENV BUILD_VERSION=v2
+ENV BUILD_VERSION=v3
 ENV NODE_ENV=production
 ENV PORT=5000
 ENV MONGODB_URI=mongodb://mongodb:27017/stphub
