@@ -5,6 +5,9 @@ services:
     image: mongo:latest
     container_name: stp-mongodb
     restart: always
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=mongodb
+      - MONGO_INITDB_ROOT_PASSWORD=mongodb
     ports:
       - "27017:27017"
     volumes:
@@ -24,7 +27,7 @@ services:
       - "443:443"
     environment:
       - NODE_ENV=production
-      - MONGODB_URI=mongodb://mongodb:27017/stphub
+      - MONGODB_URI=mongodb://mongodb:mongodb@mongodb:27017/stphub?authSource=admin
       # AWS S3 Configuration
       - AWS_ACCESS_KEY_ID=YOUR_AWS_KEY_ID
       - AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_KEY
