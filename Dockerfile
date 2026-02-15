@@ -77,6 +77,7 @@ else\n\
 fi\n' > /app/start.sh && chmod +x /app/start.sh
 
 # Environment Variables
+ENV BUILD_VERSION=v2
 ENV NODE_ENV=production
 ENV PORT=5000
 ENV MONGODB_URI=mongodb://mongodb:27017/stphub
