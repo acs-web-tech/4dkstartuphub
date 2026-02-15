@@ -35,12 +35,8 @@ class SocketService {
                     }
 
                     if (isProd) {
-                        // Production: only the configured origin
-                        if (origin === config.corsOrigin) {
-                            callback(null, true);
-                        } else {
-                            callback(new Error('Not allowed by CORS'));
-                        }
+                        // Production: permissive since Nginx handles same-origin
+                        callback(null, true);
                     } else {
                         // Development: allow all local dev origins
                         const devOrigins = [

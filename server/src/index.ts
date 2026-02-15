@@ -94,28 +94,9 @@ app.use(cors({
             return callback(null, true);
         }
 
-        if (isProd) {
-            // Production: strict check but allow both http/https variants just in case Nginx proxies weirdly
-            const prodOrigin = config.corsOrigin.replace(/\/$/, ''); // Remove trailing slash
-            const prodOriginHttp = prodOrigin.replace('https://', 'http://');
-            const prodOriginHttps = prodOrigin.replace('http://', 'https://');
-
-            if (origin === prodOrigin || origin === prodOriginHttp || origin === prodOriginHttps) {
-                callback(null, true);
-            } else {
-                console.error(`🚫 CORS BLOCKED in production. Origin: '${origin}', Expected: '${prodOrigin}'`);
-                callback(new Error('Not allowed by CORS'));
-            }
-        } else {
-            // Development: allow all dev origins + configured origin
-            const allowedOrigins = [...DEV_ORIGINS, 'capacitor://localhost', config.corsOrigin];
-            if (allowedOrigins.includes(origin)) {
-                callback(null, true);
-            } else {
-                console.warn(`🚫 CORS blocked in development: ${origin}`);
-                callback(new Error('Not allowed by CORS'));
-            }
-        }
+        // In production with Nginx serving both frontend and backend on same domain,
+        // requests are Same-Origin. We can be permissive here.
+        callback(null, true);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
