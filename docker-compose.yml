@@ -14,7 +14,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: stphub-app:v4
+    image: stphub-app:v5
     container_name: stphub-unified
     restart: always
     depends_on:

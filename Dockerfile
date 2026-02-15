@@ -85,7 +85,7 @@ echo "✅ Found entry point: $ENTRY"\n\
 node "$ENTRY"\n' > /app/start.sh && chmod +x /app/start.sh
 
 # Environment Variables
-ENV BUILD_VERSION=v4
+ENV BUILD_VERSION=v5
 ENV NODE_ENV=production
 ENV PORT=5000
 ENV MONGODB_URI=mongodb://mongodb:27017/stphub
