@@ -1,7 +1,10 @@
 import crypto from 'crypto';
+import dotenv from 'dotenv';
+import path from 'path';
 
-// Generate a secure random secret if not provided via env (production)
-// Use fixed secret in development to persist sessions across restarts
+// Explicitly load .env from the server root
+dotenv.config({ path: path.join(__dirname, '../../.env') });
+
 const isDev = process.env.NODE_ENV !== 'production';
 const JWT_SECRET = process.env.JWT_SECRET || (isDev ? 'dev-secret-key-change-in-prod' : crypto.randomBytes(64).toString('hex'));
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || (isDev ? 'dev-refresh-secret-key-change-in-prod' : crypto.randomBytes(64).toString('hex'));

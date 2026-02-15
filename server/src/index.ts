@@ -190,6 +190,7 @@ async function start() {
   ║   CORS: ${config.corsOrigin || 'ALL'}                     ║
   ║   S3 Bucket: ${config.aws.bucketName ? '✅ ' + config.aws.bucketName : '❌ MISSING'}            ║
   ║   Razorpay: ${config.razorpay.keyId ? '✅ Configured' : '❌ MISSING'}            ║
+  ║   Web Push: ${config.vapid.publicKey ? '✅ Ready' : '❌ NOT CONFIGURED'}            ║
   ╚══════════════════════════════════════════╝
     `);
     });

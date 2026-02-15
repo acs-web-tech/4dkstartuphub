@@ -31,17 +31,37 @@ export async function subscribeToPushNotifications() {
         // 1. Wait for service worker to be ready
         const registration = await navigator.serviceWorker.ready;
 
-        // 2. Check for existing subscription
+        // 2. Get public VAPID key from server
+        const { publicKey } = await notificationsApi.getVapidKey();
+
+        if (!publicKey) {
+            console.warn('⚠️ No VAPID public key received from server. Push notifications cannot be enabled.');
+            return;
+        }
+
+        const trimmedKey = publicKey.trim();
+        const convertedKey = urlBase64ToUint8Array(trimmedKey);
+
+        // 3. Check for existing subscription
         let subscription = await registration.pushManager.getSubscription();
 
         if (subscription) {
-            // Already subscribed, return it
-            return subscription;
-        }
+            // Check if applicationServerKey matches current server key
+            const existingKey = subscription.options.applicationServerKey;
+            if (existingKey) {
+                const existingKeyArray = new Uint8Array(existingKey);
+                const keysMatch = convertedKey.length === existingKeyArray.length &&
+                    convertedKey.every((val, index) => val === existingKeyArray[index]);
 
-        // 3. Get public VAPID key from server
-        const { publicKey } = await notificationsApi.getVapidKey();
-        const convertedKey = urlBase64ToUint8Array(publicKey);
+                if (keysMatch) {
+                    console.log('✅ Existing push subscription is valid');
+                    return subscription;
+                } else {
+                    console.log('🔄 VAPID key mismatch, resubscribing with new key...');
+                    await subscription.unsubscribe();
+                }
+            }
+        }
 
         // 4. Subscribe
         subscription = await registration.pushManager.subscribe({
