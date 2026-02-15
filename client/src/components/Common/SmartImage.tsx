@@ -67,8 +67,6 @@ export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, ...props 
                     src={finalSrc}
                     style={{
                         ...props.style,
-                        width: '100%',
-                        height: '100%',
                         opacity: loading ? 0 : 1,
                         transition: 'opacity 0.4s ease-out',
                         display: loading ? 'none' : 'block'
