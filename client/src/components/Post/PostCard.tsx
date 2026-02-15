@@ -135,7 +135,14 @@ function PostCard({ post, onImageClick }: Props) {
             </Link>
 
             {post.eventDate && (
-                <div className="post-card-event-info" onClick={(e) => e.stopPropagation()}>
+                <div
+                    className="post-card-event-info cursor-pointer hover:bg-[var(--bg-secondary)]"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setShowOptions(!showOptions);
+                    }}
+                    title="Click to see calendar options"
+                >
                     <Calendar size={14} className="text-accent" />
                     <span>
                         {new Date(post.eventDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} at{' '}

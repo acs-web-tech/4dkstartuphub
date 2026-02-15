@@ -95,6 +95,7 @@ router.get('/', authenticate, async (req, res) => {
                     username: { $ifNull: ['$user.username', 'deleted'] },
                     displayName: { $ifNull: ['$user.display_name', 'Deleted User'] },
                     avatarUrl: { $ifNull: ['$user.avatar_url', ''] },
+                    eventDate: '$event_date',
                     createdAt: '$created_at',
                     updatedAt: '$updated_at',
                 }
@@ -191,6 +192,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
                 displayName: (author as any)?.display_name || 'Deleted User',
                 avatarUrl: (author as any)?.avatar_url || '',
                 userBio: (author as any)?.bio,
+                eventDate: post.event_date,
                 createdAt: post.created_at,
                 updatedAt: post.updated_at,
             },
