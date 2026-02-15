@@ -109,7 +109,6 @@ app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 app.use(cookieParser());
 
 // ── Global Rate Limiter (production only) ────────────────────
-// In development, no rate limiting so you can iterate quickly.
 if (isProd) {
     app.use('/api', apiLimiter);
 }
@@ -183,10 +182,12 @@ async function start() {
         console.log(`
   ╔══════════════════════════════════════════╗
   ║   🚀 StartupHub API Server Running      ║
-  ║   Version: v5 (SSL FIXED)                         ║
+  ║   Version: v6 (PAYMENT FIX)                       ║
   ║   Port: ${config.port}                            ║
   ║   Mode: ${process.env.NODE_ENV || 'development'}                    ║
   ║   CORS: ${config.corsOrigin || 'ALL'}                     ║
+  ║   S3 Bucket: ${config.aws.bucketName ? '✅ ' + config.aws.bucketName : '❌ MISSING'}            ║
+  ║   Razorpay: ${config.razorpay.keyId ? '✅ Configured' : '❌ MISSING'}            ║
   ╚══════════════════════════════════════════╝
     `);
     });

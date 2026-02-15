@@ -467,10 +467,10 @@ export default function PostDetail() {
                         </button>
                     )}
 
-                    {isAuthor && !editing && (
-                        <button className="action-btn" onClick={handleEdit} id="edit-post-btn">
+                    {isAuthor && (
+                        <Link to={`/edit-post/${id}`} className="action-btn" id="edit-post-btn">
                             <Pencil size={18} /> Edit
-                        </button>
+                        </Link>
                     )}
                     {(isAuthor || isAdmin) && (
                         <button className="action-btn danger" onClick={handleDelete} id="delete-post-btn">

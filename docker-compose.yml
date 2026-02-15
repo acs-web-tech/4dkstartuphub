@@ -14,7 +14,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: stphub-app:v5
+    image: stphub-app:v7
     container_name: stphub-unified
     restart: always
     depends_on:
@@ -25,9 +25,17 @@ services:
     environment:
       - NODE_ENV=production
       - MONGODB_URI=mongodb://mongodb:27017/stphub
-      # Important: Update these in production
-      - JWT_SECRET=your_production_secure_secret
-      - JWT_REFRESH_SECRET=your_production_refresh_secret
+      # AWS S3 Configuration
+      - AWS_ACCESS_KEY_ID=YOUR_AWS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_KEY
+      - AWS_REGION=us-east-1
+      - AWS_BUCKET_NAME=4dkstartups
+      # Razorpay Configuration
+      - RAZORPAY_KEY_ID=YOUR_RAZORPAY_KEY_ID
+      - RAZORPAY_KEY_SECRET=YOUR_RAZORPAY_KEY_SECRET
+      # JWT & Security
+      - JWT_SECRET=CHANGE_THIS_TO_A_RANDOM_STRING
+      - JWT_REFRESH_SECRET=CHANGE_THIS_TO_A_RANDOM_STRING
       - CORS_ORIGIN=https://startup.4dk.in
     volumes:
       - stp_uploads:/app/server/uploads

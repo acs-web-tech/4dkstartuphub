@@ -93,8 +93,13 @@ router.get('/file/:filename', async (req, res) => {
         } else {
             res.status(404).send('File not found in S3');
         }
-    } catch (err) {
-        console.error('Download error:', err);
+    } catch (err: any) {
+        console.error('[S3] Download error detail:', {
+            message: err.message,
+            filename: req.params.filename,
+            bucket: config.aws.bucketName,
+            key: `uploads/${req.params.filename}`
+        });
         res.status(404).send('File not found or access denied');
     }
 });
@@ -118,19 +123,28 @@ router.post('/', authenticate, upload.single('file'), async (req: AuthRequest, r
 
         // Upload to S3
         const key = `uploads/${filename}`;
+        console.log(`[S3] Uploading to bucket: ${config.aws.bucketName}, Region: ${config.aws.region}, Key: ${key}`);
 
         await s3.send(new PutObjectCommand({
             Bucket: config.aws.bucketName,
             Key: key,
             Body: file.buffer,
             ContentType: file.mimetype,
+            // ACL: 'public-read', // Uncomment if bucket permissions allow it
         }));
+
+        console.log(`[S3] Upload success: ${filename}`);
 
         // Return our proxy URL
         const url = `/api/upload/file/${filename}`;
         res.json({ url });
     } catch (err: any) {
-        console.error('Upload error:', err);
+        console.error('[S3] Upload error detail:', {
+            message: err.message,
+            code: err.code,
+            requestId: err.$metadata?.requestId,
+            bucket: config.aws.bucketName
+        });
         res.status(500).json({ error: err.message || 'File upload failed' });
     }
 });

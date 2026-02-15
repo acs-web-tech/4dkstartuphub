@@ -53,6 +53,9 @@ export default function App() {
                             <Route path="/create-post" element={
                                 <ProtectedRoute><CreatePost /></ProtectedRoute>
                             } />
+                            <Route path="/edit-post/:id" element={
+                                <ProtectedRoute><CreatePost /></ProtectedRoute>
+                            } />
                             <Route path="/profile" element={
                                 <ProtectedRoute><Profile /></ProtectedRoute>
                             } />

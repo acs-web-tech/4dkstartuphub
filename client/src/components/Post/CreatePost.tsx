@@ -1,28 +1,52 @@
 
-import { useState, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { editorModules, editorFormats } from '../../config/editor';
 import { postsApi, uploadApi } from '../../services/api';
 import { PostCategory } from '../../types';
 import { CATEGORY_CONFIG } from '../../config';
-import { Rocket, Link as LinkIcon } from 'lucide-react';
+import { Rocket, Link as LinkIcon, Save } from 'lucide-react';
 
 export default function CreatePost() {
     const navigate = useNavigate();
+    const { id } = useParams();
+    const isEdit = !!id;
+
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [videoUrl, setVideoUrl] = useState('');
     const [category, setCategory] = useState<PostCategory>('general');
     const [imageUrl, setImageUrl] = useState('');
     const [loading, setLoading] = useState(false);
+    const [fetching, setFetching] = useState(isEdit);
     const [imageUploading, setImageUploading] = useState(false);
     const [thumbnailUploading, setThumbnailUploading] = useState(false);
     const [error, setError] = useState('');
     const quillRef = useRef<ReactQuill>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const thumbnailInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (isEdit) {
+            const fetchPost = async () => {
+                try {
+                    const data = await postsApi.getById(id);
+                    setTitle(data.post.title);
+                    setContent(data.post.content);
+                    setCategory(data.post.category);
+                    setVideoUrl(data.post.videoUrl || '');
+                    setImageUrl(data.post.imageUrl || '');
+                } catch (err: any) {
+                    setError('Failed to load post for editing');
+                } finally {
+                    setFetching(false);
+                }
+            };
+            fetchPost();
+        }
+    }, [id, isEdit]);
 
     const imageHandler = () => {
         if (fileInputRef.current) {
@@ -93,32 +117,44 @@ export default function CreatePost() {
         setError('');
 
         if (title.trim().length < 3) { setError('Title must be at least 3 characters'); return; }
-        // For rich text, check if text content is enough (strip HTML tags)
         const textContent = content.replace(/<[^>]*>/g, '');
         if (textContent.trim().length < 10) { setError('Content must be at least 10 characters'); return; }
 
         setLoading(true);
         try {
-            const data = await postsApi.create({
-                title: title.trim(),
-                content: content.trim(),
-                category,
-                videoUrl: videoUrl.trim() || undefined,
-                imageUrl: imageUrl || undefined
-            });
-            navigate(`/posts/${data.postId}`);
+            if (isEdit) {
+                await postsApi.update(id, {
+                    title: title.trim(),
+                    content: content.trim(),
+                    category,
+                    videoUrl: videoUrl.trim() || undefined,
+                    imageUrl: imageUrl || undefined
+                });
+                navigate(`/posts/${id}`);
+            } else {
+                const data = await postsApi.create({
+                    title: title.trim(),
+                    content: content.trim(),
+                    category,
+                    videoUrl: videoUrl.trim() || undefined,
+                    imageUrl: imageUrl || undefined
+                });
+                navigate(`/posts/${data.postId}`);
+            }
         } catch (err: any) {
-            setError(err.message || 'Failed to create post');
+            setError(err.message || `Failed to ${isEdit ? 'update' : 'create'} post`);
         } finally {
             setLoading(false);
         }
     };
 
+    if (fetching) return <div className="page-container"><div className="spinner" style={{ margin: '50px auto' }}></div></div>;
+
     return (
         <div className="page-container">
             <div className="page-header">
-                <h1>Create Post</h1>
-                <p className="page-subtitle">Share with the startup community</p>
+                <h1>{isEdit ? 'Edit Post' : 'Create Post'}</h1>
+                <p className="page-subtitle">{isEdit ? 'Update your story' : 'Share with the startup community'}</p>
             </div>
 
             <form className="card create-post-form" onSubmit={handleSubmit}>
@@ -264,7 +300,9 @@ export default function CreatePost() {
                 <div className="form-actions">
                     <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>Cancel</button>
                     <button type="submit" className="btn btn-primary" disabled={loading} id="submit-post-btn">
-                        {loading ? 'Publishing...' : <><Rocket size={18} className="inline mr-1" /> Publish Post</>}
+                        {loading ? (isEdit ? 'Saving...' : 'Publishing...') : (
+                            isEdit ? <><Save size={18} className="inline mr-1" /> Save Changes</> : <><Rocket size={18} className="inline mr-1" /> Publish Post</>
+                        )}
                     </button>
                 </div>
             </form>
