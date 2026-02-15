@@ -23,12 +23,8 @@ const isProd = process.env.NODE_ENV === 'production';
 const app = express();
 
 // ── Proxy Trust ──────────────────────────────────────────────
-// Production: behind Nginx reverse proxy, so trust 1 hop for correct
-// client IP detection (rate limiting, logging, X-Forwarded-For).
-// Development: direct connection from browser, no proxy to trust.
-if (isProd) {
-    app.set('trust proxy', 1);
-}
+// Always trust the proxy in Docker env (since Nginx is always used there)
+app.set('trust proxy', 1);
 
 // ── Development-only origins ─────────────────────────────────
 // These are ONLY needed when running `npm run dev` locally.
@@ -99,11 +95,15 @@ app.use(cors({
         }
 
         if (isProd) {
-            // Production: only config.corsOrigin is allowed
-            if (origin === config.corsOrigin) {
+            // Production: strict check but allow both http/https variants just in case Nginx proxies weirdly
+            const prodOrigin = config.corsOrigin.replace(/\/$/, ''); // Remove trailing slash
+            const prodOriginHttp = prodOrigin.replace('https://', 'http://');
+            const prodOriginHttps = prodOrigin.replace('http://', 'https://');
+
+            if (origin === prodOrigin || origin === prodOriginHttp || origin === prodOriginHttps) {
                 callback(null, true);
             } else {
-                console.warn(`🚫 CORS blocked in production: ${origin}`);
+                console.error(`🚫 CORS BLOCKED in production. Origin: '${origin}', Expected: '${prodOrigin}'`);
                 callback(new Error('Not allowed by CORS'));
             }
         } else {
@@ -203,6 +203,7 @@ async function start() {
   ║   🚀 StartupHub API Server Running      ║
   ║   Port: ${config.port}                            ║
   ║   Mode: ${process.env.NODE_ENV || 'development'}                    ║
+  ║   CORS: ${config.corsOrigin}                     ║
   ╚══════════════════════════════════════════╝
     `);
     });
