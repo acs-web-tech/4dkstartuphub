@@ -2879,6 +2879,7 @@ img {
   text-align: center;
   padding: 28px 20px;
   color: var(--text-primary);
+  height: 100%;
 }
 
 .member-card:hover {
@@ -2914,9 +2915,21 @@ img {
 
 .member-stats {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   font-size: 0.78rem;
   color: var(--text-muted);
+  margin-top: auto;
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+  width: 100%;
+  justify-content: center;
+}
+
+.member-stats span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .role-badge {

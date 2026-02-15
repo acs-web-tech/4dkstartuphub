@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { usersApi } from '../services/api';
 import { CATEGORY_CONFIG } from '../config';
-import { MapPin, Globe, FileText, Calendar, Heart, MessageSquare } from 'lucide-react';
+import { MapPin, Globe, FileText, Calendar, Heart, MessageSquare, ArrowLeft } from 'lucide-react';
 
 export default function UserDetail() {
     const { id } = useParams<{ id: string }>();
@@ -29,6 +29,13 @@ export default function UserDetail() {
 
     return (
         <div className="page-container">
+            <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+                <Link to="/members" className="btn btn-ghost btn-sm" style={{ padding: '8px' }}>
+                    <ArrowLeft size={20} /> Back
+                </Link>
+                <h1>User Profile</h1>
+            </div>
+
             <div className="card profile-card">
                 <div className="profile-header">
                     <div className="avatar avatar-xl">
@@ -38,6 +45,7 @@ export default function UserDetail() {
                         <h2>{user.displayName}</h2>
                         <span className="profile-username">@{user.username}</span>
                         {user.role !== 'user' && <span className={`role-badge role-${user.role}`}>{user.role}</span>}
+                        {user.userType && <span className="role-badge" style={{ background: 'var(--bg-tertiary)', marginLeft: '8px' }}>{user.userType}</span>}
                     </div>
                 </div>
 
@@ -45,15 +53,25 @@ export default function UserDetail() {
                     {user.bio && <p className="profile-bio">{user.bio}</p>}
                     <div className="profile-meta-grid">
                         {user.location && (
-                            <div className="profile-meta-item"><span className="meta-label"><MapPin size={16} /> Location</span><span>{user.location}</span></div>
+                            <div className="profile-meta-item">
+                                <span className="meta-label"><MapPin size={14} className="inline mr-1" /> LOCATION</span>
+                                <span style={{ fontWeight: 600 }}>{user.location}</span>
+                            </div>
                         )}
                         {user.website && (
-                            <div className="profile-meta-item"><span className="meta-label"><Globe size={16} /> Website</span>
-                                <a href={user.website} target="_blank" rel="noopener noreferrer">{user.website}</a></div>
+                            <div className="profile-meta-item">
+                                <span className="meta-label"><Globe size={14} className="inline mr-1" /> WEBSITE</span>
+                                <a href={user.website} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600 }}>{user.website}</a>
+                            </div>
                         )}
-                        <div className="profile-meta-item"><span className="meta-label"><FileText size={16} /> Posts</span><span>{user.postCount}</span></div>
-                        <div className="profile-meta-item"><span className="meta-label"><Calendar size={16} /> Joined</span>
-                            <span>{new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</span></div>
+                        <div className="profile-meta-item">
+                            <span className="meta-label"><FileText size={14} className="inline mr-1" /> POSTS</span>
+                            <span style={{ fontWeight: 600 }}>{user.postCount || 0}</span>
+                        </div>
+                        <div className="profile-meta-item">
+                            <span className="meta-label"><Calendar size={14} className="inline mr-1" /> JOINED</span>
+                            <span style={{ fontWeight: 600 }}>{new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</span>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -120,7 +120,10 @@ router.get('/:id', authenticate, async (req, res) => {
         ]);
 
         res.json({
-            user: user.toJSON(),
+            user: {
+                ...user.toJSON(),
+                postCount
+            },
             recentPosts,
         });
     } catch (err) {
