@@ -8,9 +8,10 @@ import { SmartImage } from '../Common/SmartImage';
 
 interface Props {
     post: Post;
+    onImageClick?: (url: string) => void;
 }
 
-function PostCard({ post }: Props) {
+function PostCard({ post, onImageClick }: Props) {
     const cat = CATEGORY_CONFIG[post.category];
     const Icon = cat.icon;
 
@@ -23,6 +24,13 @@ function PostCard({ post }: Props) {
     const timeAgo = getTimeAgo(postDate);
     const initials = post.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     const isNew = (Date.now() - postDate.getTime() < 5000);
+
+    const handleContentClick = (e: React.MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'IMG' && onImageClick) {
+            onImageClick((target as HTMLImageElement).src);
+        }
+    };
 
     return (
         <article className={`post-card${isNew ? ' realtime-new' : ''}`} id={`post-${post.id}`}>
@@ -58,7 +66,11 @@ function PostCard({ post }: Props) {
             </Link>
 
             {post.imageUrl && (
-                <div className="post-card-image">
+                <div
+                    className="post-card-image cursor-pointer"
+                    onClick={() => onImageClick?.(post.imageUrl!)}
+                    title="Click to enlarge"
+                >
                     <SmartImage src={post.imageUrl} alt={post.title} />
                 </div>
             )}
@@ -66,6 +78,7 @@ function PostCard({ post }: Props) {
             <div
                 className="post-content-full ql-editor"
                 dangerouslySetInnerHTML={{ __html: post.content }}
+                onClick={handleContentClick}
             />
 
             <div className="post-card-footer">

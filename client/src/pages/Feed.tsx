@@ -5,7 +5,7 @@ import { postsApi } from '../services/api';
 import { Post, Pagination, PostCategory } from '../types';
 import { CATEGORY_CONFIG } from '../config';
 import { useAuth } from '../context/AuthContext';
-import { Search, Newspaper, Hand, CheckCircle, Circle, ArrowRight, Inbox, RefreshCw } from 'lucide-react';
+import { Search, Newspaper, Hand, CheckCircle, Circle, ArrowRight, Inbox, RefreshCw, X } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 
 export default function Feed() {
@@ -164,8 +164,18 @@ export default function Feed() {
 
     const currentCat = category ? CATEGORY_CONFIG[category as PostCategory] : null;
 
+    const [lightbox, setLightbox] = useState<string | null>(null);
+
     return (
         <div className="feed-page">
+            {lightbox && (
+                <div className="lightbox-overlay" onClick={() => setLightbox(null)}>
+                    <button className="lightbox-close-btn" onClick={() => setLightbox(null)}>
+                        <X size={24} />
+                    </button>
+                    <img src={lightbox} className="lightbox-content" alt="" onClick={e => e.stopPropagation()} />
+                </div>
+            )}
             <div className="feed-header">
                 {currentCat ? (
                     (() => {
@@ -237,11 +247,11 @@ export default function Feed() {
                             if (posts.length === index + 1) {
                                 return (
                                     <div ref={lastPostElementRef} key={post.id}>
-                                        <PostCard post={post} />
+                                        <PostCard post={post} onImageClick={setLightbox} />
                                     </div>
                                 );
                             } else {
-                                return <PostCard key={post.id} post={post} />;
+                                return <PostCard key={post.id} post={post} onImageClick={setLightbox} />;
                             }
                         })}
                     </div>
