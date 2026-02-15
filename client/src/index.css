@@ -1621,6 +1621,79 @@ img {
   display: block;
 }
 
+/* ── Event Specific Styles ────────────────────────────────── */
+.post-card-event-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-tertiary);
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin: 12px 0 20px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.post-event-info {
+  margin-bottom: 32px;
+}
+
+.event-date-box {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.post-options-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.post-options-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.dropdown-menu {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+  padding: 8px;
+  min-width: 180px;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
+
+.dropdown-item:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
 /* ── Empty State ───────────────────────────────────────────── */
 .empty-state {
   text-align: center;

@@ -218,7 +218,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
 // ── POST /api/posts ──────────────────────────────────────────
 router.post('/', authenticate, validate(createPostSchema), async (req: AuthRequest, res) => {
     try {
-        const { title, content, category, videoUrl, imageUrl } = req.body;
+        const { title, content, category, videoUrl, imageUrl, eventDate } = req.body;
         const userId = new mongoose.Types.ObjectId(req.user!.userId);
 
         // Prevent accidental double-posts
@@ -240,7 +240,8 @@ router.post('/', authenticate, validate(createPostSchema), async (req: AuthReque
             content: sanitizeHtml(content),
             category,
             video_url: videoUrl || '',
-            image_url: imageUrl || ''
+            image_url: imageUrl || '',
+            event_date: eventDate ? new Date(eventDate) : undefined
         });
 
         // Broadcast new post
@@ -262,6 +263,7 @@ router.post('/', authenticate, validate(createPostSchema), async (req: AuthReque
                 username: user.username,
                 displayName: user.display_name,
                 avatarUrl: user.avatar_url,
+                eventDate: newPost.event_date,
                 createdAt: newPost.created_at,
                 updatedAt: newPost.updated_at,
             });
@@ -295,6 +297,7 @@ router.put('/:id', authenticate, validate(updatePostSchema), async (req: AuthReq
         if (req.body.category) post.category = req.body.category;
         if (req.body.videoUrl !== undefined) post.video_url = req.body.videoUrl;
         if (req.body.imageUrl !== undefined) post.image_url = req.body.imageUrl;
+        if (req.body.eventDate !== undefined) post.event_date = req.body.eventDate ? new Date(req.body.eventDate) : undefined;
 
         await post.save();
 
@@ -321,6 +324,7 @@ router.put('/:id', authenticate, validate(updatePostSchema), async (req: AuthReq
                 username: author.username,
                 displayName: author.display_name,
                 avatarUrl: author.avatar_url,
+                eventDate: updatedPost.event_date,
                 createdAt: updatedPost.created_at,
                 updatedAt: updatedPost.updated_at,
             });

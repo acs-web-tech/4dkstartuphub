@@ -25,6 +25,7 @@ export interface Post {
     category: PostCategory;
     imageUrl: string;
     videoUrl?: string;
+    eventDate?: string;
     isPinned: number;
     isLocked: number;
     viewCount: number;

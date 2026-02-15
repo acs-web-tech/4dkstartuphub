@@ -8,7 +8,7 @@ import { Post, Comment } from '../types';
 import { CATEGORY_CONFIG } from '../config';
 import { useAuth } from '../context/AuthContext';
 import {
-    Pin, Lock, Heart, MessageSquare, Bookmark, Pencil, Trash2, PinOff, Unlock, ArrowLeft, X
+    Pin, Lock, Heart, MessageSquare, Bookmark, Pencil, Trash2, PinOff, Unlock, ArrowLeft, X, MoreVertical, Calendar as CalendarIcon, Download
 } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 import { SmartImage } from '../components/Common/SmartImage';
@@ -139,10 +139,13 @@ export default function PostDetail() {
         try {
             const data = await postsApi.like(id);
             setLiked(data.liked);
-            setPost(prev => prev ? {
-                ...prev,
-                likeCount: data.liked ? prev.likeCount + 1 : prev.likeCount - 1,
-            } : null);
+            // rely on socket for count update to avoid race conditions/double counts
+            if (!socket) {
+                setPost(prev => prev ? {
+                    ...prev,
+                    likeCount: data.liked ? prev.likeCount + 1 : prev.likeCount - 1,
+                } : null);
+            }
         } catch { }
     };
 
@@ -206,6 +209,42 @@ export default function PostDetail() {
         setEditForm({ title: '', content: '', category: '', videoUrl: '' });
     };
 
+    const [showCalendarOptions, setShowCalendarOptions] = useState(false);
+
+    const getGoogleCalendarUrl = () => {
+        if (!post?.eventDate) return '';
+        const start = new Date(post.eventDate).toISOString().replace(/-|:|\.\d+/g, '');
+        const end = new Date(new Date(post.eventDate).getTime() + 60 * 60 * 1000).toISOString().replace(/-|:|\.\d+/g, '');
+        const details = post.content.replace(/<[^>]*>/g, '').slice(0, 500);
+        return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(post.title)}&dates=${start}/${end}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(window.location.href)}`;
+    };
+
+    const downloadIcs = () => {
+        if (!post?.eventDate) return;
+        const date = new Date(post.eventDate).toISOString().replace(/-|:|\.\d+/g, '');
+        const end = new Date(new Date(post.eventDate).getTime() + 60 * 60 * 1000).toISOString().replace(/-|:|\.\d+/g, '');
+        const icsContent = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'BEGIN:VEVENT',
+            `DTSTART:${date}`,
+            `DTEND:${end}`,
+            `SUMMARY:${post.title}`,
+            `DESCRIPTION:${post.content.replace(/<[^>]*>/g, '').slice(0, 500)}`,
+            `LOCATION:${window.location.href}`,
+            'END:VEVENT',
+            'END:VCALENDAR'
+        ].join('\n');
+
+        const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = window.URL.createObjectURL(blob);
+        link.setAttribute('download', 'event.ics');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const handleContentClick = (e: React.MouseEvent) => {
         const target = e.target as HTMLElement;
         if (target.tagName === 'IMG') {
@@ -267,9 +306,33 @@ export default function PostDetail() {
                         </div>
                     </Link>
 
-                    <span className="post-category-badge" style={{ background: cat.color + '22', color: cat.color }}>
-                        <Icon size={14} className="inline mr-1" /> {cat.label}
-                    </span>
+                    <div className="flex items-center gap-3">
+                        <span className="post-category-badge" style={{ background: cat.color + '22', color: cat.color }}>
+                            <Icon size={14} className="inline mr-1" /> {cat.label}
+                        </span>
+
+                        {post.eventDate && (
+                            <div className="relative">
+                                <button
+                                    className="btn btn-ghost btn-sm flex items-center gap-1"
+                                    onClick={() => setShowCalendarOptions(!showCalendarOptions)}
+                                    title="Add to Calendar"
+                                >
+                                    <CalendarIcon size={16} /> Add to Calendar
+                                </button>
+                                {showCalendarOptions && (
+                                    <div className="dropdown-menu show right-0 top-full mt-1 w-48 z-10" style={{ position: 'absolute' }}>
+                                        <a href={getGoogleCalendarUrl()} target="_blank" rel="noopener noreferrer" className="dropdown-item flex items-center gap-2">
+                                            <CalendarIcon size={14} /> Google Calendar
+                                        </a>
+                                        <button onClick={downloadIcs} className="dropdown-item flex items-center gap-2 w-full text-left">
+                                            <Download size={14} /> Download .ics
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {editing ? (
@@ -369,6 +432,25 @@ export default function PostDetail() {
                 ) : (
                     <>
                         <h1 className="post-detail-title">{post.title}</h1>
+
+                        {post.eventDate && (
+                            <div className="post-event-info mb-6 p-4 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center gap-4">
+                                <div className="event-date-box text-center p-2 rounded bg-[var(--accent-soft)] min-w-[70px]">
+                                    <div className="text-xs uppercase font-bold text-[var(--accent)]">
+                                        {new Date(post.eventDate).toLocaleDateString('en-IN', { month: 'short' })}
+                                    </div>
+                                    <div className="text-2xl font-bold">
+                                        {new Date(post.eventDate).getDate()}
+                                    </div>
+                                </div>
+                                <div className="event-time-info">
+                                    <div className="font-semibold">{new Date(post.eventDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                                    <div className="text-[var(--text-muted)] text-sm">
+                                        {new Date(post.eventDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {post.imageUrl && (
                             <div

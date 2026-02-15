@@ -1,9 +1,9 @@
 
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Post } from '../../types';
 import { CATEGORY_CONFIG } from '../../config';
-import { Pin, Heart, MessageSquare, Eye, Video } from 'lucide-react';
+import { Pin, Heart, MessageSquare, Eye, Video, MoreVertical, Calendar, Download } from 'lucide-react';
 import { SmartImage } from '../Common/SmartImage';
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
 }
 
 function PostCard({ post, onImageClick }: Props) {
+    const [showOptions, setShowOptions] = useState(false);
     const cat = CATEGORY_CONFIG[post.category];
     const Icon = cat.icon;
 
@@ -30,6 +31,40 @@ function PostCard({ post, onImageClick }: Props) {
         if (target.tagName === 'IMG' && onImageClick) {
             onImageClick((target as HTMLImageElement).src);
         }
+    };
+
+    const getGoogleCalendarUrl = () => {
+        if (!post.eventDate) return '';
+        const start = new Date(post.eventDate).toISOString().replace(/-|:|\.\d+/g, '');
+        const end = new Date(new Date(post.eventDate).getTime() + 60 * 60 * 1000).toISOString().replace(/-|:|\.\d+/g, '');
+        const details = post.content.replace(/<[^>]*>/g, '').slice(0, 500);
+        return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(post.title)}&dates=${start}/${end}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(`${window.location.origin}/posts/${post.id}`)}`;
+    };
+
+    const downloadIcs = () => {
+        if (!post.eventDate) return;
+        const date = new Date(post.eventDate).toISOString().replace(/-|:|\.\d+/g, '');
+        const end = new Date(new Date(post.eventDate).getTime() + 60 * 60 * 1000).toISOString().replace(/-|:|\.\d+/g, '');
+        const icsContent = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'BEGIN:VEVENT',
+            `DTSTART:${date}`,
+            `DTEND:${end}`,
+            `SUMMARY:${post.title}`,
+            `DESCRIPTION:${post.content.replace(/<[^>]*>/g, '').slice(0, 500)}`,
+            `LOCATION:${window.location.origin}/posts/${post.id}`,
+            'END:VEVENT',
+            'END:VCALENDAR'
+        ].join('\n');
+
+        const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = window.URL.createObjectURL(blob);
+        link.setAttribute('download', 'event.ics');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     return (
@@ -55,15 +90,59 @@ function PostCard({ post, onImageClick }: Props) {
                         <span className="post-time">{timeAgo}</span>
                     </div>
                 </Link>
-                <Link to={`/feed?category=${post.category}`} className="post-category-tag" style={{ '--cat-color': cat.color } as any}>
-                    <Icon size={14} />
-                    <span>{cat.label}</span>
-                </Link>
+
+                <div className="flex items-center gap-2 ml-auto">
+                    <Link to={`/feed?category=${post.category}`} className="post-category-tag" style={{ '--cat-color': cat.color, marginLeft: 0 } as any}>
+                        <Icon size={14} />
+                        <span>{cat.label}</span>
+                    </Link>
+
+                    {post.eventDate && (
+                        <div className="relative">
+                            <button
+                                className="post-options-btn"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    setShowOptions(!showOptions);
+                                }}
+                            >
+                                <MoreVertical size={16} />
+                            </button>
+                            {showOptions && (
+                                <div className="dropdown-menu show right-0 top-full mt-1 w-48 z-10" style={{ position: 'absolute' }}>
+                                    <a href={getGoogleCalendarUrl()} target="_blank" rel="noopener noreferrer" className="dropdown-item flex items-center gap-2" onClick={() => setShowOptions(false)}>
+                                        <Calendar size={14} /> Google Calendar
+                                    </a>
+                                    <button
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            downloadIcs();
+                                            setShowOptions(false);
+                                        }}
+                                        className="dropdown-item flex items-center gap-2 w-full text-left"
+                                    >
+                                        <Download size={14} /> Download .ics
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
 
             <Link to={`/posts/${post.id}`} className="post-title-link">
                 <h3 className="post-title">{post.title}</h3>
             </Link>
+
+            {post.eventDate && (
+                <div className="post-card-event-info" onClick={(e) => e.stopPropagation()}>
+                    <Calendar size={14} className="text-accent" />
+                    <span>
+                        {new Date(post.eventDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} at{' '}
+                        {new Date(post.eventDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                </div>
+            )}
 
             {post.imageUrl && (
                 <div

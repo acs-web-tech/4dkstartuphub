@@ -48,6 +48,7 @@ export const createPostSchema = z.object({
     category: z.enum(['hiring', 'cofounder', 'promote', 'recommendation', 'events', 'general', 'writeup']),
     videoUrl: z.string().url('Invalid URL').max(500).optional().or(z.literal('')),
     imageUrl: z.string().max(500).optional().or(z.literal('')),
+    eventDate: z.string().optional().or(z.literal('')),
 });
 
 export const updatePostSchema = z.object({
@@ -65,6 +66,7 @@ export const updatePostSchema = z.object({
         .optional(),
     videoUrl: z.string().url('Invalid URL').max(500).optional().or(z.literal('')),
     imageUrl: z.string().max(500).optional().or(z.literal('')),
+    eventDate: z.string().optional().or(z.literal('')),
 });
 
 // ── Comment Schemas ───────────────────────────────────────────

@@ -7,7 +7,7 @@ import { editorModules, editorFormats } from '../../config/editor';
 import { postsApi, uploadApi } from '../../services/api';
 import { PostCategory } from '../../types';
 import { CATEGORY_CONFIG } from '../../config';
-import { Rocket, Link as LinkIcon, Save } from 'lucide-react';
+import { Rocket, Link as LinkIcon, Save, Calendar } from 'lucide-react';
 
 export default function CreatePost() {
     const navigate = useNavigate();
@@ -19,6 +19,7 @@ export default function CreatePost() {
     const [videoUrl, setVideoUrl] = useState('');
     const [category, setCategory] = useState<PostCategory>('general');
     const [imageUrl, setImageUrl] = useState('');
+    const [eventDate, setEventDate] = useState('');
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(isEdit);
     const [imageUploading, setImageUploading] = useState(false);
@@ -38,6 +39,9 @@ export default function CreatePost() {
                     setCategory(data.post.category);
                     setVideoUrl(data.post.videoUrl || '');
                     setImageUrl(data.post.imageUrl || '');
+                    if (data.post.eventDate) {
+                        setEventDate(new Date(data.post.eventDate).toISOString().slice(0, 16));
+                    }
                 } catch (err: any) {
                     setError('Failed to load post for editing');
                 } finally {
@@ -128,7 +132,8 @@ export default function CreatePost() {
                     content: content.trim(),
                     category,
                     videoUrl: videoUrl.trim() || undefined,
-                    imageUrl: imageUrl || undefined
+                    imageUrl: imageUrl || undefined,
+                    eventDate: eventDate ? new Date(eventDate).toISOString() : undefined
                 });
                 navigate(`/posts/${id}`);
             } else {
@@ -137,7 +142,8 @@ export default function CreatePost() {
                     content: content.trim(),
                     category,
                     videoUrl: videoUrl.trim() || undefined,
-                    imageUrl: imageUrl || undefined
+                    imageUrl: imageUrl || undefined,
+                    eventDate: eventDate ? new Date(eventDate).toISOString() : undefined
                 });
                 navigate(`/posts/${data.postId}`);
             }
@@ -181,6 +187,24 @@ export default function CreatePost() {
                         )}
                     </div>
                 </div>
+
+                {category === 'events' && (
+                    <div className="form-group">
+                        <label htmlFor="event-date">Event Date & Time</label>
+                        <div className="relative" style={{ position: 'relative' }}>
+                            <Calendar size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: '#9ca3af' }} />
+                            <input
+                                id="event-date"
+                                type="datetime-local"
+                                className="form-input"
+                                style={{ paddingLeft: '36px' }}
+                                value={eventDate}
+                                onChange={e => setEventDate(e.target.value)}
+                                required={category === 'events'}
+                            />
+                        </div>
+                    </div>
+                )}
 
                 <div className="form-group">
                     <label>Thumbnail / Cover Image (Optional)</label>

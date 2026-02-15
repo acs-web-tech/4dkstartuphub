@@ -7,6 +7,7 @@ export interface IPost extends Document {
     category: 'hiring' | 'cofounder' | 'promote' | 'recommendation' | 'events' | 'general' | 'writeup';
     image_url: string;
     video_url: string;
+    event_date?: Date;
     is_pinned: boolean;
     is_locked: boolean;
     view_count: number;
@@ -25,6 +26,7 @@ const PostSchema: Schema = new Schema({
     },
     image_url: { type: String, default: '' },
     video_url: { type: String, default: '' },
+    event_date: { type: Date },
     is_pinned: { type: Boolean, default: false },
     is_locked: { type: Boolean, default: false },
     view_count: { type: Number, default: 0 },
@@ -37,6 +39,7 @@ const PostSchema: Schema = new Schema({
             ret.userId = ret.user_id.toString();
             ret.imageUrl = ret.image_url;
             ret.videoUrl = ret.video_url;
+            ret.eventDate = ret.event_date;
             ret.isPinned = ret.is_pinned ? 1 : 0;
             ret.isLocked = ret.is_locked ? 1 : 0;
             ret.viewCount = ret.view_count;

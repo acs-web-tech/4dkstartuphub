@@ -105,9 +105,9 @@ export const postsApi = {
     },
     getById: (id: string) =>
         request<{ post: import('../types').Post; comments: import('../types').Comment[] }>(`/posts/${id}`),
-    create: (data: { title: string; content: string; category: string; videoUrl?: string; imageUrl?: string }) =>
+    create: (data: { title: string; content: string; category: string; videoUrl?: string; imageUrl?: string; eventDate?: string }) =>
         request<{ message: string; postId: string }>('/posts', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: { title?: string; content?: string; category?: string; videoUrl?: string; imageUrl?: string }) =>
+    update: (id: string, data: { title?: string; content?: string; category?: string; videoUrl?: string; imageUrl?: string; eventDate?: string }) =>
         request(`/posts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request(`/posts/${id}`, { method: 'DELETE' }),
     like: (id: string) => request<{ liked: boolean }>(`/posts/${id}/like`, { method: 'POST' }),
