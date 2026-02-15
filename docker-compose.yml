@@ -33,6 +33,12 @@ services:
       - certbot_certs:/etc/letsencrypt
       - certbot_www:/var/www/certbot
 
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - certbot_certs:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+
 volumes:
   mongodb_data:
   stp_uploads:

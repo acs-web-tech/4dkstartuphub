@@ -19,10 +19,12 @@ docker compose up -d
 ```
 
 ### 3. Get Your SSL Certificate (First Time Only)
-After the containers are running, get your free Let's Encrypt certificate:
+After the containers are running (Nginx will start in HTTP-only mode first), run this command to generate your certificate using the dedicated Certbot container:
+
 ```bash
-docker exec stphub-unified certbot certonly \
-  --webroot -w /var/www/certbot \
+docker compose run --rm certbot certonly \
+  --webroot \
+  --webroot-path /var/www/certbot \
   -d startup.4dk.in \
   --non-interactive \
   --agree-tos \
@@ -30,6 +32,7 @@ docker exec stphub-unified certbot certonly \
 ```
 
 ### 4. Restart to Enable HTTPS
+After the certificate is successfully generated, restart the app to switch Nginx to HTTPS mode:
 ```bash
 docker compose restart app
 ```
@@ -41,8 +44,8 @@ That's it! Your site is now live at **https://startup.4dk.in** 🎉
 
 Let's Encrypt certificates expire every 90 days. To renew:
 ```bash
-docker exec stphub-unified certbot renew --quiet
-docker exec stphub-unified nginx -s reload
+docker compose run --rm certbot renew
+docker compose restart app
 ```
 
 ### Auto-Renewal (Recommended)
@@ -52,7 +55,7 @@ crontab -e
 ```
 Add this line (runs daily at 3 AM):
 ```
-0 3 * * * docker exec stphub-unified certbot renew --quiet && docker exec stphub-unified nginx -s reload
+0 3 * * * cd /root/4dkstartuphub && docker compose run --rm certbot renew && docker compose restart app
 ```
 
 ---
