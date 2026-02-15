@@ -26,7 +26,7 @@ services:
       # Important: Update these in production
       - JWT_SECRET=your_production_secure_secret
       - JWT_REFRESH_SECRET=your_production_refresh_secret
-      - CORS_ORIGIN=http://localhost
+      - CORS_ORIGIN=http://startup.4dk.in
     volumes:
       - stp_uploads:/app/server/uploads
 

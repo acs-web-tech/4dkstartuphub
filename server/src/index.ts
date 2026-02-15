@@ -20,6 +20,9 @@ import paymentRoutes from './routes/payment';
 // ── Force restart to pick up .env changes ────────────────────
 const app = express();
 
+// Trust the Nginx reverse proxy (needed for rate limiting & X-Forwarded-For)
+app.set('trust proxy', 1);
+
 // ── Security Middleware ──────────────────────────────────────
 app.use(helmet({
     contentSecurityPolicy: {
@@ -68,9 +71,13 @@ app.use(cors({
             'capacitor://localhost',
             config.corsOrigin
         ];
-        if (!origin || (process.env.NODE_ENV !== 'production' && allowedOrigins.includes(origin)) || origin === config.corsOrigin) {
+        // Allow requests with no origin (same-origin, server-to-server, mobile apps)
+        if (!origin) {
+            callback(null, true);
+        } else if (allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
+            console.warn(`CORS blocked origin: ${origin}`);
             callback(new Error('Not allowed by CORS'));
         }
     },
