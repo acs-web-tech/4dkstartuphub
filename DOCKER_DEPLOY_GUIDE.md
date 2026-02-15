@@ -1,60 +1,97 @@
 # 🐳 Unified StartupHub Docker Guide
 
-I have condensed your entire application into a **Single Unified Dockerfile**. This image now contains the Frontend, the Backend, and Nginx all working together in perfect harmony.
-
-## 🚀 One-Command Build & Export
-
-Run the updated script to generate your deployment package:
-```cmd
-.\export-docker.bat
-```
-This generates **`stphub_unified_deployment.tar`**.
+Everything is in **one image**: Frontend, Backend, Nginx, and Certbot (for HTTPS).
 
 ---
 
-## 🏗️ How to Deploy (The "One File" Way)
+## 🚀 Quick Deploy (On Your Server)
 
-On your target server, you only need two files:
-1.  `stphub_unified_deployment.tar`
-2.  `docker-compose.yml`
+### 1. Prerequisites
+- Docker and Docker Compose installed on your server.
+- Your domain (`startup.4dk.in`) DNS must point to your server's IP address.
 
-### 1. Requirements
-- Docker and Docker Compose installed.
-- **Git LFS**: If you are cloning the repository, ensure you have [Git LFS installed](https://git-lfs.com/) and run:
-  ```bash
-  git lfs pull
-  ```
-  *(Otherwise the `.tar` file will just be a small pointer file and won't load!)*
-
-### 2. Load the Package
+### 2. Clone and Build
 ```bash
-docker load -i stphub_unified_deployment.tar
+git clone https://github.com/acs-web-tech/4dkstartuphub.git
+cd 4dkstartuphub
+docker build --no-cache -t stphub-app .
+docker compose up -d
 ```
 
-### 3. Start Everything
+### 3. Get Your SSL Certificate (First Time Only)
+After the containers are running, get your free Let's Encrypt certificate:
 ```bash
-docker-compose up -d
+docker exec stphub-unified certbot certonly \
+  --webroot -w /var/www/certbot \
+  -d startup.4dk.in \
+  --non-interactive \
+  --agree-tos \
+  -m admin@startup.4dk.in
 ```
-This single command launches your entire platform including the Database.
+
+### 4. Restart to Enable HTTPS
+```bash
+docker compose restart app
+```
+That's it! Your site is now live at **https://startup.4dk.in** 🎉
 
 ---
 
-## 🛠️ Combined Architecture
+## 🔄 Renewing the SSL Certificate
+
+Let's Encrypt certificates expire every 90 days. To renew:
+```bash
+docker exec stphub-unified certbot renew --quiet
+docker exec stphub-unified nginx -s reload
+```
+
+### Auto-Renewal (Recommended)
+Add a cron job on your server to auto-renew:
+```bash
+crontab -e
+```
+Add this line (runs daily at 3 AM):
+```
+0 3 * * * docker exec stphub-unified certbot renew --quiet && docker exec stphub-unified nginx -s reload
+```
+
+---
+
+## 🏗️ Architecture
 
 | Component | Responsibility |
 | :--- | :--- |
-| **Nginx** | Listens on Port 80, serves React files, and proxies API calls locally. |
-| **Node.js** | Runs the backend logic on Port 5000 (private to the container). |
-| **MongoDB**| Separate container for data stability (linked via Docker network). |
+| **Nginx** | Port 80 (HTTP→HTTPS redirect) + Port 443 (serves React, proxies API/WebSocket) |
+| **Certbot** | Manages Let's Encrypt SSL certificates inside the container |
+| **Node.js** | Runs the backend on Port 5000 (internal only) |
+| **MongoDB** | Separate container for database stability |
 
-### Configuration
-- **Access**: Visit `http://localhost` (Nginx handles everything).
-- **Storage**: User uploads are saved in a persistent volume `./stp_uploads`.
-- **Database**: Mongo data is kept safe in a Docker volume.
+### Persistent Volumes
+| Volume | Purpose |
+| :--- | :--- |
+| `certbot_certs` | SSL certificates (persist across restarts) |
+| `certbot_www` | ACME challenge files |
+| `stp_uploads` | User uploaded files |
+| `mongodb_data` | Database storage |
+
+---
+
+## 🔧 Updating the Application
+
+```bash
+cd ~/4dkstartuphub
+git pull origin main
+docker build --no-cache -t stphub-app .
+docker compose down
+docker compose up -d
+```
+Your SSL certificates are stored in a Docker volume, so they survive rebuilds!
 
 ---
 
 ## 📝 Troubleshooting
-- **Logs**: `docker-compose logs -f app`
-- **Restart**: `docker-compose restart app`
-- **Stop**: `docker-compose down`
+- **Logs**: `docker logs -f stphub-unified`
+- **Restart**: `docker compose restart app`
+- **Stop everything**: `docker compose down`
+- **Check SSL**: `docker exec stphub-unified certbot certificates`
+- **Force renew SSL**: `docker exec stphub-unified certbot renew --force-renewal`

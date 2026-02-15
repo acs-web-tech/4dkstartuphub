@@ -20,16 +20,21 @@ services:
       - mongodb
     ports:
       - "80:80"
+      - "443:443"
     environment:
       - NODE_ENV=production
       - MONGODB_URI=mongodb://mongodb:27017/stphub
       # Important: Update these in production
       - JWT_SECRET=your_production_secure_secret
       - JWT_REFRESH_SECRET=your_production_refresh_secret
-      - CORS_ORIGIN=http://startup.4dk.in
+      - CORS_ORIGIN=https://startup.4dk.in
     volumes:
       - stp_uploads:/app/server/uploads
+      - certbot_certs:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
 
 volumes:
   mongodb_data:
   stp_uploads:
+  certbot_certs:
+  certbot_www:
