@@ -15,6 +15,7 @@ import userRoutes from './routes/users';
 import chatRoomRoutes from './routes/chatrooms';
 import adminRoutes from './routes/admin';
 import pitchRoutes from './routes/pitch';
+import notificationRoutes from './routes/notifications';
 import uploadRoutes from './routes/upload';
 import paymentRoutes from './routes/payment';
 
@@ -128,6 +129,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/chatrooms', chatRoomRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/pitch', pitchRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/payment', paymentRoutes);
 

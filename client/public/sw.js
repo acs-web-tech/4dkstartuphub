@@ -24,13 +24,25 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-    const data = event.data ? event.data.json() : {};
+    let data = {};
+    if (event.data) {
+        try {
+            data = event.data.json();
+        } catch (e) {
+            data = { title: 'New Notification', body: event.data.text() };
+        }
+    }
+
     const title = data.title || 'New Notification';
     const options = {
         body: data.body || 'You have a new update from StartupHub.',
-        icon: '/logo.png',
+        icon: data.icon || '/logo.png',
         badge: '/logo.png',
-        data: data.url || '/'
+        data: data.url || '/',
+        vibrate: [100, 50, 100],
+        actions: [
+            { action: 'open', title: 'Open App' }
+        ]
     };
 
     event.waitUntil(
@@ -40,7 +52,21 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
+
+    const targetUrl = event.notification.data || '/';
+
     event.waitUntil(
-        clients.openWindow(event.notification.data || '/')
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            // If a window is already open, focus it
+            for (const client of clientList) {
+                if (client.url === targetUrl && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+            // Otherwise open a new window
+            if (clients.openWindow) {
+                return clients.openWindow(targetUrl);
+            }
+        })
     );
 });

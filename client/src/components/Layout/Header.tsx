@@ -90,7 +90,11 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
     // Request notification permission
     useEffect(() => {
         if (user && 'Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission();
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    import('../../utils/pushNotifications').then(m => m.subscribeToPushNotifications());
+                }
+            });
         }
     }, [user]);
 

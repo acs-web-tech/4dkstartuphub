@@ -39,6 +39,10 @@ export const config = {
         keyId: process.env.RAZORPAY_KEY_ID || '',
         keySecret: process.env.RAZORPAY_KEY_SECRET || '',
     },
+    vapid: {
+        publicKey: process.env.VAPID_PUBLIC_KEY || '',
+        privateKey: process.env.VAPID_PRIVATE_KEY || '',
+    }
 } as const;
 
 // Warn if using auto-generated secrets in production

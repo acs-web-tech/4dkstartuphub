@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { User } from '../types';
 import { authApi } from '../services/api';
 import { preloadImage } from '../utils/imageCache';
+import { subscribeToPushNotifications } from '../utils/pushNotifications';
 
 interface AuthContextType {
     user: User | null;
@@ -43,6 +44,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             preloadImage(user.avatarUrl);
         }
     }, [user?.avatarUrl]);
+
+    // Handle Push Notification Subscription
+    useEffect(() => {
+        if (user && 'Notification' in window && Notification.permission === 'granted') {
+            subscribeToPushNotifications();
+        }
+    }, [user]);
 
     const login = async (email: string, password: string) => {
         const data: any = await authApi.login({ email, password });

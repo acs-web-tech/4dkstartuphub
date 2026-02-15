@@ -208,6 +208,15 @@ export const adminApi = {
         request<{ message: string }>('/admin/settings', { method: 'PUT', body: JSON.stringify({ key, value }) }),
 };
 
+// ── Notifications (Push) ────────────────────────────────────
+export const notificationsApi = {
+    getVapidKey: () => request<{ publicKey: string }>('/notifications/vapid-key'),
+    subscribe: (subscription: PushSubscription) =>
+        request('/notifications/subscribe', { method: 'POST', body: JSON.stringify({ subscription }) }),
+    unsubscribe: (endpoint: string) =>
+        request('/notifications/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) }),
+};
+
 // ── Public Settings (no auth) ───────────────────────────────
 export const settingsApi = {
     getPublic: () => request<{ registration_payment_required: boolean; registration_payment_amount: number }>('/settings/public'),

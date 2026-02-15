@@ -11,6 +11,7 @@ import Notification from '../models/Notification';
 import { sanitizeHtml } from '../utils/sanitize';
 import mongoose from 'mongoose';
 import { escapeRegExp } from '../utils/regex';
+import { pushService } from './push';
 
 /**
  * Socket.io service to manage real-time notifications
@@ -158,6 +159,14 @@ class SocketService {
         if (!this.io) return;
         // Emit to the room corresponding to the userId
         this.io.to(userId).emit('notification', notification);
+
+        // Native Push
+        pushService.sendToUser(userId, {
+            title: notification.title,
+            body: (notification.content || '').replace(/<[^>]*>?/gm, ''),
+            url: notification.referenceId ? `/posts/${notification.referenceId}` : '/',
+            icon: notification.senderAvatarUrl || '/logo.png'
+        });
     }
 
     /**
@@ -175,6 +184,15 @@ class SocketService {
             return;
         }
         this.io.emit(event, data);
+
+        // Native Push for broadcasts
+        if (event === 'broadcast') {
+            pushService.broadcast({
+                title: data.title || 'Administrative Broadcast',
+                body: (data.content || '').replace(/<[^>]*>?/gm, ''),
+                url: data.referenceId ? `/posts/${data.referenceId}` : '/'
+            });
+        }
     }
 
     /**
