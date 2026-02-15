@@ -48,31 +48,18 @@ export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, ...props 
         return <>{fallback}</>;
     }
 
-    // We use a transparent gif or nothing while loading if no fallback
     const finalSrc = displaySrc || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
     return (
-        <div className={`smart-image-wrapper ${loading ? 'loading' : ''}`} style={props.style}>
-            {loading && !fallback && (
-                <div className="smart-image-loader">
-                    <div className="shimmer"></div>
-                </div>
-            )}
-
-            {(loading && fallback) ? (
-                fallback
-            ) : (
-                <img
-                    {...props}
-                    src={finalSrc}
-                    style={{
-                        ...props.style,
-                        opacity: loading ? 0 : 1,
-                        transition: 'opacity 0.4s ease-out',
-                        display: loading ? 'none' : 'block'
-                    }}
-                />
-            )}
-        </div>
+        <img
+            {...props}
+            src={finalSrc}
+            className={`${props.className || ''} ${loading ? 'smart-image-loading' : 'smart-image-loaded'}`}
+            style={{
+                ...props.style,
+                opacity: loading ? 0 : 1,
+                transition: 'opacity 0.4s ease-out'
+            }}
+        />
     );
 };
