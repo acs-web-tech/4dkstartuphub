@@ -3,7 +3,7 @@ echo 🚀 Starting Unified StartupHub Docker Build and Export...
 
 echo.
 echo 📦 Building Unified App Image (Frontend + Backend + Nginx)...
-docker build -t stphub-app .
+docker build --no-cache -t stphub-app .
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo ❌ ERROR: Docker build failed! 

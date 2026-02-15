@@ -26,6 +26,8 @@ WORKDIR /app
 
 # 1. Copy Backend
 COPY --from=backend-builder /app/server/dist ./server/dist
+# Debug: show what was built
+RUN echo "=== Backend dist contents ===" && find /app/server/dist -name "*.js" -type f | head -20
 COPY server/package*.json ./server/
 RUN cd server && npm install --omit=dev && mkdir -p uploads
 
@@ -37,12 +39,23 @@ COPY --from=frontend-builder /app/client/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/http.d/default.conf
 
 # 4. Create Start Script to run both Node and Nginx
-RUN echo '#!/bin/sh' > /app/start.sh && \
-    echo 'echo "🚀 Starting Nginx..."' >> /app/start.sh && \
-    echo 'nginx' >> /app/start.sh && \
-    echo 'echo "🚀 Starting Backend Server..."' >> /app/start.sh && \
-    echo 'cd /app/server && node dist/src/index.js' >> /app/start.sh && \
-    chmod +x /app/start.sh
+RUN printf '#!/bin/sh\n\
+echo "🚀 Starting Nginx..."\n\
+nginx\n\
+echo "🚀 Starting Backend Server..."\n\
+cd /app/server\n\
+# Auto-detect the entry point\n\
+if [ -f dist/index.js ]; then\n\
+  ENTRY=dist/index.js\n\
+elif [ -f dist/src/index.js ]; then\n\
+  ENTRY=dist/src/index.js\n\
+else\n\
+  echo "❌ ERROR: Cannot find index.js in dist/"\n\
+  find dist/ -name "index.js" 2>/dev/null\n\
+  exit 1\n\
+fi\n\
+echo "Found entry: $ENTRY"\n\
+node "$ENTRY"\n' > /app/start.sh && chmod +x /app/start.sh
 
 # Environment Variables
 ENV NODE_ENV=production
