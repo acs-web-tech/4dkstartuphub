@@ -64,17 +64,17 @@ nginx\n\
 # --- Step 2: Start Backend Server ---\n\
 echo "🚀 Starting Backend Server..."\n\
 cd /app/server\n\
-if [ -f dist/index.js ]; then\n\
-  ENTRY=dist/index.js\n\
-elif [ -f dist/src/index.js ]; then\n\
-  ENTRY=dist/src/index.js\n\
+# With rootDir: ./src in tsconfig, the output is GUARANTEED to be at dist/index.js\n\
+ENTRY=dist/index.js\n\
+if [ -f "$ENTRY" ]; then\n\
+  echo "Found entry: $ENTRY"\n\
+  node "$ENTRY"\n\
 else\n\
-  echo "❌ ERROR: Cannot find index.js in dist/"\n\
-  find dist/ -name "index.js" 2>/dev/null\n\
+  echo "❌ ERROR: Cannot find $ENTRY"\n\
+  echo "Debug: Listing dist contents:"\n\
+  ls -R dist/\n\
   exit 1\n\
-fi\n\
-echo "Found entry: $ENTRY"\n\
-node "$ENTRY"\n' > /app/start.sh && chmod +x /app/start.sh
+fi\n' > /app/start.sh && chmod +x /app/start.sh
 
 # Environment Variables
 ENV NODE_ENV=production
