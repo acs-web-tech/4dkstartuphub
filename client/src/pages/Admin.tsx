@@ -543,7 +543,7 @@ export default function Admin() {
                             {/* User Table (Simplified for Brevity) */}
                             <div className="admin-table-wrapper">
                                 <table className="admin-table">
-                                    <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Premium</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
+                                    <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Premium</th><th>Last Seen</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
                                     <tbody>
                                         {users.map(u => (
                                             <tr key={u.id} className={!u.isActive ? 'inactive-row' : ''}>
@@ -566,6 +566,7 @@ export default function Admin() {
                                                         )}
                                                     </div>
                                                 </td>
+                                                <td>{u.lastSeen ? new Date(u.lastSeen).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Never'}</td>
                                                 <td>{new Date(u.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
                                                 <td><span className={`status-badge ${u.isActive ? 'active' : 'inactive'}`}>{u.isActive ? 'Active' : 'Inactive'}</span></td>
                                                 <td>

@@ -36,7 +36,7 @@ export default function PitchRequests() {
     }, [tab]);
 
     useEffect(() => {
-        settingsApi.getPublic().then(d => setUpgradePrice(d.registration_payment_amount || 950));
+        settingsApi.getPublic().then(d => setUpgradePrice((d as any).pitch_request_payment_amount || 950));
     }, []);
 
     const loadPitches = () => {
@@ -118,7 +118,7 @@ export default function PitchRequests() {
     const handleUpgrade = async () => {
         setUpgrading(true);
         try {
-            const order = await paymentApi.createOrder();
+            const order = await paymentApi.createOrder('upgrade');
 
             const options = {
                 key: order.keyId,

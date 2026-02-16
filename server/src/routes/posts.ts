@@ -96,6 +96,8 @@ router.get('/', authenticate, async (req, res) => {
                     displayName: { $ifNull: ['$user.display_name', 'Deleted User'] },
                     avatarUrl: { $ifNull: ['$user.avatar_url', ''] },
                     eventDate: '$event_date',
+                    userType: { $ifNull: ['$user.user_type', ''] },
+                    userPostCount: { $ifNull: ['$user.post_count', 0] },
                     createdAt: '$created_at',
                     updatedAt: '$updated_at',
                 }
@@ -193,6 +195,8 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
                 avatarUrl: (author as any)?.avatar_url || '',
                 userBio: (author as any)?.bio,
                 eventDate: post.event_date,
+                userType: (author as any)?.user_type || '',
+                userPostCount: (author as any)?.post_count || 0,
                 createdAt: post.created_at,
                 updatedAt: post.updated_at,
             },
@@ -246,6 +250,9 @@ router.post('/', authenticate, validate(createPostSchema), async (req: AuthReque
             event_date: eventDate ? new Date(eventDate) : undefined
         });
 
+        // Increment user post count
+        await User.findByIdAndUpdate(userId, { $inc: { post_count: 1 } });
+
         // Broadcast new post
         const user = await User.findById(userId);
         if (user) {
@@ -266,6 +273,8 @@ router.post('/', authenticate, validate(createPostSchema), async (req: AuthReque
                 displayName: user.display_name,
                 avatarUrl: user.avatar_url,
                 eventDate: newPost.event_date,
+                userType: user.user_type || '',
+                userPostCount: user.post_count + 1,
                 createdAt: newPost.created_at,
                 updatedAt: newPost.updated_at,
             });
@@ -363,6 +372,9 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
             Bookmark.deleteMany({ post_id: id }),
             PostView.deleteMany({ post_id: id })
         ]);
+
+        // Decrement user post count
+        await User.findByIdAndUpdate(post.user_id, { $inc: { post_count: -1 } });
 
         socketService.emitPostDeleted(id);
         res.json({ message: 'Post deleted' });

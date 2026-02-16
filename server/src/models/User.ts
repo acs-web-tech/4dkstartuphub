@@ -19,6 +19,8 @@ export interface IUser extends Document {
     razorpay_payment_id: string;
     razorpay_order_id: string;
     premium_expiry: Date | null;
+    last_seen: Date;
+    post_count: number;
     created_at: Date;
     updated_at: Date;
 }
@@ -42,6 +44,8 @@ const UserSchema: Schema = new Schema({
     razorpay_payment_id: { type: String, default: '' },
     razorpay_order_id: { type: String, default: '' },
     premium_expiry: { type: Date, default: null },
+    last_seen: { type: Date, default: Date.now },
+    post_count: { type: Number, default: 0 },
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
     toJSON: {
@@ -56,6 +60,9 @@ const UserSchema: Schema = new Schema({
             ret.userType = ret.user_type;
             ret.paymentStatus = ret.payment_status;
             ret.premiumExpiry = ret.premium_expiry;
+            ret.lastSeen = ret.last_seen;
+            ret.postCount = ret.post_count;
+            ret.userType = ret.user_type;
             ret.createdAt = ret.created_at;
             ret.updatedAt = ret.updated_at;
             delete ret._id;

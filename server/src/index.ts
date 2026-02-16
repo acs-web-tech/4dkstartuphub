@@ -70,6 +70,7 @@ if (isProd) {
 }
 
 // ── Security Middleware ──────────────────────────────────────
+app.disable('x-powered-by'); // Hide Express
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
@@ -80,10 +81,18 @@ app.use(helmet({
             mediaSrc: ["'self'", "https://*.amazonaws.com"],
             scriptSrc: ["'self'", "https://checkout.razorpay.com", "'unsafe-inline'"],
             frameSrc: ["'self'", "https://api.razorpay.com", "https://checkout.razorpay.com"],
-            connectSrc,
+            connectSrc: connectSrc, // Connect sources based on env
+            objectSrc: ["'none'"],
+            upgradeInsecureRequests: [],
         },
     },
-    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    crossOriginResourcePolicy: { policy: 'same-origin' },
+    crossOriginOpenerPolicy: { policy: 'same-origin' },
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+    frameguard: { action: 'deny' },
+    xssFilter: true,
+    noSniff: true,
 }));
 
 // ── CORS ─────────────────────────────────────────────────────
@@ -144,13 +153,23 @@ app.get('/api/settings/public', async (_req, res) => {
         const Setting = (await import('./models/Setting')).default;
         const paymentSetting = await Setting.findOne({ key: 'registration_payment_required' });
         const amountSetting = await Setting.findOne({ key: 'registration_payment_amount' });
+        const pitchPaymentSetting = await Setting.findOne({ key: 'pitch_request_payment_required' });
+        const pitchAmountSetting = await Setting.findOne({ key: 'pitch_request_payment_amount' });
+
         res.json({
             registration_payment_required: paymentSetting?.value === 'true',
             registration_payment_amount: parseInt(amountSetting?.value || '950', 10),
+            pitch_request_payment_required: pitchPaymentSetting?.value === 'true',
+            pitch_request_payment_amount: parseInt(pitchAmountSetting?.value || '950', 10),
         });
     } catch (err) {
         console.error('Public settings error:', err);
-        res.json({ registration_payment_required: true, registration_payment_amount: 950 });
+        res.json({
+            registration_payment_required: true,
+            registration_payment_amount: 950,
+            pitch_request_payment_required: true,
+            pitch_request_payment_amount: 950
+        });
     }
 });
 

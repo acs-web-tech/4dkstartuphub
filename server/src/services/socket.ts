@@ -19,6 +19,7 @@ import { pushService } from './push';
 class SocketService {
     private io: SocketIOServer | null = null;
     private userSockets: Map<string, string[]> = new Map(); // userId -> socketIds[]
+    private onlineUsers: Set<string> = new Set(); // Track online user IDs
     // Track kicked users per room: Map<roomId, Map<userId, kickedTimestamp>>
     // Entries auto-expire after KICK_BLOCK_DURATION_MS
     private kickedUsers: Map<string, Map<string, number>> = new Map();
@@ -95,6 +96,20 @@ class SocketService {
             // Join a room with the user's ID for targeted notifications
             socket.join(userId);
 
+            // Track online status
+            if (!this.onlineUsers.has(userId)) {
+                this.onlineUsers.add(userId);
+                // Broadcast online status to all clients
+                this.io?.emit('userOnline', { userId });
+            }
+            // Track socket per user for multi-tab support
+            const sockets = this.userSockets.get(userId) || [];
+            sockets.push(socket.id);
+            this.userSockets.set(userId, sockets);
+
+            // Update last_seen in DB (fire-and-forget)
+            User.findByIdAndUpdate(userId, { last_seen: new Date() }).catch(() => { });
+
             // Handle joining post rooms for real-time comments
             socket.on('joinPost', (postId: string) => {
                 socket.join(`post:${postId}`);
@@ -148,8 +163,35 @@ class SocketService {
             });
 
             socket.on('disconnect', () => {
+                // Remove this socket from user's socket list
+                const userSocketList = this.userSockets.get(userId) || [];
+                const remaining = userSocketList.filter(id => id !== socket.id);
+                if (remaining.length === 0) {
+                    this.userSockets.delete(userId);
+                    this.onlineUsers.delete(userId);
+                    // Broadcast offline status
+                    this.io?.emit('userOffline', { userId });
+                    // Update last_seen
+                    User.findByIdAndUpdate(userId, { last_seen: new Date() }).catch(() => { });
+                } else {
+                    this.userSockets.set(userId, remaining);
+                }
             });
         });
+    }
+
+    /**
+     * Get list of online user IDs
+     */
+    getOnlineUserIds(): string[] {
+        return Array.from(this.onlineUsers);
+    }
+
+    /**
+     * Check if a specific user is online
+     */
+    isUserOnline(userId: string): boolean {
+        return this.onlineUsers.has(userId);
     }
 
     /**

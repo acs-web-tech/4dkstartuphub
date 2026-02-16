@@ -138,6 +138,7 @@ router.get('/users', async (req: AuthRequest, res) => {
                     postCount: { $size: '$userPosts' },
                     paymentStatus: '$payment_status',
                     premiumExpiry: '$premium_expiry',
+                    lastSeen: '$last_seen',
                     createdAt: '$created_at',
                 }
             }
@@ -349,7 +350,9 @@ router.put('/settings', async (req: AuthRequest, res) => {
             'membership_validity_months',
             'welcome_notification_title',
             'welcome_notification_content',
-            'welcome_notification_video_url'
+            'welcome_notification_video_url',
+            'pitch_request_payment_required',
+            'pitch_request_payment_amount'
         ];
         if (!allowedKeys.includes(key)) {
             res.status(400).json({ error: 'Unknown setting key' });

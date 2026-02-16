@@ -83,8 +83,8 @@ export const authApi = {
 
 // ── Payment ─────────────────────────────────────────────────
 export const paymentApi = {
-    createOrder: () =>
-        request<{ id: string; currency: string; amount: number; keyId: string }>('/payment/create-order', { method: 'POST' }),
+    createOrder: (type?: 'upgrade') =>
+        request<{ id: string; currency: string; amount: number; keyId: string }>('/payment/create-order', { method: 'POST', body: JSON.stringify({ type }) }),
 
     verifyUpgrade: (data: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) =>
         request<{ success: boolean; message: string }>('/payment/upgrade', { method: 'POST', body: JSON.stringify(data) }),
@@ -136,6 +136,7 @@ export const usersApi = {
     getNotifications: () =>
         request<{ notifications: import('../types').AppNotification[]; unreadCount: number }>('/users/me/notifications'),
     markNotificationsRead: () => request('/users/me/notifications/read', { method: 'PUT' }),
+    markOneRead: (id: string) => request(`/users/me/notifications/${id}/read`, { method: 'PUT' }),
 };
 
 // ── Chat Rooms ──────────────────────────────────────────────

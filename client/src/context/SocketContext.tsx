@@ -7,6 +7,7 @@ type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'reconnecting' | '
 interface SocketContextType {
     socket: Socket | null;
     connected: boolean;
+    onlineUsers: Set<string>;
     status: ConnectionStatus;
     reconnectAttempt: number;
 }
@@ -14,6 +15,7 @@ interface SocketContextType {
 const SocketContext = createContext<SocketContextType>({
     socket: null,
     connected: false,
+    onlineUsers: new Set(),
     status: 'idle',
     reconnectAttempt: 0,
 });
@@ -24,6 +26,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const { user } = useAuth();
     const [socket, setSocket] = useState<Socket | null>(null);
     const [connected, setConnected] = useState(false);
+    const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
     const [status, setStatus] = useState<ConnectionStatus>('idle');
     const [reconnectAttempt, setReconnectAttempt] = useState(0);
     const socketRef = useRef<Socket | null>(null);
@@ -50,6 +53,28 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 setConnected(true);
                 setStatus('connected');
                 setReconnectAttempt(0);
+
+                // Fetch initial online users
+                fetch('/api/users/online')
+                    .then(res => res.json())
+                    .then(data => setOnlineUsers(new Set(data.onlineUserIds || [])))
+                    .catch(() => { });
+            });
+
+            newSocket.on('userOnline', ({ userId }: { userId: string }) => {
+                setOnlineUsers(prev => {
+                    const next = new Set(prev);
+                    next.add(userId);
+                    return next;
+                });
+            });
+
+            newSocket.on('userOffline', ({ userId }: { userId: string }) => {
+                setOnlineUsers(prev => {
+                    const next = new Set(prev);
+                    next.delete(userId);
+                    return next;
+                });
             });
 
             newSocket.on('disconnect', (reason) => {
@@ -66,6 +91,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 }
             });
 
+            // ... (rest of the socket implementation)
             newSocket.io.on('reconnect_attempt', (attempt: number) => {
                 setStatus('reconnecting');
                 setReconnectAttempt(attempt);
@@ -100,6 +126,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 socketRef.current = null;
                 setSocket(null);
                 setConnected(false);
+                setOnlineUsers(new Set());
                 setStatus('idle');
                 setReconnectAttempt(0);
             }
@@ -107,7 +134,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, [user?.id]);
 
     return (
-        <SocketContext.Provider value={{ socket, connected, status, reconnectAttempt }}>
+        <SocketContext.Provider value={{ socket, connected, onlineUsers, status, reconnectAttempt }}>
             {children}
         </SocketContext.Provider>
     );

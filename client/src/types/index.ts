@@ -35,6 +35,9 @@ export interface Post {
     displayName: string;
     avatarUrl: string;
     userBio?: string;
+    userType?: 'startup' | 'investor';
+    userPostCount?: number;
+    userIsOnline?: boolean;
     createdAt: string;
     updatedAt: string;
 }

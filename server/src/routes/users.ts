@@ -15,6 +15,11 @@ import { escapeRegExp } from '../utils/regex';
 
 const router = Router();
 
+// ── GET /api/users/online ───────────────────────────────────
+router.get('/online', (req, res) => {
+    res.json({ onlineUserIds: socketService.getOnlineUserIds() });
+});
+
 // ── GET /api/users ──────────────────────────────────────────
 router.get('/', authenticate, async (req, res) => {
     try {
@@ -279,6 +284,20 @@ router.put('/me/notifications/read', authenticate, async (req: AuthRequest, res)
     } catch (err) {
         console.error('Mark read error:', err);
         res.status(500).json({ error: 'Failed to mark notifications as read' });
+    }
+});
+
+// ── PUT /api/users/me/notifications/:id/read ────────────────
+router.put('/me/notifications/:id/read', authenticate, async (req: AuthRequest, res) => {
+    try {
+        await Notification.updateOne(
+            { _id: req.params.id, user_id: req.user!.userId },
+            { $set: { is_read: true } }
+        );
+        res.json({ message: 'Notification marked as read' });
+    } catch (err) {
+        console.error('Mark read error:', err);
+        res.status(500).json({ error: 'Failed to mark notification as read' });
     }
 });
 

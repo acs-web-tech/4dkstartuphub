@@ -84,10 +84,28 @@ function PostCard({ post, onImageClick }: Props) {
                         ) : (
                             <span>{initials}</span>
                         )}
+                        {/* Start Online Indicator */}
+                        {post.userIsOnline && <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[var(--bg-primary)] rounded-full"></span>}
                     </div>
                     <div className="post-meta">
-                        <span className="post-author">{post.displayName}</span>
-                        <span className="post-time">{timeAgo}</span>
+                        <div className="flex items-center gap-2">
+                            <span className="post-author font-semibold text-[var(--text-primary)] hover:text-primary transition-colors">
+                                {post.displayName}
+                            </span>
+                            {/* Investor Badge */}
+                            {post.userType === 'investor' && (
+                                <span className="px-1.5 py-0.5 text-[0.65rem] font-bold text-white bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full shadow-sm uppercase tracking-wider">
+                                    Investor
+                                </span>
+                            )}
+                            {/* Regular Poster Badge */}
+                            {(post.userPostCount || 0) > 5 && post.userType !== 'investor' && (
+                                <span className="px-1.5 py-0.5 text-[0.65rem] font-bold text-white bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full shadow-sm uppercase tracking-wider">
+                                    Regular
+                                </span>
+                            )}
+                        </div>
+                        <span className="post-time text-xs text-gray-500">{timeAgo}</span>
                     </div>
                 </Link>
 

@@ -26,7 +26,15 @@ router.post('/create-order', async (req, res) => {
         }
 
         // Read dynamic price from settings
-        const amountSetting = await Setting.findOne({ key: 'registration_payment_amount' });
+        const { type } = req.body;
+        let amountSetting;
+
+        if (type === 'upgrade') {
+            amountSetting = await Setting.findOne({ key: 'pitch_request_payment_amount' });
+        } else {
+            amountSetting = await Setting.findOne({ key: 'registration_payment_amount' });
+        }
+
         const amountInRupees = parseInt(amountSetting?.value || '950', 10);
         const amountInPaise = amountInRupees * 100;
 

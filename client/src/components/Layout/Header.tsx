@@ -212,6 +212,13 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
     };
 
     const handleNotifClick = (n: AppNotification) => {
+        if (!n.isRead) {
+            usersApi.markOneRead(n.id).catch(() => { });
+            setNotifications(prev => prev.map(notification =>
+                notification.id === n.id ? { ...notification, isRead: 1 } : notification
+            ));
+            setUnreadCount(prev => Math.max(0, prev - 1));
+        }
         setSelectedNotif(n);
         setShowNotif(false);
     };

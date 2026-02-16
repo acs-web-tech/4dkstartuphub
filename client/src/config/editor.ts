@@ -24,7 +24,6 @@ export const editorModules = {
     toolbar: {
         container: [
             [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-            [{ 'font': [] }],
             ['bold', 'italic', 'underline', 'strike'],
             ['blockquote', 'code-block'],
             [{ 'list': 'ordered' }, { 'list': 'bullet' }],
@@ -45,7 +44,7 @@ export const editorModules = {
 };
 
 export const editorFormats = [
-    'header', 'font', 'size',
+    'header', 'size',
     'bold', 'italic', 'underline', 'strike', 'blockquote', 'code-block',
     'list', 'bullet', 'indent',
     'script', 'align', 'direction',

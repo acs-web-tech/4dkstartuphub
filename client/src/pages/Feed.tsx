@@ -8,9 +8,22 @@ import { useAuth } from '../context/AuthContext';
 import { Search, Newspaper, Hand, CheckCircle, Circle, ArrowRight, Inbox, RefreshCw, X } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 
+// Session storage keys for scroll restoration
+const FEED_CACHE_KEY = 'feed_cache';
+
+interface FeedCache {
+    posts: Post[];
+    page: number;
+    totalPages: number;
+    category: string;
+    search: string;
+    scrollY: number;
+    timestamp: number;
+}
+
 export default function Feed() {
     const { user } = useAuth();
-    const { socket, connected } = useSocket();
+    const { socket, connected, onlineUsers } = useSocket();
     const [searchParams] = useSearchParams();
     const location = useLocation();
 
@@ -52,29 +65,51 @@ export default function Feed() {
         };
     }, []);
 
-    // Scroll Restoration
+    // Scroll Restoration from feed cache
+    const restoredRef = useRef(false);
     useEffect(() => {
-        if (!loading && page === 1) {
-            const key = `feed-scroll-${category || 'all'}-${search || 'none'}`;
-            const savedPos = sessionStorage.getItem(key);
-            if (savedPos) {
-                requestAnimationFrame(() => window.scrollTo(0, parseInt(savedPos)));
-            } else {
-                window.scrollTo(0, 0);
+        if (restoredRef.current) return;
+        try {
+            const cached = sessionStorage.getItem(FEED_CACHE_KEY);
+            if (cached) {
+                const data: FeedCache = JSON.parse(cached);
+                // Only restore if same category/search and within 5 minutes
+                if (data.category === category && data.search === search && (Date.now() - data.timestamp) < 5 * 60 * 1000) {
+                    setPosts(data.posts);
+                    setPage(data.page);
+                    setHasMore(data.page < data.totalPages);
+                    setLoading(false);
+                    restoredRef.current = true;
+                    // Restore scroll position after render
+                    requestAnimationFrame(() => {
+                        setTimeout(() => window.scrollTo(0, data.scrollY), 50);
+                    });
+                    return;
+                }
             }
-        }
-    }, [loading, category, search, page]);
+        } catch { /* ignore parse errors */ }
+    }, []);
 
-    // Save scroll position
+    // Save feed state on unmount (navigating away)
     useEffect(() => {
         categoryRef.current = category;
         searchRef.current = search;
 
         return () => {
-            const key = `feed-scroll-${categoryRef.current || 'all'}-${searchRef.current || 'none'}`;
-            sessionStorage.setItem(key, window.scrollY.toString());
+            const cacheData: FeedCache = {
+                posts: posts.slice(0, 60), // Cap cached posts
+                page: pageRef.current,
+                totalPages: pagination?.totalPages || 1,
+                category: categoryRef.current,
+                search: searchRef.current,
+                scrollY: window.scrollY,
+                timestamp: Date.now(),
+            };
+            try {
+                sessionStorage.setItem(FEED_CACHE_KEY, JSON.stringify(cacheData));
+            } catch { /* quota exceeded */ }
         };
-    }, [category, search]);
+    }, [category, search, posts, pagination]);
 
     // Real-time Updates
     useEffect(() => {
@@ -124,7 +159,14 @@ export default function Feed() {
     }, [socket]);
 
     // Reset and Load First Page on Filter Change
+    const isFirstFilterRef = useRef(true);
     useEffect(() => {
+        if (isFirstFilterRef.current) {
+            isFirstFilterRef.current = false;
+            if (restoredRef.current) return; // Skip reset if restored from cache
+        }
+        sessionStorage.removeItem(FEED_CACHE_KEY);
+        restoredRef.current = false;
         setPosts([]);
         setPage(1);
         setHasMore(true);
@@ -132,6 +174,9 @@ export default function Feed() {
 
     // Fetch Posts
     useEffect(() => {
+        // Skip fetch if restored from cache
+        if (restoredRef.current && posts.length > 0) return;
+
         let isCurrent = true;
         if (page === 1) setLoading(true);
         else setLoadingMore(true);
@@ -244,14 +289,20 @@ export default function Feed() {
                 <>
                     <div className="posts-list">
                         {posts.map((post, index) => {
+                            // Inject online status
+                            const postWithStatus = {
+                                ...post,
+                                userIsOnline: connected ? onlineUsers.has(post.userId) : false
+                            };
+
                             if (posts.length === index + 1) {
                                 return (
                                     <div ref={lastPostElementRef} key={post.id}>
-                                        <PostCard post={post} onImageClick={setLightbox} />
+                                        <PostCard post={postWithStatus} onImageClick={setLightbox} />
                                     </div>
                                 );
                             } else {
-                                return <PostCard key={post.id} post={post} onImageClick={setLightbox} />;
+                                return <PostCard key={post.id} post={postWithStatus} onImageClick={setLightbox} />;
                             }
                         })}
                     </div>

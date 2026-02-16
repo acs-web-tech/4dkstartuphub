@@ -1,6 +1,6 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { editorModules, editorFormats } from '../../config/editor';
@@ -12,12 +12,20 @@ import { Rocket, Link as LinkIcon, Save, Calendar } from 'lucide-react';
 export default function CreatePost() {
     const navigate = useNavigate();
     const { id } = useParams();
+    const [searchParams] = useSearchParams();
     const isEdit = !!id;
+
+    // Pre-select category from URL query param (e.g., /create?category=hiring)
+    const getInitialCategory = (): PostCategory => {
+        const cat = searchParams.get('category');
+        if (cat && cat in CATEGORY_CONFIG) return cat as PostCategory;
+        return 'general';
+    };
 
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [videoUrl, setVideoUrl] = useState('');
-    const [category, setCategory] = useState<PostCategory>('general');
+    const [category, setCategory] = useState<PostCategory>(getInitialCategory());
     const [imageUrl, setImageUrl] = useState('');
     const [eventDate, setEventDate] = useState('');
     const [loading, setLoading] = useState(false);
