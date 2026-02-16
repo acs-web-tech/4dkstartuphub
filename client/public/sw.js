@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stphub-v1';
+const CACHE_NAME = 'stphub-v2';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -7,10 +7,28 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
+    // Force the waiting service worker to become the active service worker
+    self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             return cache.addAll(ASSETS_TO_CACHE);
         })
+    );
+});
+
+self.addEventListener('activate', (event) => {
+    // Clear old caches
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    if (cacheName !== CACHE_NAME) {
+                        console.log('🧹 Clearing old cache:', cacheName);
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        }).then(() => self.clients.claim())
     );
 });
 

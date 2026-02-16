@@ -54,7 +54,8 @@ export async function subscribeToPushNotifications() {
                     convertedKey.every((val, index) => val === existingKeyArray[index]);
 
                 if (keysMatch) {
-                    console.log('✅ Existing push subscription is valid');
+                    console.log('✅ Existing push subscription is valid, syncing with server...');
+                    await notificationsApi.subscribe(subscription); // Always sync to be safe
                     return subscription;
                 } else {
                     console.log('🔄 VAPID key mismatch, resubscribing with new key...');

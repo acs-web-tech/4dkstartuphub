@@ -55,6 +55,11 @@ const connectSrc: string[] = [
     "https://api.razorpay.com",
     "https://lumberjack.razorpay.com",
     "capacitor://localhost",
+    // Browser Push Notification Services
+    "https://*.googleapis.com",      // Chrome/Android
+    "https://*.push.apple.com",       // Safari/iOS
+    "https://push.services.mozilla.com", // Firefox
+    "https://*.notify.windows.com",   // Edge/Windows
 ];
 
 if (isProd) {
@@ -62,6 +67,7 @@ if (isProd) {
     connectSrc.push(config.corsOrigin);
     if (config.corsOrigin.startsWith('https')) {
         connectSrc.push(config.corsOrigin.replace('https', 'wss'));
+        connectSrc.push(config.corsOrigin.replace('https://', '')); // Also allow naked domain for some web sockets
     }
 } else {
     // Development: allow all local dev servers and WebSocket connections
