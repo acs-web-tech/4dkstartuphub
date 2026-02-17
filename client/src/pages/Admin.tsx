@@ -5,7 +5,7 @@ import { AdminStats, PitchRequest, User } from '../types';
 import {
     Settings, BarChart2, Users, MessageCircle, Megaphone, Trash2, Send, X, Link as LinkIcon,
     Lightbulb, CheckCircle2, XCircle, Clock, Volume2, VolumeX, Shield, UserPlus, LogOut, FileText,
-    CreditCard, ToggleLeft, ToggleRight
+    CreditCard, ToggleLeft, ToggleRight, Rocket, ShieldCheck, Gem, TrendingUp
 } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -547,7 +547,24 @@ export default function Admin() {
                                     <tbody>
                                         {users.map(u => (
                                             <tr key={u.id} className={!u.isActive ? 'inactive-row' : ''}>
-                                                <td><div className="table-user"><strong>{u.displayName}</strong><span>@{u.username}</span></div></td>
+                                                <td>
+                                                    <div className="table-user">
+                                                        <div className="user-name-wrapper">
+                                                            <strong>{u.displayName}</strong>
+                                                            {u.userType === 'investor' && (
+                                                                <span className="admin-user-type investor" title="Investor">
+                                                                    <Gem size={12} /> Investor
+                                                                </span>
+                                                            )}
+                                                            {u.userType === 'startup' && (
+                                                                <span className="admin-user-type startup" title="Startup">
+                                                                    <Rocket size={12} /> Startup
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <span>@{u.username}</span>
+                                                    </div>
+                                                </td>
                                                 <td>{u.email}</td>
                                                 <td>
                                                     <select value={u.role} onChange={e => handleRoleChange(u.id, e.target.value)} className="role-select">

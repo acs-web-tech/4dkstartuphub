@@ -27,21 +27,51 @@ export default function Feed() {
     const [searchParams] = useSearchParams();
     const location = useLocation();
 
-    // State
-    const [posts, setPosts] = useState<Post[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [loadingMore, setLoadingMore] = useState(false);
-    const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(true);
-    const [pagination, setPagination] = useState<Pagination | null>(null);
-
     const category = searchParams.get('category') || '';
     const search = searchParams.get('search') || '';
 
-    // Use refs to avoid closure issues in socket handlers
+    // Check if this is a browser refresh (reload)
+    const isReload = useRef(
+        typeof window !== 'undefined' &&
+        window.performance &&
+        window.performance.getEntriesByType('navigation').length > 0 &&
+        (window.performance.getEntriesByType('navigation')[0] as any).type === 'reload'
+    );
+
+    // Helper to get cached data for initial state
+    const getInitialData = () => {
+        if (isReload.current) {
+            sessionStorage.removeItem(FEED_CACHE_KEY);
+            return null;
+        }
+        try {
+            const cached = sessionStorage.getItem(FEED_CACHE_KEY);
+            if (cached) {
+                const data: FeedCache = JSON.parse(cached);
+                // Consistency check: only use cache if same category/search and within 10 minutes
+                if (data.category === category && data.search === search && (Date.now() - data.timestamp) < 10 * 60 * 1000) {
+                    return data;
+                }
+            }
+        } catch { }
+        return null;
+    };
+
+    const initialData = getInitialData();
+
+    // State
+    const [posts, setPosts] = useState<Post[]>(initialData?.posts || []);
+    const [loading, setLoading] = useState(!initialData);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [page, setPage] = useState(initialData?.page || 1);
+    const [hasMore, setHasMore] = useState(initialData ? initialData.page < initialData.totalPages : true);
+    const [pagination, setPagination] = useState<Pagination | null>(initialData ? { page: initialData.page, totalPages: initialData.totalPages, total: initialData.posts.length, limit: 10 } : null);
+
+    // Use refs to avoid closure issues in socket handlers - AFTER state hooks
     const categoryRef = useRef(category);
     const searchRef = useRef(search);
     const pageRef = useRef(page);
+    const restoredRef = useRef(!!initialData);
 
     // Intersection Observer for Infinite Scroll
     const observer = useRef<IntersectionObserver>();
@@ -51,7 +81,7 @@ export default function Feed() {
 
         observer.current = new IntersectionObserver(entries => {
             if (entries[0].isIntersecting && hasMore) {
-                setPage(prev => prev + 1);
+                setPage((prev: number) => prev + 1);
             }
         });
 
@@ -65,51 +95,59 @@ export default function Feed() {
         };
     }, []);
 
-    // Scroll Restoration from feed cache
-    const restoredRef = useRef(false);
+    // Track scroll position in a ref to ensure we always have the latest value, even as we unmount
+    const lastScrollY = useRef(0);
     useEffect(() => {
-        if (restoredRef.current) return;
-        try {
-            const cached = sessionStorage.getItem(FEED_CACHE_KEY);
-            if (cached) {
-                const data: FeedCache = JSON.parse(cached);
-                // Only restore if same category/search and within 5 minutes
-                if (data.category === category && data.search === search && (Date.now() - data.timestamp) < 5 * 60 * 1000) {
-                    setPosts(data.posts);
-                    setPage(data.page);
-                    setHasMore(data.page < data.totalPages);
-                    setLoading(false);
-                    restoredRef.current = true;
-                    // Restore scroll position after render
-                    requestAnimationFrame(() => {
-                        setTimeout(() => window.scrollTo(0, data.scrollY), 50);
-                    });
-                    return;
-                }
-            }
-        } catch { /* ignore parse errors */ }
+        const handleScroll = () => {
+            lastScrollY.current = window.scrollY;
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
+
+        // Disable automatic browser scroll restoration to prevent jumps
+        if ('scrollRestoration' in window.history) {
+            window.history.scrollRestoration = 'manual';
+        }
+
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+        };
+    }, []);
+
+    useEffect(() => {
+        // Restore scroll position purely for the feed if we have initial data
+        if (initialData) {
+            setTimeout(() => {
+                window.scrollTo({ top: initialData.scrollY, behavior: 'auto' });
+                setTimeout(() => window.scrollTo({ top: initialData.scrollY, behavior: 'auto' }), 100);
+            }, 100);
+        }
     }, []);
 
     // Save feed state on unmount (navigating away)
     useEffect(() => {
         categoryRef.current = category;
         searchRef.current = search;
+        pageRef.current = page;
 
         return () => {
-            const cacheData: FeedCache = {
-                posts: posts.slice(0, 60), // Cap cached posts
-                page: pageRef.current,
-                totalPages: pagination?.totalPages || 1,
-                category: categoryRef.current,
-                search: searchRef.current,
-                scrollY: window.scrollY,
-                timestamp: Date.now(),
-            };
-            try {
-                sessionStorage.setItem(FEED_CACHE_KEY, JSON.stringify(cacheData));
-            } catch { /* quota exceeded */ }
+            // Use lastScrollY.current if window.scrollY is already 0 (often happens during navigation)
+            const currentScroll = lastScrollY.current || window.scrollY;
+            if (posts.length > 0) {
+                const cacheData: FeedCache = {
+                    posts: posts.slice(0, 50), // Cap cached posts to keep session storage small
+                    page: pageRef.current,
+                    totalPages: pagination?.totalPages || 1,
+                    category: categoryRef.current,
+                    search: searchRef.current,
+                    scrollY: currentScroll,
+                    timestamp: Date.now(),
+                };
+                try {
+                    sessionStorage.setItem(FEED_CACHE_KEY, JSON.stringify(cacheData));
+                } catch { /* quota exceeded */ }
+            }
         };
-    }, [category, search, posts, pagination]);
+    }, [category, search, posts, pagination, page]);
 
     // Real-time Updates
     useEffect(() => {
@@ -159,14 +197,15 @@ export default function Feed() {
     }, [socket]);
 
     // Reset and Load First Page on Filter Change
-    const isFirstFilterRef = useRef(true);
+    const isFirstRun = useRef(true);
     useEffect(() => {
-        if (isFirstFilterRef.current) {
-            isFirstFilterRef.current = false;
-            if (restoredRef.current) return; // Skip reset if restored from cache
+        if (isFirstRun.current) {
+            isFirstRun.current = false;
+            // If we just restored from cache, don't clear it
+            if (restoredRef.current) return;
         }
+
         sessionStorage.removeItem(FEED_CACHE_KEY);
-        restoredRef.current = false;
         setPosts([]);
         setPage(1);
         setHasMore(true);
@@ -174,8 +213,11 @@ export default function Feed() {
 
     // Fetch Posts
     useEffect(() => {
-        // Skip fetch if restored from cache
-        if (restoredRef.current && posts.length > 0) return;
+        // Skip fetch if we just restored from cache
+        if (restoredRef.current) {
+            restoredRef.current = false;
+            return;
+        }
 
         let isCurrent = true;
         if (page === 1) setLoading(true);

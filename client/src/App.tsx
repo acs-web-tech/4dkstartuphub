@@ -17,10 +17,12 @@ import CreatePost from './components/Post/CreatePost';
 import PitchRequests from './pages/PitchRequests';
 
 import { SocketProvider } from './context/SocketContext';
+import ScrollRestoration from './components/Common/ScrollRestoration';
 
 export default function App() {
     return (
         <BrowserRouter>
+            <ScrollRestoration />
             <AuthProvider>
                 <SocketProvider>
                     <Routes>

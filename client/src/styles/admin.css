@@ -411,8 +411,10 @@
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: var(--radius);
-    overflow: hidden;
+    overflow-x: auto;
     box-shadow: var(--shadow);
+    margin-bottom: 20px;
+    -webkit-overflow-scrolling: touch;
 }
 
 .admin-table {
@@ -456,6 +458,37 @@
 .admin-table .table-user span {
     font-size: 0.8rem;
     color: var(--text-muted);
+}
+
+.user-name-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.admin-user-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.admin-user-type.investor {
+    background: rgba(139, 92, 246, 0.15);
+    color: #a78bfa;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.admin-user-type.startup {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .inactive-row {
