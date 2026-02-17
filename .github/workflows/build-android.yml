@@ -52,10 +52,12 @@ jobs:
             }' > google-services.json
           fi
 
+      - name: Create .env
+        working-directory: ./mobile
+        run: echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" > .env
+
       - name: Build Web Assets
         working-directory: ./mobile
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
         run: npm run build
 
       - name: Sync Capacitor
