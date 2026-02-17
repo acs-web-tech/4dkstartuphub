@@ -8,10 +8,8 @@ import { useAuth } from '../context/AuthContext';
 import { Search, Newspaper, Hand, CheckCircle, Circle, ArrowRight, Inbox, RefreshCw, X } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 
-// Session storage keys for scroll restoration
-const FEED_CACHE_KEY = 'feed_cache';
-
-interface FeedCache {
+// ─── In-memory feed cache (persists across SPA navigations) ───
+interface FeedMemoryCache {
     posts: Post[];
     page: number;
     totalPages: number;
@@ -20,6 +18,9 @@ interface FeedCache {
     scrollY: number;
     timestamp: number;
 }
+
+// Module-level variable — survives component unmount/remount but NOT full page refreshes
+let feedMemoryCache: FeedMemoryCache | null = null;
 
 export default function Feed() {
     const { user } = useAuth();
@@ -30,48 +31,37 @@ export default function Feed() {
     const category = searchParams.get('category') || '';
     const search = searchParams.get('search') || '';
 
-    // Check if this is a browser refresh (reload)
-    const isReload = useRef(
-        typeof window !== 'undefined' &&
-        window.performance &&
-        window.performance.getEntriesByType('navigation').length > 0 &&
-        (window.performance.getEntriesByType('navigation')[0] as any).type === 'reload'
-    );
-
-    // Helper to get cached data for initial state
-    const getInitialData = () => {
-        if (isReload.current) {
-            sessionStorage.removeItem(FEED_CACHE_KEY);
-            return null;
+    // Check if we have a valid in-memory cache matching current filters
+    const getValidCache = (): FeedMemoryCache | null => {
+        if (!feedMemoryCache) return null;
+        // Only use cache if same category/search and within 10 minutes
+        if (
+            feedMemoryCache.category === category &&
+            feedMemoryCache.search === search &&
+            (Date.now() - feedMemoryCache.timestamp) < 10 * 60 * 1000
+        ) {
+            return feedMemoryCache;
         }
-        try {
-            const cached = sessionStorage.getItem(FEED_CACHE_KEY);
-            if (cached) {
-                const data: FeedCache = JSON.parse(cached);
-                // Consistency check: only use cache if same category/search and within 10 minutes
-                if (data.category === category && data.search === search && (Date.now() - data.timestamp) < 10 * 60 * 1000) {
-                    return data;
-                }
-            }
-        } catch { }
         return null;
     };
 
-    const initialData = getInitialData();
+    const cachedData = getValidCache();
 
-    // State
-    const [posts, setPosts] = useState<Post[]>(initialData?.posts || []);
-    const [loading, setLoading] = useState(!initialData);
+    // State — initialize from cache if available (instant render, no loading flash)
+    const [posts, setPosts] = useState<Post[]>(cachedData?.posts || []);
+    const [loading, setLoading] = useState(!cachedData);
     const [loadingMore, setLoadingMore] = useState(false);
-    const [page, setPage] = useState(initialData?.page || 1);
-    const [hasMore, setHasMore] = useState(initialData ? initialData.page < initialData.totalPages : true);
-    const [pagination, setPagination] = useState<Pagination | null>(initialData ? { page: initialData.page, totalPages: initialData.totalPages, total: initialData.posts.length, limit: 10 } : null);
+    const [page, setPage] = useState(cachedData?.page || 1);
+    const [hasMore, setHasMore] = useState(cachedData ? cachedData.page < cachedData.totalPages : true);
+    const [pagination, setPagination] = useState<Pagination | null>(
+        cachedData ? { page: cachedData.page, totalPages: cachedData.totalPages, total: cachedData.posts.length, limit: 10 } : null
+    );
 
-    // Use refs to avoid closure issues in socket handlers - AFTER state hooks
+    // Refs for socket handlers
     const categoryRef = useRef(category);
     const searchRef = useRef(search);
     const pageRef = useRef(page);
-    const restoredRef = useRef(!!initialData);
+    const skipFetchRef = useRef(!!cachedData); // skip first fetch if we restored from cache
 
     // Intersection Observer for Infinite Scroll
     const observer = useRef<IntersectionObserver>();
@@ -95,15 +85,16 @@ export default function Feed() {
         };
     }, []);
 
-    // Track scroll position in a ref to ensure we always have the latest value, even as we unmount
+    // ─── Scroll position tracking & restoration ───
     const lastScrollY = useRef(0);
+
     useEffect(() => {
         const handleScroll = () => {
             lastScrollY.current = window.scrollY;
         };
         window.addEventListener('scroll', handleScroll, { passive: true });
 
-        // Disable automatic browser scroll restoration to prevent jumps
+        // Disable automatic browser scroll restoration
         if ('scrollRestoration' in window.history) {
             window.history.scrollRestoration = 'manual';
         }
@@ -113,28 +104,31 @@ export default function Feed() {
         };
     }, []);
 
+    // Restore scroll position from cache on mount
     useEffect(() => {
-        // Restore scroll position purely for the feed if we have initial data
-        if (initialData) {
-            setTimeout(() => {
-                window.scrollTo({ top: initialData.scrollY, behavior: 'auto' });
-                setTimeout(() => window.scrollTo({ top: initialData.scrollY, behavior: 'auto' }), 100);
-            }, 100);
+        if (cachedData && cachedData.scrollY > 0) {
+            // Use multiple attempts since images may still be loading
+            requestAnimationFrame(() => {
+                window.scrollTo({ top: cachedData.scrollY, behavior: 'auto' });
+                setTimeout(() => window.scrollTo({ top: cachedData.scrollY, behavior: 'auto' }), 150);
+            });
         }
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Save feed state on unmount (navigating away)
+    // ─── Save to in-memory cache whenever posts/state change + on unmount ───
     useEffect(() => {
         categoryRef.current = category;
         searchRef.current = search;
         pageRef.current = page;
+    }, [category, search, page]);
 
+    // Save cache on unmount
+    useEffect(() => {
         return () => {
-            // Use lastScrollY.current if window.scrollY is already 0 (often happens during navigation)
             const currentScroll = lastScrollY.current || window.scrollY;
             if (posts.length > 0) {
-                const cacheData: FeedCache = {
-                    posts: posts.slice(0, 50), // Cap cached posts to keep session storage small
+                feedMemoryCache = {
+                    posts: posts.slice(0, 60), // Keep up to 60 posts in memory
                     page: pageRef.current,
                     totalPages: pagination?.totalPages || 1,
                     category: categoryRef.current,
@@ -142,14 +136,11 @@ export default function Feed() {
                     scrollY: currentScroll,
                     timestamp: Date.now(),
                 };
-                try {
-                    sessionStorage.setItem(FEED_CACHE_KEY, JSON.stringify(cacheData));
-                } catch { /* quota exceeded */ }
             }
         };
-    }, [category, search, posts, pagination, page]);
+    }, [posts, pagination]);
 
-    // Real-time Updates
+    // ─── Real-time socket updates ───
     useEffect(() => {
         if (!socket) return;
 
@@ -196,26 +187,32 @@ export default function Feed() {
         };
     }, [socket]);
 
-    // Reset and Load First Page on Filter Change
-    const isFirstRun = useRef(true);
+    // ─── Reset on filter change (category/search) ───
+    const prevFiltersRef = useRef({ category, search });
     useEffect(() => {
-        if (isFirstRun.current) {
-            isFirstRun.current = false;
-            // If we just restored from cache, don't clear it
-            if (restoredRef.current) return;
+        const prev = prevFiltersRef.current;
+        prevFiltersRef.current = { category, search };
+
+        // If filters changed, reset and fetch fresh (unless we have valid cache for the new filter)
+        if (prev.category !== category || prev.search !== search) {
+            const freshCache = getValidCache();
+            if (freshCache) {
+                // We already initialized from cache — skip fetch
+                skipFetchRef.current = true;
+                return;
+            }
+            setPosts([]);
+            setPage(1);
+            setHasMore(true);
+            skipFetchRef.current = false;
         }
+    }, [category, search]); // eslint-disable-line react-hooks/exhaustive-deps
 
-        sessionStorage.removeItem(FEED_CACHE_KEY);
-        setPosts([]);
-        setPage(1);
-        setHasMore(true);
-    }, [category, search]);
-
-    // Fetch Posts
+    // ─── Fetch posts from API ───
     useEffect(() => {
-        // Skip fetch if we just restored from cache
-        if (restoredRef.current) {
-            restoredRef.current = false;
+        // Skip fetch if we restored from in-memory cache
+        if (skipFetchRef.current) {
+            skipFetchRef.current = false;
             return;
         }
 
@@ -311,7 +308,7 @@ export default function Feed() {
                         <div className="checklist-item"><Circle size={16} className="inline mr-2" /> Introduce Yourself</div>
                         <div className="checklist-item"><Circle size={16} className="inline mr-2" /> Browse the Community</div>
                     </div>
-                    <Link to="/profile" className="btn btn-primary btn-sm flex items-center gap-2">Complete Profile <ArrowRight size={16} /></Link>
+                    <Link to="/profile" className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>Complete Profile <ArrowRight size={16} /></Link>
                 </div>
             )}
 

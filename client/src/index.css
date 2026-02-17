@@ -1904,11 +1904,12 @@ img {
 }
 
 .post-avatar {
+  position: relative;
   width: 48px;
   height: 48px;
   border-radius: 50%;
   border: 1px solid var(--border-color);
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1920,6 +1921,7 @@ img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 50%;
 }
 
 .post-meta {
@@ -5146,14 +5148,17 @@ img {
 
 .trending-rank {
   position: absolute;
-  top: 12px;
-  right: 16px;
-  font-size: 1.8rem;
+  top: 8px;
+  right: 12px;
+  font-size: 3.5rem;
   font-weight: 800;
   font-family: var(--font-heading);
   color: var(--border-color);
   line-height: 1;
   letter-spacing: -2px;
+  opacity: 0.3;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .trending-card-premium .trending-badge {
@@ -5501,6 +5506,8 @@ img {
   display: flex;
   gap: 14px;
   margin-bottom: 12px;
+  position: relative;
+  z-index: 1;
 }
 
 .trending-card-info {
@@ -5510,11 +5517,13 @@ img {
 
 .trending-card-thumb {
   flex-shrink: 0;
-  width: 72px;
-  height: 72px;
+  width: 80px;
+  height: 80px;
   border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--bg-tertiary);
+  position: relative;
+  z-index: 2;
 }
 
 .trending-card-thumb img {
@@ -5634,22 +5643,7 @@ img {
   white-space: nowrap;
 }
 
-/* ══════════════════════════════════════════════════════════════
-   Trending Card Thumbnail Z-Index Fix
-   ══════════════════════════════════════════════════════════════ */
-.trending-card-top {
-  position: relative;
-  z-index: 2;
-}
-
-.trending-rank {
-  z-index: 1;
-}
-
-.trending-card-thumb {
-  position: relative;
-  z-index: 3;
-}
+/* Trending card z-index overrides consolidated above */
 
 /* ══════════════════════════════════════════════════════════════
    Helper: Position Relative
