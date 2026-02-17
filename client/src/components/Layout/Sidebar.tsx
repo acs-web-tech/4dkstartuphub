@@ -38,7 +38,7 @@ export default function Sidebar({ isOpen, onClose }: Props) {
             </div>
 
             {user && (
-                <NavLink to="/create-post" className="btn btn-primary create-btn" id="create-post-nav" onClick={onClose}>
+                <NavLink to={activeCategory ? `/create-post?category=${activeCategory}` : '/create-post'} className="btn btn-primary create-btn" id="create-post-nav" onClick={onClose}>
                     <Plus size={18} /> Create
                 </NavLink>
             )}

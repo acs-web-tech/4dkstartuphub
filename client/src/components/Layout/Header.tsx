@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { usersApi } from '../../services/api';
+import { usersApi, postsApi } from '../../services/api';
 import { AppNotification } from '../../types';
 import {
     Rocket, Search, Bell, Heart, MessageSquare, AtSign, Megaphone, MessageCircle, Sparkles,
@@ -64,6 +64,11 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const notifRef = useRef<HTMLDivElement>(null);
     const [bellRing, setBellRing] = useState(false);
+    const searchRef = useRef<HTMLDivElement>(null);
+    const [searchResults, setSearchResults] = useState<{ users: any[]; posts: any[] }>({ users: [], posts: [] });
+    const [searchLoading, setSearchLoading] = useState(false);
+    const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+    const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Track previous state to detect NEW notifications
     const isFirstFetchRef = useRef(true);
@@ -197,8 +202,44 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
         if (search.trim()) {
             navigate(`/feed?search=${encodeURIComponent(search.trim())}`);
             setSearch('');
+            setShowSearchDropdown(false);
         }
     };
+
+    // Debounced live search
+    useEffect(() => {
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        if (!search.trim() || search.trim().length < 2) {
+            setSearchResults({ users: [], posts: [] });
+            setShowSearchDropdown(false);
+            return;
+        }
+        setSearchLoading(true);
+        searchTimerRef.current = setTimeout(() => {
+            Promise.all([
+                usersApi.getAll({ search: search.trim(), page: 1 }).catch(() => ({ users: [] })),
+                postsApi.getAll({ search: search.trim(), limit: 5 }).catch(() => ({ posts: [] }))
+            ]).then(([userData, postData]) => {
+                setSearchResults({
+                    users: (userData.users || []).slice(0, 4),
+                    posts: (postData.posts || []).slice(0, 4)
+                });
+                setShowSearchDropdown(true);
+            }).finally(() => setSearchLoading(false));
+        }, 300);
+        return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+    }, [search]);
+
+    // Close search dropdown on outside click
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+                setShowSearchDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
 
     const handleMarkRead = async () => {
         await usersApi.markNotificationsRead();
@@ -281,17 +322,77 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                     </Link>
                 </div>
 
-                <form className="search-bar" onSubmit={handleSearch}>
-                    <Search size={18} className="search-icon text-gray-500" />
-                    <input
-                        type="text"
-                        placeholder="Search posts, people..."
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        maxLength={100}
-                        id="global-search"
-                    />
-                </form>
+                <div className="search-wrapper" ref={searchRef}>
+                    <form className="search-bar" onSubmit={handleSearch}>
+                        <Search size={18} className="search-icon text-gray-500" />
+                        <input
+                            type="text"
+                            placeholder="Search posts, people..."
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            onFocus={() => { if (searchResults.users.length || searchResults.posts.length) setShowSearchDropdown(true); }}
+                            maxLength={100}
+                            id="global-search"
+                        />
+                    </form>
+                    {showSearchDropdown && (searchResults.users.length > 0 || searchResults.posts.length > 0) && (
+                        <div className="search-dropdown">
+                            {searchResults.users.length > 0 && (
+                                <div className="search-section">
+                                    <div className="search-section-title">People</div>
+                                    {searchResults.users.map((u: any) => (
+                                        <Link
+                                            key={u.id}
+                                            to={`/users/${u.id}`}
+                                            className="search-result-item"
+                                            onClick={() => { setSearch(''); setShowSearchDropdown(false); }}
+                                        >
+                                            <div className="search-result-avatar">
+                                                {u.avatarUrl ? (
+                                                    <img src={u.avatarUrl} alt="" />
+                                                ) : (
+                                                    <span>{getInitials(u.displayName)}</span>
+                                                )}
+                                            </div>
+                                            <div className="search-result-info">
+                                                <strong>{u.displayName}</strong>
+                                                <span>@{u.username}</span>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            )}
+                            {searchResults.posts.length > 0 && (
+                                <div className="search-section">
+                                    <div className="search-section-title">Posts</div>
+                                    {searchResults.posts.map((p: any) => (
+                                        <Link
+                                            key={p.id}
+                                            to={`/posts/${p.id}`}
+                                            className="search-result-item"
+                                            onClick={() => { setSearch(''); setShowSearchDropdown(false); }}
+                                        >
+                                            <div className="search-result-icon">
+                                                <Search size={14} />
+                                            </div>
+                                            <div className="search-result-info">
+                                                <strong>{p.title}</strong>
+                                                <span>by {p.displayName}</span>
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            )}
+                            <Link
+                                to={`/feed?search=${encodeURIComponent(search.trim())}`}
+                                className="search-view-all"
+                                onClick={() => { setSearch(''); setShowSearchDropdown(false); }}
+                            >
+                                View all results for "{search.trim()}"
+                            </Link>
+                        </div>
+                    )}
+                </div>
 
                 <div className="header-right">
                     {user ? (

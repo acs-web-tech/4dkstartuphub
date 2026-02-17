@@ -11,25 +11,21 @@ import { Rocket, Link as LinkIcon, Save, Calendar } from 'lucide-react';
 
 export default function CreatePost() {
     const navigate = useNavigate();
-    const { id } = useParams();
+    const { id: editId } = useParams();
     const [searchParams] = useSearchParams();
-    const isEdit = !!id;
-
-    // Pre-select category from URL query param (e.g., /create?category=hiring)
-    const getInitialCategory = (): PostCategory => {
-        const cat = searchParams.get('category');
-        if (cat && cat in CATEGORY_CONFIG) return cat as PostCategory;
-        return 'general';
-    };
+    const isEditing = !!editId;
+    const preselectedCategory = searchParams.get('category') || '';
 
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [videoUrl, setVideoUrl] = useState('');
-    const [category, setCategory] = useState<PostCategory>(getInitialCategory());
+    const [category, setCategory] = useState<PostCategory>(
+        (preselectedCategory && preselectedCategory in CATEGORY_CONFIG) ? preselectedCategory as PostCategory : 'general'
+    );
     const [imageUrl, setImageUrl] = useState('');
     const [eventDate, setEventDate] = useState('');
     const [loading, setLoading] = useState(false);
-    const [fetching, setFetching] = useState(isEdit);
+    const [fetching, setFetching] = useState(isEditing);
     const [imageUploading, setImageUploading] = useState(false);
     const [thumbnailUploading, setThumbnailUploading] = useState(false);
     const [error, setError] = useState('');
@@ -38,10 +34,10 @@ export default function CreatePost() {
     const thumbnailInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        if (isEdit) {
+        if (isEditing) {
             const fetchPost = async () => {
                 try {
-                    const data = await postsApi.getById(id);
+                    const data = await postsApi.getById(editId!);
                     setTitle(data.post.title);
                     setContent(data.post.content);
                     setCategory(data.post.category);
@@ -58,7 +54,7 @@ export default function CreatePost() {
             };
             fetchPost();
         }
-    }, [id, isEdit]);
+    }, [editId, isEditing]);
 
     const imageHandler = () => {
         if (fileInputRef.current) {
@@ -134,8 +130,8 @@ export default function CreatePost() {
 
         setLoading(true);
         try {
-            if (isEdit) {
-                await postsApi.update(id, {
+            if (isEditing) {
+                await postsApi.update(editId!, {
                     title: title.trim(),
                     content: content.trim(),
                     category,
@@ -143,7 +139,7 @@ export default function CreatePost() {
                     imageUrl: imageUrl || undefined,
                     eventDate: eventDate ? new Date(eventDate).toISOString() : undefined
                 });
-                navigate(`/posts/${id}`);
+                navigate(`/posts/${editId}`);
             } else {
                 const data = await postsApi.create({
                     title: title.trim(),
@@ -156,7 +152,7 @@ export default function CreatePost() {
                 navigate(`/posts/${data.postId}`);
             }
         } catch (err: any) {
-            setError(err.message || `Failed to ${isEdit ? 'update' : 'create'} post`);
+            setError(err.message || `Failed to ${isEditing ? 'update' : 'create'} post`);
         } finally {
             setLoading(false);
         }
@@ -167,8 +163,8 @@ export default function CreatePost() {
     return (
         <div className="page-container">
             <div className="page-header">
-                <h1>{isEdit ? 'Edit Post' : 'Create Post'}</h1>
-                <p className="page-subtitle">{isEdit ? 'Update your story' : 'Share with the startup community'}</p>
+                <h1>{isEditing ? 'Edit Post' : 'Create Post'}</h1>
+                <p className="page-subtitle">{isEditing ? 'Update your story' : 'Share with the startup community'}</p>
             </div>
 
             <form className="card create-post-form" onSubmit={handleSubmit}>
@@ -332,8 +328,8 @@ export default function CreatePost() {
                 <div className="form-actions">
                     <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>Cancel</button>
                     <button type="submit" className="btn btn-primary" disabled={loading} id="submit-post-btn">
-                        {loading ? (isEdit ? 'Saving...' : 'Publishing...') : (
-                            isEdit ? <><Save size={18} className="inline mr-1" /> Save Changes</> : <><Rocket size={18} className="inline mr-1" /> Publish Post</>
+                        {loading ? (isEditing ? 'Saving...' : 'Publishing...') : (
+                            isEditing ? <><Save size={18} className="inline mr-1" /> Save Changes</> : <><Rocket size={18} className="inline mr-1" /> Publish Post</>
                         )}
                     </button>
                 </div>

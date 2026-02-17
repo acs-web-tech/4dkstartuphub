@@ -63,16 +63,38 @@ export default function Discovery() {
                         {trending.slice(0, 6).map((post, index) => {
                             const cat = CATEGORY_CONFIG[post.category];
                             const CatIcon = cat.icon;
+                            const initials = post.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
                             return (
                                 <Link to={`/posts/${post.id}`} key={post.id} className="card trending-card-premium">
                                     <div className="trending-rank">#{index + 1}</div>
-                                    <span className="trending-badge" style={{ color: cat.color, background: `${cat.color}15` }}>
-                                        <CatIcon size={12} /> {cat.label}
-                                    </span>
-                                    <h3>{post.title}</h3>
-                                    <p>{post.content.replace(/<[^>]*>/g, '').slice(0, 100)}…</p>
+                                    <div className="trending-card-top">
+                                        <div className="trending-card-info">
+                                            <span className="trending-badge" style={{ color: cat.color, background: `${cat.color}15` }}>
+                                                <CatIcon size={12} /> {cat.label}
+                                            </span>
+                                            <h3>{post.title}</h3>
+                                            <p>{post.content.replace(/<[^>]*>/g, '').slice(0, 100)}…</p>
+                                        </div>
+                                        {post.imageUrl && (
+                                            <div className="trending-card-thumb">
+                                                <img src={post.imageUrl} alt="" loading="lazy" />
+                                            </div>
+                                        )}
+                                    </div>
                                     <div className="trending-meta">
-                                        <span className="trending-author">{post.displayName}</span>
+                                        <div className="trending-author-info">
+                                            <div className="trending-author-avatar">
+                                                {post.avatarUrl ? (
+                                                    <img src={post.avatarUrl} alt="" />
+                                                ) : (
+                                                    <span>{initials}</span>
+                                                )}
+                                            </div>
+                                            <span className="trending-author">{post.displayName}</span>
+                                            {post.userType === 'investor' && (
+                                                <span className="investor-badge-sm">💰 Investor</span>
+                                            )}
+                                        </div>
                                         <span className="trending-stats">
                                             {post.viewCount > 0 && <><Eye size={12} /> {post.viewCount}</>}
                                             {post.likeCount > 0 && <> · <Heart size={12} /> {post.likeCount}</>}

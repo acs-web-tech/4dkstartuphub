@@ -65,18 +65,16 @@ export default function Members() {
                     ))}
                 </div>
 
-                {filter !== 'online' && (
-                    <form className="members-search-box" onSubmit={handleSearch}>
-                        <Search className="search-icon" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Search members..."
-                            value={search}
-                            onChange={e => { setSearch(e.target.value); setPage(1); }}
-                            maxLength={100}
-                        />
-                    </form>
-                )}
+                <form className="members-search-box" onSubmit={handleSearch}>
+                    <Search className="search-icon" size={18} />
+                    <input
+                        type="text"
+                        placeholder={filter === 'online' ? 'Search online members...' : 'Search members...'}
+                        value={search}
+                        onChange={e => { setSearch(e.target.value); setPage(1); }}
+                        maxLength={100}
+                    />
+                </form>
             </div>
 
             {loading ? (
