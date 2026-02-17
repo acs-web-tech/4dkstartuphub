@@ -46,6 +46,7 @@ export default function Admin() {
 
     // Settings State
     const [paymentRequired, setPaymentRequired] = useState(true);
+    const [isImageUploading, setIsImageUploading] = useState(false);
     const [paymentAmount, setPaymentAmount] = useState('950');
     const [validityMonths, setValidityMonths] = useState('12');
     const [welcomeTitle, setWelcomeTitle] = useState('');
@@ -386,6 +387,7 @@ export default function Admin() {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
                 try {
+                    setIsImageUploading(true);
                     const data = await uploadApi.upload(file);
                     const range = broadcastQuillRef.current?.getEditor().getSelection();
                     if (range) {
@@ -394,6 +396,8 @@ export default function Admin() {
                 } catch (err) {
                     console.error('Image upload failed:', err);
                     alert('Image upload failed');
+                } finally {
+                    setIsImageUploading(false);
                 }
             }
         };
@@ -420,6 +424,7 @@ export default function Admin() {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
                 try {
+                    setIsImageUploading(true);
                     const data = await uploadApi.upload(file);
                     const range = welcomeQuillRef.current?.getEditor().getSelection();
                     if (range) {
@@ -428,6 +433,8 @@ export default function Admin() {
                 } catch (err) {
                     console.error('Image upload failed:', err);
                     alert('Image upload failed');
+                } finally {
+                    setIsImageUploading(false);
                 }
             }
         };
@@ -897,11 +904,11 @@ export default function Admin() {
                                             />
                                         </div>
                                     </div>
-                                    <button type="submit" className="btn btn-primary" id="send-broadcast" disabled={isBroadcasting}>
+                                    <button type="submit" className="btn btn-primary" id="send-broadcast" disabled={isBroadcasting || isImageUploading}>
                                         {isBroadcasting ? (
                                             <>Sending...</>
                                         ) : (
-                                            <><Send size={16} className="inline mr-1" /> Send to All Users</>
+                                            isImageUploading ? 'Uploading Image...' : <><Send size={16} className="inline mr-1" /> Send to All Users</>
                                         )}
                                     </button>
                                 </form>
@@ -1111,9 +1118,9 @@ export default function Admin() {
                                     <button
                                         className="btn btn-primary"
                                         onClick={handleSaveWelcomeNotif}
-                                        disabled={settingsLoading}
+                                        disabled={settingsLoading || isImageUploading}
                                     >
-                                        <Send size={16} className="inline mr-1" /> Save Welcome Notification
+                                        {isImageUploading ? 'Uploading Image...' : <><Send size={16} className="inline mr-1" /> Save Welcome Notification</>}
                                     </button>
                                 </div>
                             </div>

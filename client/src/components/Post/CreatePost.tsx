@@ -327,9 +327,9 @@ export default function CreatePost() {
 
                 <div className="form-actions">
                     <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>Cancel</button>
-                    <button type="submit" className="btn btn-primary" disabled={loading} id="submit-post-btn">
+                    <button type="submit" className="btn btn-primary" disabled={loading || imageUploading || thumbnailUploading} id="submit-post-btn">
                         {loading ? (isEditing ? 'Saving...' : 'Publishing...') : (
-                            isEditing ? <><Save size={18} className="inline mr-1" /> Save Changes</> : <><Rocket size={18} className="inline mr-1" /> Publish Post</>
+                            (imageUploading || thumbnailUploading) ? 'Uploading Image...' : (isEditing ? <><Save size={18} className="inline mr-1" /> Save Changes</> : <><Rocket size={18} className="inline mr-1" /> Publish Post</>)
                         )}
                     </button>
                 </div>

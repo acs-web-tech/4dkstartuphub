@@ -444,8 +444,8 @@ export default function PostDetail() {
                             <button type="button" className="btn btn-ghost" onClick={handleCancelEdit} disabled={saving}>
                                 Cancel
                             </button>
-                            <button type="submit" className="btn btn-primary" disabled={saving}>
-                                {saving ? 'Saving...' : 'Save Changes'}
+                            <button type="submit" className="btn btn-primary" disabled={saving || imageUploading}>
+                                {saving ? 'Saving...' : (imageUploading ? 'Uploading...' : 'Save Changes')}
                             </button>
                         </div>
                     </form>

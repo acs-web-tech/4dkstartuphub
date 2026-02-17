@@ -228,8 +228,8 @@ export default function Profile() {
                         </div>
                         <div className="form-actions">
                             <button type="button" className="btn btn-ghost" onClick={() => setEditing(false)}>Cancel</button>
-                            <button type="submit" className="btn btn-primary" disabled={saving} id="save-profile-btn">
-                                {saving ? 'Saving...' : <><Save size={18} /> Save Changes</>}
+                            <button type="submit" className="btn btn-primary" disabled={saving || uploading} id="save-profile-btn">
+                                {(saving || uploading) ? (uploading ? 'Uploading...' : 'Saving...') : <><Save size={18} className="inline mr-1" /> Save Changes</>}
                             </button>
                         </div>
                     </form>
