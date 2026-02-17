@@ -1,0 +1,66 @@
+name: Build Android App
+
+on:
+  push:
+    branches:
+      - production-fix-v7
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install Dependencies
+        working-directory: ./mobile
+        run: npm install
+
+      - name: Create google-services.json
+        working-directory: ./mobile/android/app
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "$GOOGLE_SERVICES_JSON" > google-services.json
+          else
+            echo "Warning: GOOGLE_SERVICES_JSON secret not found. Build might fail if Firebase is enabled."
+            echo "{}" > google-services.json
+          fi
+
+      - name: Build Web Assets
+        working-directory: ./mobile
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+        run: npm run build
+
+      - name: Sync Capacitor
+        working-directory: ./mobile
+        run: npx cap sync android
+
+      - name: Build Android APK
+        working-directory: ./mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: app-debug
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
