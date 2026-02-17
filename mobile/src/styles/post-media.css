@@ -1,0 +1,269 @@
+/* ── Post Content Media Restrictions (User Request) ──────── */
+.post-detail-cover {
+    cursor: zoom-in;
+}
+
+.post-detail-content img {
+    max-height: 450px;
+    /* Firm size restriction */
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    border-radius: var(--radius);
+    cursor: zoom-in;
+    display: block;
+    margin: 16px 0;
+    min-height: 100px;
+    background: var(--bg-tertiary);
+    background: linear-gradient(to right, var(--bg-tertiary) 8%, var(--bg-card) 18%, var(--bg-tertiary) 33%);
+    background-size: 800px 104px;
+    animation: placeholderShimmer 1.5s infinite linear forwards;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease;
+}
+
+.post-detail-content img:hover {
+    opacity: 0.95;
+}
+
+/* Handle video embeds within content and external container */
+.post-video-container,
+.post-detail-content iframe,
+.post-detail-content .ql-video {
+    max-width: 100%;
+    aspect-ratio: 16 / 9;
+    max-height: 450px;
+    /* Firm size restriction */
+    margin: 24px 0 !important;
+    background: black;
+    box-shadow: var(--shadow);
+    display: block;
+}
+
+.post-video-container iframe {
+    width: 100%;
+    height: 100%;
+}
+
+/* Lightbox Overlay */
+.lightbox-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    cursor: zoom-out;
+    animation: fadeIn 0.2s ease-out;
+    backdrop-filter: blur(5px);
+    padding: 20px;
+}
+
+.lightbox-content {
+    max-width: 95vw;
+    max-height: 95vh;
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+    animation: zoomIn 0.3s cubic-bezier(0.2, 0, 0.2, 1);
+    user-select: none;
+}
+
+.lightbox-close-btn {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 10000;
+}
+
+.lightbox-close-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+@keyframes zoomIn {
+    from {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Force Feed to be single column list (override admin grid) */
+.feed-page .posts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+/* Post Card Image - "Firmly not big" per user request */
+.post-card-image {
+    max-height: 300px;
+    margin: 16px 0;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+}
+
+.post-card-image img {
+    width: 100%;
+    max-height: 300px;
+    object-fit: cover;
+    display: block;
+}
+
+/* Create Post Thumbnail Upload */
+.thumbnail-upload-area {
+    margin-top: 8px;
+    margin-bottom: 16px;
+}
+
+.thumbnail-upload-btn {
+    width: 100%;
+    min-height: 120px;
+    border: 2px dashed var(--border-color);
+    border-radius: var(--radius);
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.thumbnail-upload-btn:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+    background: var(--bg-card-hover);
+}
+
+.thumbnail-upload-btn span {
+    font-size: 24px;
+    font-weight: 300;
+}
+
+.thumbnail-preview-container {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    height: 200px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+}
+
+.thumbnail-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.remove-thumbnail-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.remove-thumbnail-btn:hover {
+    background: var(--red);
+    transform: scale(1.1);
+}
+
+/* Smart Image Loader */
+.smart-image-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--bg-tertiary);
+}
+
+.smart-image-loader {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.shimmer {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to right, rgba(255, 255, 255, 0.05) 8%, rgba(255, 255, 255, 0.1) 18%, rgba(255, 255, 255, 0.05) 33%);
+    background-size: 800px 104px;
+    animation: placeholderShimmer 1.5s infinite linear forwards;
+}
+
+@keyframes placeholderShimmer {
+    0% {
+        background-position: -468px 0
+    }
+
+    100% {
+        background-position: 468px 0
+    }
+}
+
+.spinner-sm {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

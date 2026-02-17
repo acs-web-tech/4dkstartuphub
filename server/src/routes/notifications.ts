@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import PushSubscription from '../models/PushSubscription';
+import User from '../models/User';
 import { config } from '../config/env';
 
 const router = Router();
@@ -51,6 +52,45 @@ router.post('/unsubscribe', authenticate, async (req: AuthRequest, res) => {
     } catch (err) {
         console.error('Unsubscribe error:', err);
         res.status(500).json({ error: 'Failed to unsubscribe' });
+    }
+});
+
+// POST /api/notifications/register-device — Save FCM token
+router.post('/register-device', authenticate, async (req: AuthRequest, res) => {
+    try {
+        const { token } = req.body;
+        if (!token) {
+            return res.status(400).json({ error: 'Token is required' });
+        }
+
+        // Add token to user's set (avoid duplicates)
+        await User.findByIdAndUpdate(req.user!.userId, {
+            $addToSet: { fcm_tokens: token }
+        });
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Device registration error:', err);
+        res.status(500).json({ error: 'Failed to register device' });
+    }
+});
+
+// POST /api/notifications/unregister-device — Remove FCM token
+router.post('/unregister-device', authenticate, async (req: AuthRequest, res) => {
+    try {
+        const { token } = req.body;
+        if (!token) {
+            return res.status(400).json({ error: 'Token is required' });
+        }
+
+        await User.findByIdAndUpdate(req.user!.userId, {
+            $pull: { fcm_tokens: token }
+        });
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Device unregistration error:', err);
+        res.status(500).json({ error: 'Failed to unregister device' });
     }
 });
 

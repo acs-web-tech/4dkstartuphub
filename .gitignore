@@ -12,3 +12,11 @@ server/uploads
 .vscode
 .idea
 .DS_Store
+
+# Credentials
+google-services.json
+GoogleService-Info.plist
+service-account.json
+service-account.json.json
+*.keystore
+*.jks

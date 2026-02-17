@@ -23,6 +23,7 @@ export interface IUser extends Document {
     post_count: number;
     created_at: Date;
     updated_at: Date;
+    fcm_tokens: string[];
 }
 
 const UserSchema: Schema = new Schema({
@@ -46,6 +47,7 @@ const UserSchema: Schema = new Schema({
     premium_expiry: { type: Date, default: null },
     last_seen: { type: Date, default: Date.now },
     post_count: { type: Number, default: 0 },
+    fcm_tokens: { type: [String], default: [] },
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
     toJSON: {

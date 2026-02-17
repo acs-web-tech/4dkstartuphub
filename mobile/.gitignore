@@ -1,0 +1,15 @@
+node_modules/
+dist/
+dist-*/
+*.log
+
+# Android
+android/app/build/
+android/.gradle/
+android/local.properties
+android/*.iml
+
+# iOS
+ios/App/App/public/
+ios/App/Podfile.lock
+ios/Derivations/
