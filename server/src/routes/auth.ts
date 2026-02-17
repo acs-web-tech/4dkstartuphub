@@ -166,10 +166,12 @@ router.post('/register', authLimiter, validate(registerSchema), async (req, res)
         const { accessToken, refreshToken } = generateTokens(newUser._id.toString(), 'user');
         setTokenCookies(res, accessToken, refreshToken);
 
+        const isMobile = req.headers['x-mobile-app'] === 'true';
+
         res.status(201).json({
             message: 'Registration successful',
-            accessToken,
-            refreshToken,
+            accessToken: isMobile ? accessToken : undefined,
+            refreshToken: isMobile ? refreshToken : undefined,
             user: {
                 id: newUser._id.toString(),
                 username: newUser.username,
@@ -207,10 +209,12 @@ router.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
         const { accessToken, refreshToken } = generateTokens(user._id.toString(), user.role);
         setTokenCookies(res, accessToken, refreshToken);
 
+        const isMobile = req.headers['x-mobile-app'] === 'true';
+
         res.json({
             message: 'Login successful',
-            accessToken,
-            refreshToken,
+            accessToken: isMobile ? accessToken : undefined,
+            refreshToken: isMobile ? refreshToken : undefined,
             user: {
                 id: user._id.toString(),
                 username: user.username,
@@ -263,10 +267,12 @@ router.post('/refresh', async (req, res) => {
         const { accessToken, refreshToken } = generateTokens(user._id.toString(), user.role);
         setTokenCookies(res, accessToken, refreshToken);
 
+        const isMobile = req.headers['x-mobile-app'] === 'true';
+
         res.json({
             message: 'Tokens refreshed',
-            accessToken,
-            refreshToken
+            accessToken: isMobile ? accessToken : undefined,
+            refreshToken: isMobile ? refreshToken : undefined
         });
     } catch {
         res.clearCookie('access_token');

@@ -2,6 +2,7 @@ const BASE = import.meta.env.VITE_API_URL || '/api';
 
 async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     const headers: HeadersInit = { ...options.headers };
+    (headers as Record<string, string>)['X-Mobile-App'] = 'true';
 
     if (!(options.body instanceof FormData)) {
         (headers as Record<string, string>)['Content-Type'] = 'application/json';
