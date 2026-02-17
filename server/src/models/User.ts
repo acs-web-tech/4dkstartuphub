@@ -62,12 +62,27 @@ const UserSchema: Schema = new Schema({
             ret.premiumExpiry = ret.premium_expiry;
             ret.lastSeen = ret.last_seen;
             ret.postCount = ret.post_count;
-            ret.userType = ret.user_type;
             ret.createdAt = ret.created_at;
             ret.updatedAt = ret.updated_at;
+
+            // Remove sensitive or redundant fields
             delete ret._id;
             delete ret.__v;
             delete ret.password_hash;
+            delete ret.razorpay_payment_id;
+            delete ret.razorpay_order_id;
+            delete ret.display_name;
+            delete ret.avatar_url;
+            delete ret.is_active;
+            delete ret.profile_completed;
+            delete ret.user_type;
+            delete ret.payment_status;
+            delete ret.premium_expiry;
+            delete ret.last_seen;
+            delete ret.post_count;
+            delete ret.created_at;
+            delete ret.updated_at;
+
             return ret;
         }
     }

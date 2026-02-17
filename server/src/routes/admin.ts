@@ -323,7 +323,18 @@ router.post('/notifications/broadcast', async (req: AuthRequest, res) => {
 // ── GET /api/admin/settings ─────────────────────────────────
 router.get('/settings', async (_req: AuthRequest, res) => {
     try {
-        const settings = await Setting.find();
+        const allowedKeys = [
+            'registration_payment_required',
+            'registration_payment_amount',
+            'membership_validity_months',
+            'welcome_notification_title',
+            'welcome_notification_content',
+            'welcome_notification_video_url',
+            'pitch_request_payment_required',
+            'pitch_request_payment_amount'
+        ];
+
+        const settings = await Setting.find({ key: { $in: allowedKeys } });
         const settingsObj: Record<string, string> = {};
         settings.forEach(s => {
             settingsObj[s.key] = s.value;

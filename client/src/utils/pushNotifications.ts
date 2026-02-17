@@ -54,11 +54,11 @@ export async function subscribeToPushNotifications() {
                     convertedKey.every((val, index) => val === existingKeyArray[index]);
 
                 if (keysMatch) {
-                    console.log('✅ Existing push subscription is valid, syncing with server...');
+
                     await notificationsApi.subscribe(subscription); // Always sync to be safe
                     return subscription;
                 } else {
-                    console.log('🔄 VAPID key mismatch, resubscribing with new key...');
+
                     await subscription.unsubscribe();
                 }
             }
@@ -72,7 +72,7 @@ export async function subscribeToPushNotifications() {
 
         // 5. Send to server
         await notificationsApi.subscribe(subscription);
-        console.log('✅ Successfully subscribed to push notifications');
+
 
         return subscription;
     } catch (err) {
@@ -91,7 +91,7 @@ export async function unsubscribeFromPushNotifications() {
         if (subscription) {
             await notificationsApi.unsubscribe(subscription.endpoint);
             await subscription.unsubscribe();
-            console.log('✅ Successfully unsubscribed from push notifications');
+
         }
     } catch (err) {
         console.error('❌ Push unsubscription failed:', err);

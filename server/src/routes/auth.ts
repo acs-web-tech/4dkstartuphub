@@ -287,7 +287,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
         // Logic to check and handle premium expiry
         if (user.payment_status === 'completed' && user.premium_expiry) {
             if (user.premium_expiry < new Date()) {
-                console.log(`⚠️ User ${user.id} premium has expired. Updating status.`);
+
                 user.payment_status = 'expired';
                 await user.save();
             }

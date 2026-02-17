@@ -107,7 +107,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
     useEffect(() => {
         if (socket) {
             socket.on('notification', (newNotif: AppNotification) => {
-                console.log('📬 Real-time notification received:', newNotif);
+
 
                 // Add to list if not already present
                 setNotifications(prev => {
@@ -133,13 +133,13 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
             });
 
             socket.on('notificationsRead', () => {
-                console.log('📬 Notifications marked as read elsewhere');
+
                 setUnreadCount(0);
                 setNotifications(prev => prev.map(n => ({ ...n, isRead: 1 })));
             });
 
             socket.on('broadcast', (data: any) => {
-                console.log('📢 Administrative Broadcast:', data);
+
 
                 const notif: AppNotification = {
                     id: `bc-${Date.now()}`,

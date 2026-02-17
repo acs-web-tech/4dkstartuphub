@@ -97,7 +97,7 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
 });
 
 // ── GET /api/users/:id ──────────────────────────────────────
-router.get('/:id', authenticate, async (req, res) => {
+router.get('/:id', authenticate, async (req: AuthRequest, res) => {
     try {
         const user = await User.findOne({ _id: req.params.id, is_active: true });
 
@@ -141,9 +141,20 @@ router.get('/:id', authenticate, async (req, res) => {
             }
         ]);
 
+        const userJson = user.toJSON();
+
+        // Hide private info if not looking at self and not admin
+        if (req.user!.userId !== user._id.toString() && req.user!.role !== 'admin') {
+            delete (userJson as any).email;
+            delete (userJson as any).paymentStatus;
+            delete (userJson as any).razorpayPaymentId;
+            delete (userJson as any).razorpayOrderId;
+            delete (userJson as any).premiumExpiry;
+        }
+
         res.json({
             user: {
-                ...user.toJSON(),
+                ...userJson,
                 postCount
             },
             recentPosts,

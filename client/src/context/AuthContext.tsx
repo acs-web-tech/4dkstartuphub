@@ -25,9 +25,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const refreshUser = useCallback(async () => {
         try {
-            console.log('🔄 Refreshing user data...');
+
             const data = await authApi.me();
-            console.log('✅ User data received:', data.user);
+
             setUser(data.user);
         } catch {
             setUser(null);

@@ -58,16 +58,16 @@ export default function Profile() {
                 return;
             }
 
-            console.log('📤 File selected:', file.name);
+
             setUploading(true);
             setMessage('');
 
             try {
-                console.log('🚀 Uploading file...');
+                // Uploading file...
                 const data = await uploadApi.upload(file);
-                console.log('✅ Upload response:', data);
+                // Upload response logged
                 updateField('avatarUrl', data.url);
-                console.log('🖼️ Avatar URL updated in form state:', data.url);
+                // Avatar URL updated
             } catch (err: any) {
                 console.error('❌ Avatar upload failed:', err);
                 setMessage(err.message || 'Failed to upload avatar image');
@@ -81,12 +81,12 @@ export default function Profile() {
         e.preventDefault();
         setSaving(true);
         setMessage('');
-        console.log('💾 Saving profile with data:', form);
+        // Saving profile data
         try {
             await usersApi.updateProfile(form);
-            console.log('✅ Profile updated successfully');
+
             await refreshUser();
-            console.log('✅ User data refreshed');
+
             setEditing(false);
             setMessage('Profile updated successfully!');
         } catch (err: any) {

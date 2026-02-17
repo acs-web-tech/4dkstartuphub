@@ -111,8 +111,15 @@ app.use(cors({
             return callback(null, true);
         }
 
-        // In production with Nginx serving both frontend and backend on same domain,
-        // requests are Same-Origin. We can be permissive here.
+        if (isProd) {
+            // Strict check in production
+            if (origin === config.corsOrigin) {
+                return callback(null, true);
+            }
+            return callback(new Error('Not allowed by CORS'));
+        }
+
+        // Development: allow all
         callback(null, true);
     },
     credentials: true,
