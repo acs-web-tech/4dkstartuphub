@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "636099845779",
+    "project_id": "dkstartuphub-notify",
+    "storage_bucket": "dkstartuphub-notify.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:636099845779:android:286679ac01ae8a844e3766",
+        "android_client_info": {
+          "package_name": "io.startuphub.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA2gco-fQi4dFpgzNRl3IT1SgpVKSEDp4Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
