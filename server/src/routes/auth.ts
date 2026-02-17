@@ -168,6 +168,8 @@ router.post('/register', authLimiter, validate(registerSchema), async (req, res)
 
         res.status(201).json({
             message: 'Registration successful',
+            accessToken,
+            refreshToken,
             user: {
                 id: newUser._id.toString(),
                 username: newUser.username,
@@ -207,6 +209,8 @@ router.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
 
         res.json({
             message: 'Login successful',
+            accessToken,
+            refreshToken,
             user: {
                 id: user._id.toString(),
                 username: user.username,
@@ -228,7 +232,7 @@ router.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
 
 // ── POST /api/auth/refresh ───────────────────────────────────
 router.post('/refresh', async (req, res) => {
-    const refreshTokenCookie = req.cookies?.refresh_token;
+    const refreshTokenCookie = req.cookies?.refresh_token || req.body.refreshToken;
 
     if (!refreshTokenCookie) {
         res.status(401).json({ error: 'Refresh token required' });
@@ -259,7 +263,11 @@ router.post('/refresh', async (req, res) => {
         const { accessToken, refreshToken } = generateTokens(user._id.toString(), user.role);
         setTokenCookies(res, accessToken, refreshToken);
 
-        res.json({ message: 'Tokens refreshed' });
+        res.json({
+            message: 'Tokens refreshed',
+            accessToken,
+            refreshToken
+        });
     } catch {
         res.clearCookie('access_token');
         res.clearCookie('refresh_token');

@@ -7,9 +7,14 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
         (headers as Record<string, string>)['Content-Type'] = 'application/json';
     }
 
+    const accessToken = localStorage.getItem('access_token');
+    if (accessToken) {
+        (headers as Record<string, string>)['Authorization'] = `Bearer ${accessToken}`;
+    }
+
     const res = await fetch(`${BASE}${url}`, {
         credentials: 'include',
-        cache: 'no-store', // Prevent caching of API responses (crucial for /me)
+        cache: 'no-store', // Prevent caching of API responses
         headers,
         ...options,
     });
@@ -26,12 +31,21 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
         // Refresh failed - redirect to login
         if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
             // Try refresh
+            const refreshToken = localStorage.getItem('refresh_token');
             const refreshRes = await fetch(`${BASE}/auth/refresh`, {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken }),
                 credentials: 'include',
             });
+
             if (refreshRes.ok) {
-                // Retry original request
+                const data = await refreshRes.json();
+                if (data.accessToken) localStorage.setItem('access_token', data.accessToken);
+                if (data.refreshToken) localStorage.setItem('refresh_token', data.refreshToken);
+
+                // Retry original request with new token
+                (headers as Record<string, string>)['Authorization'] = `Bearer ${data.accessToken}`;
                 const retryRes = await fetch(`${BASE}${url}`, {
                     credentials: 'include',
                     headers,
@@ -47,6 +61,8 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 
         // If we are here, refresh failed or we are on login/register page
         if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
             window.location.href = '/login';
         }
         throw new Error(errMessage);
@@ -67,15 +83,27 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
 
 // ── Auth ────────────────────────────────────────────────────
 export const authApi = {
-    register: (data: {
+    register: async (data: {
         username: string; email: string; password: string; displayName: string;
         userType: 'startup' | 'investor';
         payment?: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
-    }) =>
-        request('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
-    login: (data: { email: string; password: string }) =>
-        request('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
-    logout: () => request('/auth/logout', { method: 'POST' }),
+    }) => {
+        const res = await request<{ user: any; accessToken: string; refreshToken: string }>('/auth/register', { method: 'POST', body: JSON.stringify(data) });
+        if (res.accessToken) localStorage.setItem('access_token', res.accessToken);
+        if (res.refreshToken) localStorage.setItem('refresh_token', res.refreshToken);
+        return res;
+    },
+    login: async (data: { email: string; password: string }) => {
+        const res = await request<{ user: any; accessToken: string; refreshToken: string }>('/auth/login', { method: 'POST', body: JSON.stringify(data) });
+        if (res.accessToken) localStorage.setItem('access_token', res.accessToken);
+        if (res.refreshToken) localStorage.setItem('refresh_token', res.refreshToken);
+        return res;
+    },
+    logout: async () => {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        return request('/auth/logout', { method: 'POST' });
+    },
     checkAvailability: (data: { username?: string; email?: string }) =>
         request<{ available: boolean }>('/auth/check-availability', { method: 'POST', body: JSON.stringify(data) }),
     me: () => request<{ user: import('../types').User }>('/auth/me'),
