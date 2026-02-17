@@ -1061,6 +1061,33 @@ export default function Admin() {
                                             placeholder="Write a welcome message..."
                                         />
                                     </div>
+
+                                    {/* Preview Box */}
+                                    <div style={{ marginTop: '16px', padding: '16px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)' }}>
+                                        <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                            Live User Preview
+                                        </div>
+                                        <div style={{
+                                            background: 'var(--bg-card)',
+                                            border: '1px solid var(--border-color)',
+                                            borderRadius: 'var(--radius)',
+                                            padding: '20px',
+                                            maxWidth: '400px'
+                                        }}>
+                                            <div style={{ display: 'flex', gap: '12px' }}>
+                                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                    <Megaphone size={20} color="white" />
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '4px', lineHeight: 1.3 }}>{welcomeTitle || 'Welcome to StartupHub!'}</div>
+                                                    <div
+                                                        style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}
+                                                        dangerouslySetInnerHTML={{ __html: welcomeContent || '<p>Your welcome message will appear here...</p>' }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="form-group">
