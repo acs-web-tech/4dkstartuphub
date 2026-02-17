@@ -62,21 +62,28 @@ class SocketService {
 
         this.io.use((socket, next) => {
             try {
-                const cookiesStr = socket.handshake.headers.cookie;
-                if (!cookiesStr) {
-                    return next(new Error('Authentication error: No cookies'));
+                let token = socket.handshake.auth?.token;
+
+                // Also check Authorization header
+                if (!token && socket.handshake.headers.authorization) {
+                    const parts = socket.handshake.headers.authorization.split(' ');
+                    if (parts.length === 2 && parts[0] === 'Bearer') {
+                        token = parts[1];
+                    }
                 }
 
-                let token: string | undefined;
-                try {
-                    const parsed = cookie.parse(cookiesStr);
-                    token = parsed.access_token;
-                } catch (parseErr: any) {
-                    return next(new Error('Authentication error: Cookie parse failed'));
+                // Fallback to cookies
+                if (!token && socket.handshake.headers.cookie) {
+                    try {
+                        const parsed = cookie.parse(socket.handshake.headers.cookie);
+                        token = parsed.access_token;
+                    } catch (parseErr: any) {
+                        // ignore cookie parse error if we have no token yet
+                    }
                 }
 
                 if (!token) {
-                    return next(new Error('Authentication error: No token'));
+                    return next(new Error('Authentication error: No token provided'));
                 }
 
                 try {

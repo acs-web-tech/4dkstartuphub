@@ -34,11 +34,17 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     useEffect(() => {
         const userId = user?.id;
         if (userId) {
-            const backendUrl = window.location.origin;
+            // Use VITE_API_URL for mobile, fallback to window.location.origin for web dev
+            const apiUrl = import.meta.env.VITE_API_URL || window.location.origin;
+            // Remove /api if present to get the root URL for socket.io
+            const backendUrl = apiUrl.replace(/\/api\/?$/, '');
 
             setStatus('connecting');
 
+            const token = localStorage.getItem('access_token');
+
             const newSocket = io(backendUrl, {
+                auth: { token }, // precise token auth
                 withCredentials: true,
                 transports: ['websocket', 'polling'],
                 reconnection: true,
