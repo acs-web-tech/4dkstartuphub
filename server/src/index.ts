@@ -112,18 +112,8 @@ app.use(cors({
         }
 
         if (isProd) {
-            // Strict check in production, but allow mobile app origins
-            const allowedOrigins = [
-                config.corsOrigin,
-                'capacitor://localhost',
-                'http://localhost',
-                'https://localhost'
-            ];
-
-            if (allowedOrigins.includes(origin)) {
-                return callback(null, true);
-            }
-            return callback(new Error('Not allowed by CORS'));
+            // Allow all origins (reflect request origin) to fix mobile 'Failed to fetch'
+            return callback(null, true);
         }
 
         // Development: allow all
