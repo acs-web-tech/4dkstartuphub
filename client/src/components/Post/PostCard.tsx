@@ -3,7 +3,7 @@ import { memo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Post } from '../../types';
 import { CATEGORY_CONFIG } from '../../config';
-import { Pin, Heart, MessageSquare, Eye, Video, MoreVertical, Calendar, Download } from 'lucide-react';
+import { Pin, Heart, MessageSquare, Eye, Video, MoreVertical, Calendar, Download, ArrowRight } from 'lucide-react';
 import { SmartImage } from '../Common/SmartImage';
 
 interface Props {
@@ -85,31 +85,31 @@ function PostCard({ post, onImageClick }: Props) {
                             <span>{initials}</span>
                         )}
                         {/* Start Online Indicator */}
-                        {post.userIsOnline && <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[var(--bg-primary)] rounded-full"></span>}
+                        {post.userIsOnline && <span className="online-indicator-dot"></span>}
                     </div>
                     <div className="post-meta">
-                        <div className="flex items-center gap-2">
-                            <span className="post-author font-semibold text-[var(--text-primary)] hover:text-primary transition-colors">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span className="post-author">
                                 {post.displayName}
                             </span>
                             {/* Investor Badge */}
                             {post.userType === 'investor' && (
-                                <span className="px-1.5 py-0.5 text-[0.65rem] font-bold text-white bg-gradient-to-r from-purple-500 to-indigo-600 rounded-full shadow-sm uppercase tracking-wider">
-                                    Investor
+                                <span className="investor-badge">
+                                    💰 Investor
                                 </span>
                             )}
                             {/* Regular Poster Badge */}
                             {(post.userPostCount || 0) > 5 && post.userType !== 'investor' && (
-                                <span className="px-1.5 py-0.5 text-[0.65rem] font-bold text-white bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full shadow-sm uppercase tracking-wider">
+                                <span className="regular-badge">
                                     Regular
                                 </span>
                             )}
                         </div>
-                        <span className="post-time text-xs text-gray-500">{timeAgo}</span>
+                        <span className="post-time">{timeAgo}</span>
                     </div>
                 </Link>
 
-                <div className="flex items-center gap-2 ml-auto">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
                     <Link to={`/feed?category=${post.category}`} className="post-category-tag" style={{ '--cat-color': cat.color, marginLeft: 0 } as any}>
                         <Icon size={14} />
                         <span>{cat.label}</span>
@@ -193,8 +193,8 @@ function PostCard({ post, onImageClick }: Props) {
                 </div>
                 <div className="post-actions-right">
                     {post.videoUrl && <div className="post-video-tag"><Video size={14} /> <span>Review</span></div>}
-                    <Link to={`/posts/${post.id}`} className="btn-open-discussion">
-                        <MessageSquare size={14} className="mr-1" /> Open Discussion
+                    <Link to={`/posts/${post.id}`} className="btn-read-more">
+                        Read More <ArrowRight size={14} />
                     </Link>
                 </div>
             </div>

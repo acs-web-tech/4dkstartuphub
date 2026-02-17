@@ -375,7 +375,7 @@ img {
 
 .search-bar input {
   width: 100%;
-  padding: 12px 16px 12px 48px;
+  padding: 12px 40px 12px 48px;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
@@ -1993,24 +1993,28 @@ img {
   gap: 12px;
 }
 
-.btn-open-discussion {
+.btn-open-discussion,
+.btn-read-more {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   padding: 8px 16px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
   border-radius: 6px;
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--accent);
   transition: all 0.2s;
   text-decoration: none;
 }
 
-.btn-open-discussion:hover {
-  background: var(--bg-card-hover);
-  color: var(--text-primary);
+.btn-open-discussion:hover,
+.btn-read-more:hover {
+  background: var(--accent);
+  color: white;
   border-color: var(--accent);
+  transform: translateX(2px);
 }
 
 .post-card-footer {
@@ -3182,9 +3186,12 @@ img {
 
 .trending-meta {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   font-size: 0.78rem;
   color: var(--text-muted);
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .quick-links {
@@ -5581,4 +5588,72 @@ img {
     width: 56px;
     height: 56px;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Search Clear Button
+   ══════════════════════════════════════════════════════════════ */
+.search-clear-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-speed);
+  z-index: 2;
+}
+
+.search-clear-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-card-hover);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Regular Badge (for active posters)
+   ══════════════════════════════════════════════════════════════ */
+.regular-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  border-radius: 20px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Trending Card Thumbnail Z-Index Fix
+   ══════════════════════════════════════════════════════════════ */
+.trending-card-top {
+  position: relative;
+  z-index: 2;
+}
+
+.trending-rank {
+  z-index: 1;
+}
+
+.trending-card-thumb {
+  position: relative;
+  z-index: 3;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Helper: Position Relative
+   ══════════════════════════════════════════════════════════════ */
+.relative {
+  position: relative;
 }

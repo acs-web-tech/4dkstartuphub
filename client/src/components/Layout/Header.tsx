@@ -334,6 +334,16 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                             maxLength={100}
                             id="global-search"
                         />
+                        {search && (
+                            <button
+                                type="button"
+                                className="search-clear-btn"
+                                onClick={() => { setSearch(''); setShowSearchDropdown(false); setSearchResults({ users: [], posts: [] }); }}
+                                aria-label="Clear search"
+                            >
+                                <X size={16} />
+                            </button>
+                        )}
                     </form>
                     {showSearchDropdown && (searchResults.users.length > 0 || searchResults.posts.length > 0) && (
                         <div className="search-dropdown">

@@ -315,7 +315,7 @@ export default function PostDetail() {
                             )}
                         </div>
                         <div>
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                 <strong className="post-author">{post.displayName}</strong>
                                 {post.userType === 'investor' && (
                                     <span className="investor-badge">💰 Investor</span>

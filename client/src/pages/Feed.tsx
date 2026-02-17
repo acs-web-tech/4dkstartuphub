@@ -275,7 +275,7 @@ export default function Feed() {
                                     <p className="page-subtitle">Browse posts in this category</p>
                                 </div>
                                 {user && (
-                                    <Link to="/create-post" className="btn btn-primary" id="create-from-feed">Create</Link>
+                                    <Link to={`/create-post${category ? `?category=${category}` : ''}`} className="btn btn-primary" id="create-from-feed">Create</Link>
                                 )}
                             </div>
                         );
@@ -296,7 +296,7 @@ export default function Feed() {
                             <p className="page-subtitle">Latest from the startup community</p>
                         </div>
                         {user && (
-                            <Link to="/create-post" className="btn btn-primary" id="create-from-feed">Create</Link>
+                            <Link to="/create-post" className="btn btn-primary" id="create-from-feed-main">Create</Link>
                         )}
                     </div>
                 )}
@@ -325,7 +325,7 @@ export default function Feed() {
                     <span className="empty-icon"><Inbox size={48} /></span>
                     <h2>No posts yet</h2>
                     <p>Be the first to share something with the community!</p>
-                    {user && <Link to="/create-post" className="btn btn-primary">Create Post</Link>}
+                    {user && <Link to={`/create-post${category ? `?category=${category}` : ''}`} className="btn btn-primary">Create Post</Link>}
                 </div>
             ) : (
                 <>

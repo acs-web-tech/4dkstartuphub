@@ -1,8 +1,0 @@
-﻿ M client/src/components/Layout/Header.tsx
- M client/src/components/Layout/Sidebar.tsx
- M client/src/components/Post/CreatePost.tsx
- M client/src/index.css
- M client/src/pages/Discovery.tsx
- M client/src/pages/Members.tsx
- M client/src/pages/PostDetail.tsx
-?? git_status.txt
