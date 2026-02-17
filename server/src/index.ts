@@ -112,8 +112,15 @@ app.use(cors({
         }
 
         if (isProd) {
-            // Strict check in production
-            if (origin === config.corsOrigin) {
+            // Strict check in production, but allow mobile app origins
+            const allowedOrigins = [
+                config.corsOrigin,
+                'capacitor://localhost',
+                'http://localhost',
+                'https://localhost'
+            ];
+
+            if (allowedOrigins.includes(origin)) {
                 return callback(null, true);
             }
             return callback(new Error('Not allowed by CORS'));
