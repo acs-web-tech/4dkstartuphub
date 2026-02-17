@@ -25,7 +25,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '21'
 
       - name: Install Dependencies
         working-directory: ./mobile
@@ -39,8 +39,17 @@ jobs:
           if [ -n "$GOOGLE_SERVICES_JSON" ]; then
             echo "$GOOGLE_SERVICES_JSON" > google-services.json
           else
-            echo "Warning: GOOGLE_SERVICES_JSON secret not found. Build might fail if Firebase is enabled."
-            echo "{}" > google-services.json
+            echo "Warning: GOOGLE_SERVICES_JSON secret not found. Using Mock JSON for build validation."
+            echo '{
+              "project_info": { "project_number": "123456789012", "project_id": "mock-project", "storage_bucket": "mock.appspot.com" },
+              "client": [{
+                "client_info": { "mobilesdk_app_id": "1:123456789012:android:abcdef123456", "android_client_info": { "package_name": "io.startuphub.app" } },
+                "oauth_client": [],
+                "api_key": [{ "current_key": "mock_api_key" }],
+                "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+              }],
+              "configuration_version": "1"
+            }' > google-services.json
           fi
 
       - name: Build Web Assets
