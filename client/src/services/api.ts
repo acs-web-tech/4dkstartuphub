@@ -121,10 +121,11 @@ export const postsApi = {
 
 // ── Users ───────────────────────────────────────────────────
 export const usersApi = {
-    getAll: (params?: { page?: number; search?: string }) => {
+    getAll: (params?: { page?: number; search?: string; filter?: string }) => {
         const qs = new URLSearchParams();
         if (params?.page) qs.set('page', String(params.page));
         if (params?.search) qs.set('search', params.search);
+        if (params?.filter) qs.set('filter', params.filter);
         return request<{ users: import('../types').User[]; pagination: import('../types').Pagination }>(
             `/users?${qs.toString()}`
         );

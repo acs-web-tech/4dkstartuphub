@@ -21,14 +21,17 @@ router.get('/online', (req, res) => {
 });
 
 // ── GET /api/users ──────────────────────────────────────────
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticate, async (req: AuthRequest, res) => {
     try {
         const page = Math.max(1, parseInt(req.query.page as string) || 1);
         const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
         const skip = (page - 1) * limit;
         const search = req.query.search as string;
+        const filter = req.query.filter as string || 'explore';
 
         const match: any = { is_active: true };
+        let sort: any = { created_at: -1 };
+
         if (search) {
             const escapedSearch = escapeRegExp(search);
             match.$or = [
@@ -38,19 +41,28 @@ router.get('/', authenticate, async (req, res) => {
             ];
         }
 
+        // Apply filters
+        if (filter === 'online') {
+            const onlineUserIds = socketService.getOnlineUserIds();
+            match._id = { $in: onlineUserIds.map(id => new mongoose.Types.ObjectId(id)) };
+        } else if (filter === 'hosts') {
+            match.role = { $in: ['admin', 'moderator'] };
+        } else if (filter === 'top') {
+            sort = { post_count: -1, created_at: -1 };
+        } else if (filter === 'newest') {
+            sort = { created_at: -1 };
+        } else if (filter === 'near-me' && req.user) {
+            const currentUser = await User.findById(req.user.userId);
+            if (currentUser && currentUser.location) {
+                match.location = { $regex: escapeRegExp(currentUser.location), $options: 'i' };
+            }
+        }
+
         const users = await User.aggregate([
             { $match: match },
-            { $sort: { created_at: -1 } },
+            { $sort: sort },
             { $skip: skip },
             { $limit: limit },
-            {
-                $lookup: {
-                    from: 'posts',
-                    localField: '_id',
-                    foreignField: 'user_id',
-                    as: 'userPosts'
-                }
-            },
             {
                 $project: {
                     id: '$_id',
@@ -62,15 +74,20 @@ router.get('/', authenticate, async (req, res) => {
                     location: 1,
                     isActive: { $cond: ['$is_active', 1, 0] },
                     createdAt: '$created_at',
-                    postCount: { $size: '$userPosts' }
+                    postCount: '$post_count',
+                    lastSeen: '$last_seen'
                 }
             }
         ]);
 
         const total = await User.countDocuments(match);
+        const onlineIds = socketService.getOnlineUserIds();
 
         res.json({
-            users,
+            users: users.map(u => ({
+                ...u,
+                isOnline: onlineIds.includes(u.id.toString())
+            })),
             pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
         });
     } catch (err) {
