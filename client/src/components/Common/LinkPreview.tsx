@@ -21,17 +21,9 @@ export default function LinkPreview({ url, compact = false, initialData }: { url
 
     useEffect(() => {
         if (initialData) {
-            const { title, image, siteName } = initialData;
-            // Detect low-quality preview data to force re-fetch
-            const isGeneric =
-                (!title || title.toLowerCase() === 'instagram' || title.toLowerCase().includes('login') ||
-                    (siteName && title === siteName && !image));
-
-            if (!isGeneric && (title || image)) {
-                setMeta(initialData);
-                setLoading(false);
-                return;
-            }
+            setMeta(initialData);
+            setLoading(false);
+            return;
         }
 
         if (!url) return;
