@@ -29,7 +29,7 @@ router.post('/subscribe', authenticate, async (req: AuthRequest, res) => {
                 subscription,
                 device_type: deviceType || 'web'
             },
-            { upsert: true, new: true }
+            { upsert: true, returnDocument: 'after' }
         );
 
         res.status(201).json({ success: true });

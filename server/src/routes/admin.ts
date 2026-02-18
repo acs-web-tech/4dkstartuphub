@@ -373,7 +373,7 @@ router.put('/settings', async (req: AuthRequest, res) => {
         await Setting.findOneAndUpdate(
             { key },
             { value: String(value), updated_at: new Date() },
-            { upsert: true, new: true }
+            { upsert: true, returnDocument: 'after' }
         );
 
         res.json({ message: 'Setting updated', key, value: String(value) });
