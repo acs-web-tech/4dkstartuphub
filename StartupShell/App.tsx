@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { BackHandler, Platform, Alert, StatusBar, SafeAreaView } from 'react-native';
+import { BackHandler, Platform, Alert, StatusBar, SafeAreaView, PermissionsAndroid } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import messaging from '@react-native-firebase/messaging';
 
@@ -42,17 +42,40 @@ const App = () => {
   // ─── 1. Request Permission & Get FCM Token ────────────────────────────────
   useEffect(() => {
     const init = async () => {
-      const authStatus = await messaging().requestPermission();
-      const enabled =
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-
-      if (!enabled) {
-        console.log('Push notification permission denied');
-        return;
-      }
-
       try {
+        // Step 1: Android 13+ (API 33+) requires explicit POST_NOTIFICATIONS permission
+        if (Platform.OS === 'android' && Platform.Version >= 33) {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+            {
+              title: '4DK Startup Hub Notifications',
+              message: 'Allow 4DK Startup Hub to send you notifications about new posts, comments, and messages.',
+              buttonPositive: 'Allow',
+              buttonNegative: 'Not Now',
+            }
+          );
+          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+            Alert.alert(
+              'Notifications Disabled',
+              'You won\'t receive push notifications. You can enable them anytime in Settings.',
+              [{ text: 'OK' }]
+            );
+            return;
+          }
+        }
+
+        // Step 2: Firebase permission request (handles iOS + older Android)
+        const authStatus = await messaging().requestPermission();
+        const enabled =
+          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+        if (!enabled) {
+          console.log('Push notification permission denied by Firebase');
+          return;
+        }
+
+        // Step 3: Get FCM token
         const token = await messaging().getToken();
         console.log('✅ FCM Token obtained:', token.substring(0, 20) + '...');
         pendingToken.current = token;
@@ -61,7 +84,7 @@ const App = () => {
           sendTokenToWebView(token);
         }
       } catch (error) {
-        console.error('Failed to get FCM token:', error);
+        console.error('Failed during notification setup:', error);
       }
     };
 
