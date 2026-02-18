@@ -39,7 +39,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setStatus('connecting');
 
             const newSocket = io(backendUrl, {
-                path: '/api/socket.io',
+                // path: '/api/socket.io', // Reverted
                 withCredentials: true,
                 transports: ['websocket', 'polling'],
                 reconnection: true,

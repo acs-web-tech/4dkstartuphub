@@ -29,6 +29,7 @@ class SocketService {
         const isProd = process.env.NODE_ENV === 'production';
 
         this.io = new SocketIOServer(server, {
+            // path: '/api/socket.io', // Reverted due to Server Crash
             cors: {
                 origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
                     // No origin = same-origin / server-to-server — always allow
@@ -37,8 +38,8 @@ class SocketService {
                     }
 
                     if (isProd) {
-                        // Production: permissive since Nginx handles same-origin
-                        callback(null, true);
+                        // Allow all origins (reflect request origin) to fix mobile 'Failed to fetch'
+                        return callback(null, true);
                     } else {
                         // Development: allow all local dev origins
                         const devOrigins = [
