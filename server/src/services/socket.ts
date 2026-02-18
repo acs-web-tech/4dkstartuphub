@@ -24,6 +24,8 @@ class SocketService {
     // Entries auto-expire after KICK_BLOCK_DURATION_MS
     private kickedUsers: Map<string, Map<string, number>> = new Map();
     private static readonly KICK_BLOCK_DURATION_MS = 30 * 60 * 1000; // 30 minutes
+    // Rate Limiting: Map<`${roomId}:${userId}`, timestamps[]>
+    private messageRateLimits: Map<string, number[]> = new Map();
 
     initialize(server: HttpServer) {
         const isProd = process.env.NODE_ENV === 'production';
@@ -268,6 +270,14 @@ class SocketService {
     }
 
     /**
+     * Emit all messages from a user deleted event
+     */
+    emitUserMessagesDeleted(roomId: string, userId: string) {
+        if (!this.io) return;
+        this.io.to(`chat:${roomId}`).emit('userMessagesDeleted', { roomId, userId });
+    }
+
+    /**
      * Emit comment count update
      */
     emitCommentCountUpdate(postId: string, commentCount: number) {
@@ -451,6 +461,27 @@ class SocketService {
             if (confirmedMembership.is_muted) {
                 socket.emit('chatError', { roomId, error: 'You are muted in this room.' });
                 return;
+            }
+
+            // ── LEVEL 7: Rate Limiting (Auto-Mute Spammers) ──
+            if (user.role !== 'admin') {
+                const rateLimitKey = `${roomId}:${userId}`;
+                const now = Date.now();
+                let timestamps = this.messageRateLimits.get(rateLimitKey) || [];
+                // Keep timestamps within last 10 seconds
+                timestamps = timestamps.filter(t => now - t < 10000);
+
+                if (timestamps.length >= 10) {
+                    // Auto-mute
+                    await ChatRoomMember.updateOne({ room_id: rObjectId, user_id: uObjectId }, { is_muted: 1 });
+                    socket.emit('chatError', { roomId, error: 'You have been automatically muted for sending messages too quickly.' });
+                    // Notify room of update (mute status)
+                    this.io.to(`chat:${roomId}`).emit('memberListUpdated', { roomId });
+                    return;
+                }
+
+                timestamps.push(now);
+                this.messageRateLimits.set(rateLimitKey, timestamps);
             }
 
             const content = sanitizeHtml(rawContent.trim());

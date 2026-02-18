@@ -487,6 +487,24 @@ router.delete('/:roomId/messages/:messageId', authenticate, async (req: AuthRequ
     }
 });
 
+// ── DELETE /api/chatrooms/:roomId/users/:userId/messages (Admin) ──
+router.delete('/:roomId/users/:userId/messages', authenticate, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+        const { roomId, userId } = req.params;
+
+        const result = await ChatMessage.deleteMany({ room_id: roomId, user_id: userId });
+
+        if (result.deletedCount > 0) {
+            socketService.emitUserMessagesDeleted(String(roomId), String(userId));
+        }
+
+        res.json({ message: `Deleted ${result.deletedCount} messages` });
+    } catch (err) {
+        console.error('Delete user messages error:', err);
+        res.status(500).json({ error: 'Failed to delete user messages' });
+    }
+});
+
 // ── DELETE /api/chatrooms/:id (Admin only) ──────────────────
 router.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res) => {
     try {

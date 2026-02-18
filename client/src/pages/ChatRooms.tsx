@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { chatApi } from '../services/api';
@@ -35,6 +36,9 @@ export default function ChatRooms() {
     // Track rooms the user has been kicked from to prevent UI glitches
     const [kickedRooms, setKickedRooms] = useState<Set<string>>(new Set());
 
+    // User Actions Modal State
+    const [userActionsTarget, setUserActionsTarget] = useState<{ userId: string; displayName: string; avatarUrl: string } | null>(null);
+
     const handleDeleteMessage = async (messageId: string) => {
         if (!activeRoom) return;
         if (!window.confirm('Delete this message?')) return;
@@ -43,6 +47,17 @@ export default function ChatRooms() {
             setMessages(prev => prev.filter(m => m.id !== messageId));
         } catch (err) {
             console.error('Failed to delete message:', err);
+        }
+    };
+
+    const handleDeleteAllUserMessages = async () => {
+        if (!activeRoom || !userActionsTarget) return;
+        if (!window.confirm(`Delete ALL messages from ${userActionsTarget.displayName}? This cannot be undone.`)) return;
+        try {
+            await chatApi.deleteUserMessages(activeRoom, userActionsTarget.userId);
+            setUserActionsTarget(null);
+        } catch (err) {
+            console.error('Failed to delete user messages:', err);
         }
     };
 
@@ -153,6 +168,11 @@ export default function ChatRooms() {
         socket.on('messageDeleted', ({ roomId, messageId }: { roomId: string, messageId: string }) => {
             if (activeRoom === roomId) {
                 setMessages(prev => prev.filter(m => m.id !== messageId));
+            }
+        });
+        socket.on('userMessagesDeleted', ({ roomId, userId }: { roomId: string, userId: string }) => {
+            if (activeRoom === roomId) {
+                setMessages(prev => prev.filter(m => m.userId !== userId));
             }
         });
 
@@ -472,12 +492,23 @@ export default function ChatRooms() {
                                 return (
                                     <div key={msg.id} className={`chat-message ${isOwn ? 'own' : ''}`}>
                                         {!isOwn && (
-                                            <div className="chat-msg-avatar">
+                                            <div
+                                                className="chat-msg-avatar cursor-pointer"
+                                                onClick={() => setUserActionsTarget({ userId: msg.userId, displayName: msg.displayName, avatarUrl: msg.avatarUrl })}
+                                                title="Click for options"
+                                            >
                                                 {msg.avatarUrl ? <img src={msg.avatarUrl} alt="" /> : <span>{getInitials(msg.displayName)}</span>}
                                             </div>
                                         )}
                                         <div className="chat-msg-body">
-                                            {!isOwn && <span className="chat-msg-author">{msg.displayName}</span>}
+                                            {!isOwn && (
+                                                <span
+                                                    className="chat-msg-author cursor-pointer hover:underline"
+                                                    onClick={() => setUserActionsTarget({ userId: msg.userId, displayName: msg.displayName, avatarUrl: msg.avatarUrl })}
+                                                >
+                                                    {msg.displayName}
+                                                </span>
+                                            )}
 
                                             {/* Only show text bubble if there is non-URL text */}
                                             {cleanContent && (
@@ -587,6 +618,34 @@ export default function ChatRooms() {
                     </div>
                 )}
             </div>
+
+            {/* User Actions Modal */}
+            {userActionsTarget && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setUserActionsTarget(null)}>
+                    <div className="bg-[var(--bg-primary)] p-6 rounded-lg shadow-xl w-full max-w-xs border border-[var(--border-color)]" onClick={e => e.stopPropagation()}>
+                        <div className="text-center mb-6">
+                            <div className="w-20 h-20 rounded-full mx-auto mb-3 overflow-hidden bg-[var(--bg-secondary)] flex items-center justify-center">
+                                {userActionsTarget.avatarUrl
+                                    ? <img src={userActionsTarget.avatarUrl} className="w-full h-full object-cover" />
+                                    : <span className="text-2xl font-bold text-[var(--text-secondary)]">{getInitials(userActionsTarget.displayName)}</span>
+                                }
+                            </div>
+                            <h3 className="font-bold text-lg">{userActionsTarget.displayName}</h3>
+                        </div>
+                        <div className="flex flex-col gap-3">
+                            <Link to={`/users/${userActionsTarget.userId}`} className="btn btn-secondary w-full text-center py-2" onClick={() => setUserActionsTarget(null)}>
+                                View Profile
+                            </Link>
+                            {isAdmin && (
+                                <button className="btn btn-danger w-full py-2 flex items-center justify-center gap-2" onClick={handleDeleteAllUserMessages}>
+                                    <Trash2 size={16} /> Delete All Messages
+                                </button>
+                            )}
+                        </div>
+                        <button className="btn btn-ghost w-full mt-2" onClick={() => setUserActionsTarget(null)}>Cancel</button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
