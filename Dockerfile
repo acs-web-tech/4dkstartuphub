@@ -36,6 +36,7 @@ COPY --from=backend-builder /app/server/dist ./server/dist
 # Debug: show what was built
 RUN echo "=== Backend dist contents ===" && find /app/server/dist -name "*.js" -type f | head -20
 COPY server/package*.json ./server/
+COPY server/service-account.json ./server/
 RUN cd server && npm install --omit=dev && mkdir -p uploads
 
 # 2. Copy Frontend to Nginx directory

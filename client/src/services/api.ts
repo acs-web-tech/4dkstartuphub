@@ -217,6 +217,8 @@ export const notificationsApi = {
         request('/notifications/subscribe', { method: 'POST', body: JSON.stringify({ subscription }) }),
     unsubscribe: (endpoint: string) =>
         request('/notifications/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) }),
+    registerDevice: (token: string) =>
+        request('/notifications/register-device', { method: 'POST', body: JSON.stringify({ token }) }),
 };
 
 // ── Public Settings (no auth) ───────────────────────────────

@@ -2,7 +2,7 @@ import webpush from 'web-push';
 import { config } from '../config/env';
 import PushSubscription from '../models/PushSubscription';
 import Notification from '../models/Notification';
-import { firebaseAdmin } from '../config/firebase';
+import { getFirebaseMessaging } from '../config/firebase';
 import User from '../models/User';
 
 class PushNotificationService {
@@ -47,8 +47,9 @@ class PushNotificationService {
 
             // 2. Native Push (FCM)
             const user = await User.findById(userId).select('fcm_tokens');
-            if (user?.fcm_tokens?.length && firebaseAdmin) {
-                const response = await firebaseAdmin.messaging().sendEachForMulticast({
+            const messaging = getFirebaseMessaging();
+            if (user?.fcm_tokens?.length && messaging) {
+                const response = await messaging.sendEachForMulticast({
                     notification: {
                         title: data.title,
                         body: data.body,
@@ -107,19 +108,27 @@ class PushNotificationService {
             }
 
             // 2. Native Push (FCM)
-            if (firebaseAdmin) {
-                const tokens = await User.distinct('fcm_tokens');
+            const messaging = getFirebaseMessaging();
+            if (messaging) {
+                console.log('📢 Starting Native Push Broadcast...');
+                // Get all tokens from all users
+                const users = await User.find({ 'fcm_tokens.0': { $exists: true } }).select('fcm_tokens');
+                const tokens = users.reduce((acc, user) => [...acc, ...user.fcm_tokens], [] as string[]);
+                // Remove duplicates
+                const uniqueTokens = [...new Set(tokens)];
 
-                if (tokens.length > 0) {
-                    // Firebase limits multicast to 500 tokens
+                console.log(`📱 Found ${uniqueTokens.length} unique FCM tokens for broadcast.`);
+
+                if (uniqueTokens.length > 0) {
                     const batchSize = 500;
-                    for (let i = 0; i < tokens.length; i += batchSize) {
-                        const batch = tokens.slice(i, i + batchSize);
+                    for (let i = 0; i < uniqueTokens.length; i += batchSize) {
+                        const batch = uniqueTokens.slice(i, i + batchSize);
                         try {
-                            await firebaseAdmin.messaging().sendEachForMulticast({
+                            console.log(`🚀 Sending batch ${Math.floor(i / batchSize) + 1} (${batch.length} tokens)...`);
+                            const response = await messaging.sendEachForMulticast({
                                 notification: {
                                     title: data.title,
-                                    body: data.body
+                                    body: data.body,
                                 },
                                 data: {
                                     url: data.url || '/',
@@ -127,14 +136,25 @@ class PushNotificationService {
                                 },
                                 tokens: batch
                             });
+                            console.log(`✅ Batch sent: ${response.successCount} success, ${response.failureCount} failed.`);
+
+                            if (response.failureCount > 0) {
+                                response.responses.forEach((r, idx) => {
+                                    if (!r.success) console.error(`❌ Token failed: ${batch[idx]} - ${r.error?.message}`);
+                                });
+                            }
                         } catch (e) {
-                            console.error('FCM broadcast batch error:', e);
+                            console.error('❌ FCM broadcast batch error:', e);
                         }
                     }
+                } else {
+                    console.log('⚠️ No mobile devices registered for push notifications.');
                 }
+            } else {
+                console.warn('⚠️ Firebase Admin not initialized. Skipping native broadcast.');
             }
         } catch (err) {
-            console.error('Push broadcast error:', err);
+            console.error('❌ Push broadcast error:', err);
         }
     }
 }

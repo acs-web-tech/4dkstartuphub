@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { User } from '../types';
-import { authApi } from '../services/api';
+import { authApi, notificationsApi } from '../services/api';
 import { preloadImage } from '../utils/imageCache';
 import { subscribeToPushNotifications } from '../utils/pushNotifications';
 
@@ -45,11 +45,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [user?.avatarUrl]);
 
-    // Handle Push Notification Subscription
+    // Handle Push Notification Subscription (Web)
     useEffect(() => {
         if (user && 'Notification' in window && Notification.permission === 'granted') {
             subscribeToPushNotifications();
         }
+    }, [user]);
+
+    // Handle Native Mobile Token (FCM)
+    useEffect(() => {
+        if (!user) return;
+
+        const registerNativeToken = async (token: string) => {
+            try {
+                await notificationsApi.registerDevice(token);
+                console.log('✅ Native FCM Token registered');
+                localStorage.removeItem('fcm_native_token'); // Clear once sent? Or keep to avoid resending? 
+                // Better to keep it or just send it contentiously? 
+                // Creating a "sent" flag might be better. 
+                // For now, let's just send it. The server uses $addToSet so duplicates are fine.
+            } catch (err) {
+                console.error('Failed to register native token:', err);
+            }
+        };
+
+        // 1. Check pending token in storage
+        const storedToken = localStorage.getItem('fcm_native_token');
+        if (storedToken) {
+            registerNativeToken(storedToken);
+        }
+
+        // 2. Listen for new tokens from Native App
+        (window as any).handleNativeToken = (token: string) => {
+            console.log("📲 Received Native FCM Token:", token);
+            localStorage.setItem('fcm_native_token', token);
+            registerNativeToken(token);
+        };
     }, [user]);
 
     const login = async (email: string, password: string) => {

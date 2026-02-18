@@ -20,3 +20,31 @@ service-account.json
 service-account.json.json
 *.keystore
 *.jks
+
+# Android SDK & build tools (large binaries - never commit)
+android-sdk/
+StartupShell/android-sdk/
+mobile/android-sdk/
+*.apk
+*.aab
+
+# Android build artifacts
+StartupShell/android/.gradle/
+StartupShell/android/build/
+StartupShell/android/app/build/
+StartupShell/node_modules/
+StartupShell/.gradle/
+
+mobile/android/.gradle/
+mobile/android/build/
+mobile/android/app/build/
+mobile/node_modules/
+mobile/.gradle/
+
+# React Native
+.expo/
+.expo-shared/
+
+# Gradle wrapper (optional - keep if you want reproducible builds)
+# !StartupShell/android/gradlew
+# !StartupShell/android/gradlew.bat
