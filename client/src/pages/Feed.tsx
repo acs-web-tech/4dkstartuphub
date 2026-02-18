@@ -275,7 +275,7 @@ export default function Feed() {
                                     <h1>{currentCat.label} {connected && <span className="online-indicator" title="Live updates active"></span>}</h1>
                                     <p className="page-subtitle">Browse posts in this category</p>
                                 </div>
-                                {user && (
+                                {user && (category === 'events' ? user.role === 'admin' : true) && (
                                     <Link to={`/create-post${category ? `?category=${category}` : ''}`} className="btn btn-primary" id="create-from-feed">Create</Link>
                                 )}
                             </div>
@@ -331,23 +331,25 @@ export default function Feed() {
             ) : (
                 <>
                     <div className="posts-list">
-                        {posts.map((post, index) => {
-                            // Inject online status
-                            const postWithStatus = {
-                                ...post,
-                                userIsOnline: connected ? onlineUsers.has(post.userId) : false
-                            };
+                        {posts
+                            .filter(p => !category || p.category === category)
+                            .map((post, index) => {
+                                // Inject online status
+                                const postWithStatus = {
+                                    ...post,
+                                    userIsOnline: connected ? onlineUsers.has(post.userId) : false
+                                };
 
-                            if (posts.length === index + 1) {
-                                return (
-                                    <div ref={lastPostElementRef} key={post.id}>
-                                        <PostCard post={postWithStatus} onImageClick={setLightbox} />
-                                    </div>
-                                );
-                            } else {
-                                return <PostCard key={post.id} post={postWithStatus} onImageClick={setLightbox} />;
-                            }
-                        })}
+                                if (posts.length === index + 1) {
+                                    return (
+                                        <div ref={lastPostElementRef} key={post.id}>
+                                            <PostCard post={postWithStatus} onImageClick={setLightbox} />
+                                        </div>
+                                    );
+                                } else {
+                                    return <PostCard key={post.id} post={postWithStatus} onImageClick={setLightbox} />;
+                                }
+                            })}
                     </div>
 
                     {loadingMore && (
