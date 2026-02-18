@@ -4,8 +4,8 @@ import { useSocket } from '../../context/SocketContext';
 import { postsApi, usersApi } from '../../services/api';
 import { Comment } from '../../types';
 import { Lock } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import CommentItem from './CommentItem';
+import LinkPreview from '../Common/LinkPreview';
 
 interface CommentsSectionProps {
     postId: string;
@@ -19,6 +19,7 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
     const [comments, setComments] = useState<Comment[]>(initialComments);
     const [newComment, setNewComment] = useState('');
     const [commenting, setCommenting] = useState(false);
+    const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
     // @mention autocomplete state
     const [showMentionDropdown, setShowMentionDropdown] = useState(false);
@@ -27,39 +28,43 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
     const [mentionCursorPos, setMentionCursorPos] = useState(0);
     const commentInputRef = useRef<HTMLTextAreaElement>(null);
 
-    // Update comments when initialComments changes (e.g. parent refetch)
+    // Update comments when initialComments changes
     useEffect(() => {
         setComments(initialComments);
     }, [initialComments]);
+
+    // Extract URLs for live link preview
+    useEffect(() => {
+        const unique = new Set<string>();
+        const regex = /https?:\/\/[^\s]+/g;
+        let match;
+        while ((match = regex.exec(newComment)) !== null) {
+            unique.add(match[0]);
+        }
+        setPreviewUrls(Array.from(unique).slice(0, 2));
+    }, [newComment]);
 
     // Socket listener for new comments
     useEffect(() => {
         if (socket && postId) {
             const handleNewComment = (comment: Comment) => {
                 setComments(prev => {
-                    // Check if we have an optimistic comment (temp id) that matches this real comment
                     const optimisticIndex = prev.findIndex(c =>
                         c.id.toString().startsWith('temp-') &&
                         c.content === comment.content &&
                         c.userId === comment.userId
                     );
-
                     if (optimisticIndex !== -1) {
                         const newComments = [...prev];
                         newComments[optimisticIndex] = comment;
                         return newComments;
                     }
-
                     if (prev.find(c => c.id === comment.id)) return prev;
                     return [...prev, comment];
                 });
             };
-
             socket.on('newComment', handleNewComment);
-
-            return () => {
-                socket.off('newComment', handleNewComment);
-            };
+            return () => { socket.off('newComment', handleNewComment); };
         }
     }, [socket, postId]);
 
@@ -70,7 +75,6 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
         const content = newComment.trim();
         const tempId = `temp-${Date.now()}`;
 
-        // Optimistic Update
         const optimisticComment: Comment = {
             id: tempId,
             postId: postId,
@@ -85,8 +89,8 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
 
         setComments(prev => [...prev, optimisticComment]);
         setNewComment('');
+        setPreviewUrls([]);
         setShowMentionDropdown(false);
-        setMentionSearch('');
         setCommenting(true);
 
         try {
@@ -109,11 +113,7 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
 
             if (lastAtIndex !== -1) {
                 const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-                if (textAfterAt.includes(' ')) {
-                    setShowMentionDropdown(false);
-                    return;
-                }
-
+                if (textAfterAt.includes(' ')) { setShowMentionDropdown(false); return; }
                 if (textAfterAt.length >= 0) {
                     setMentionSearch(textAfterAt);
                     setMentionCursorPos(lastAtIndex);
@@ -170,29 +170,38 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
                     {/* @mention dropdown */}
                     {showMentionDropdown && mentionUsers.length > 0 && (
                         <div className="mention-dropdown">
-                            {mentionUsers.map(user => (
+                            {mentionUsers.map(u => (
                                 <div
-                                    key={user.id}
+                                    key={u.id}
                                     className="mention-item"
-                                    onClick={() => handleMentionSelect(user.username)}
+                                    onClick={() => handleMentionSelect(u.username)}
                                 >
                                     <div className="mention-avatar">
-                                        {user.avatarUrl ? (
-                                            <img src={user.avatarUrl} alt={user.displayName} />
-                                        ) : (
-                                            <span>{user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}</span>
-                                        )}
+                                        {u.avatarUrl
+                                            ? <img src={u.avatarUrl} alt={u.displayName} />
+                                            : <span>{u.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}</span>
+                                        }
                                     </div>
                                     <div className="mention-info">
-                                        <strong>{user.displayName}</strong>
-                                        <span>@{user.username}</span>
+                                        <strong>{u.displayName}</strong>
+                                        <span>@{u.username}</span>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     )}
 
-                    <button type="submit" className="btn btn-primary btn-sm" disabled={commenting || !newComment.trim()} id="submit-comment">
+                    {/* Live link preview */}
+                    {previewUrls.map(url => (
+                        <LinkPreview key={url} url={url} compact />
+                    ))}
+
+                    <button
+                        type="submit"
+                        className="btn btn-primary btn-sm"
+                        disabled={commenting || !newComment.trim()}
+                        id="submit-comment"
+                    >
                         {commenting ? 'Posting...' : 'Post Comment'}
                     </button>
                 </form>

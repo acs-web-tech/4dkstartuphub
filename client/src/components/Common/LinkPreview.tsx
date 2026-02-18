@@ -8,9 +8,12 @@ interface MetaData {
     siteName: string;
     url: string;
     favicon?: string;
+    author?: string;
+    publishedDate?: string;
+    contentType?: string;
 }
 
-export default function LinkPreview({ url }: { url: string }) {
+export default function LinkPreview({ url, compact = false }: { url: string; compact?: boolean }) {
     const [meta, setMeta] = useState<MetaData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -19,6 +22,7 @@ export default function LinkPreview({ url }: { url: string }) {
         if (!url) return;
         setLoading(true);
         setError(false);
+        setMeta(null);
 
         const controller = new AbortController();
 
@@ -28,7 +32,7 @@ export default function LinkPreview({ url }: { url: string }) {
                 return res.json();
             })
             .then(data => {
-                if (!data.title) throw new Error('No metadata');
+                if (!data.title && !data.description) throw new Error('No metadata');
                 setMeta(data);
             })
             .catch(() => setError(true))
@@ -37,25 +41,44 @@ export default function LinkPreview({ url }: { url: string }) {
         return () => controller.abort();
     }, [url]);
 
-    if (loading) return null;
+    if (loading) return (
+        <div className="link-preview-card link-preview-loading">
+            <div className="preview-skeleton-img" />
+            <div className="preview-content">
+                <div className="preview-skeleton-line short" />
+                <div className="preview-skeleton-line" />
+                <div className="preview-skeleton-line medium" />
+            </div>
+        </div>
+    );
     if (error || !meta) return null;
 
-    // Format display URL: strip protocol, trim long paths
+    // Format display URL
     let displayUrl = url;
     try {
         const parsed = new URL(url);
-        displayUrl = parsed.hostname + (parsed.pathname !== '/' ? parsed.pathname : '');
+        displayUrl = parsed.hostname.replace('www.', '') + (parsed.pathname !== '/' ? parsed.pathname : '');
         if (displayUrl.length > 60) displayUrl = displayUrl.slice(0, 57) + '...';
     } catch { }
 
-    const siteName = meta.siteName || (() => { try { return new URL(url).hostname; } catch { return url; } })();
+    const siteName = meta.siteName || (() => { try { return new URL(url).hostname.replace('www.', ''); } catch { return url; } })();
+
+    // Format published date nicely
+    let formattedDate = '';
+    if (meta.publishedDate) {
+        try {
+            formattedDate = new Date(meta.publishedDate).toLocaleDateString('en-IN', {
+                day: 'numeric', month: 'short', year: 'numeric'
+            });
+        } catch { }
+    }
 
     return (
         <a
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="link-preview-card"
+            className={`link-preview-card${compact ? ' compact' : ''}`}
             onClick={e => e.stopPropagation()}
         >
             {meta.image && (
@@ -81,10 +104,14 @@ export default function LinkPreview({ url }: { url: string }) {
                         />
                     )}
                     <span className="preview-site">{siteName}</span>
+                    {formattedDate && <span className="preview-date">· {formattedDate}</span>}
                 </div>
                 <div className="preview-title">{meta.title}</div>
                 {meta.description && (
                     <div className="preview-desc">{meta.description}</div>
+                )}
+                {meta.author && (
+                    <div className="preview-author">By {meta.author}</div>
                 )}
                 <div className="preview-url">{displayUrl}</div>
             </div>

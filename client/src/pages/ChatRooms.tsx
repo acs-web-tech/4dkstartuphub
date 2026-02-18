@@ -5,6 +5,7 @@ import { useSocket } from '../context/SocketContext';
 import { chatApi } from '../services/api';
 import { ChatRoom, ChatMessage } from '../types';
 import { MessageCircle, Trash2, Send, Plus, Lock, Shield } from 'lucide-react';
+import LinkPreview from '../components/Common/LinkPreview';
 
 export default function ChatRooms() {
     const { user } = useAuth();
@@ -321,6 +322,12 @@ export default function ChatRooms() {
         }
     };
 
+    // Extract first URL from a message for link preview
+    const extractFirstUrl = (text: string): string | null => {
+        const match = text.match(/https?:\/\/[^\s]+/);
+        return match ? match[0] : null;
+    };
+
     // Render message content with highlighted @mentions
     const renderMessageContent = (content: string) => {
         const parts = content.split(/(@[a-zA-Z0-9_]+)/g);
@@ -442,6 +449,7 @@ export default function ChatRooms() {
                         <div className="chat-messages">
                             {messages.map(msg => {
                                 const isOwn = msg.userId === user?.id;
+                                const msgUrl = extractFirstUrl(msg.content);
                                 return (
                                     <div key={msg.id} className={`chat-message ${isOwn ? 'own' : ''}`}>
                                         {!isOwn && (
@@ -452,6 +460,11 @@ export default function ChatRooms() {
                                         <div className="chat-msg-body">
                                             {!isOwn && <span className="chat-msg-author">{msg.displayName}</span>}
                                             <div className="chat-msg-content">{renderMessageContent(msg.content)}</div>
+                                            {msgUrl && (
+                                                <div className="chat-msg-link-preview">
+                                                    <LinkPreview url={msgUrl} compact />
+                                                </div>
+                                            )}
                                             <span className="chat-msg-time">{formatTime(msg.createdAt)}</span>
                                         </div>
                                     </div>

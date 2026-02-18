@@ -24,7 +24,6 @@ router.get('/preview', async (req, res) => {
     }
 
     const saveToCacheAndRespond = (data: any) => {
-        // Limit cache size to avoid memory leaks
         if (cache.size > 1000) {
             const firstKey = cache.keys().next().value;
             if (firstKey) cache.delete(firstKey);
@@ -33,7 +32,7 @@ router.get('/preview', async (req, res) => {
         res.json(data);
     };
 
-    // YouTube oEmbed Strategy (More reliable for video titles/thumbnails)
+    // YouTube oEmbed Strategy
     if (urlString.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/)) {
         try {
             const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(urlString)}&format=json`;
@@ -45,6 +44,7 @@ router.get('/preview', async (req, res) => {
                 siteName: 'YouTube',
                 favicon: 'https://www.youtube.com/s/desktop/12d6b690/img/favicon.ico',
                 type: 'video',
+                author: data.author_name || '',
                 url: urlString
             };
             return saveToCacheAndRespond(metaData);
@@ -56,68 +56,106 @@ router.get('/preview', async (req, res) => {
     try {
         const { data: html } = await axios.get(urlString, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+                'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
             },
-            timeout: 5000,
+            timeout: 8000,
+            maxRedirects: 5,
         });
 
         const $ = cheerio.load(html);
-        const getMeta = (prop: string) =>
-            $(`meta[property="${prop}"]`).attr('content') ||
-            $(`meta[name="${prop}"]`).attr('content');
 
-        const title = getMeta('og:title') || $('title').text() || '';
-        const description = getMeta('og:description') || getMeta('description') || '';
-        const image = getMeta('og:image') || getMeta('twitter:image') || '';
-        const siteName = getMeta('og:site_name') || getMeta('application-name') || '';
+        // Helper: get meta by property OR name
+        const getMeta = (...props: string[]) => {
+            for (const prop of props) {
+                const val = $(`meta[property="${prop}"]`).attr('content') ||
+                    $(`meta[name="${prop}"]`).attr('content') ||
+                    $(`meta[itemprop="${prop}"]`).attr('content');
+                if (val) return val.trim();
+            }
+            return '';
+        };
 
-        // Favicon Logic
-        let favicon = $('link[rel="icon"]').attr('href') ||
-            $('link[rel="shortcut icon"]').attr('href') ||
-            $('link[rel="apple-touch-icon"]').attr('href');
-
-        // Resolve partial URLs
-        if (favicon && !favicon.startsWith('http')) {
+        // Resolve relative URLs to absolute
+        const resolveUrl = (url: string) => {
+            if (!url) return '';
+            if (url.startsWith('http')) return url;
             try {
-                const baseUrl = new URL(urlString);
-                if (favicon.startsWith('//')) {
-                    favicon = `https:${favicon}`;
-                } else if (favicon.startsWith('/')) {
-                    favicon = `${baseUrl.origin}${favicon}`;
-                } else {
-                    favicon = `${baseUrl.origin}/${baseUrl.pathname.split('/').slice(0, -1).join('/')}/${favicon}`;
-                }
-            } catch (e) { }
-        }
+                const base = new URL(urlString);
+                if (url.startsWith('//')) return `${base.protocol}${url}`;
+                if (url.startsWith('/')) return `${base.origin}${url}`;
+                return `${base.origin}/${url}`;
+            } catch { return url; }
+        };
 
-        // Fallback favicon using Google's service if none found (reliable)
+        const title = getMeta('og:title', 'twitter:title') || $('title').text().trim() || '';
+        const description = getMeta('og:description', 'twitter:description', 'description') || '';
+
+        // Multiple image fallbacks
+        const image = resolveUrl(
+            getMeta('og:image', 'og:image:url', 'twitter:image', 'twitter:image:src', 'image')
+        );
+
+        const siteName = getMeta('og:site_name', 'application-name') ||
+            (() => { try { return new URL(urlString).hostname.replace('www.', ''); } catch { return ''; } })();
+
+        const author = getMeta('author', 'article:author', 'og:author', 'twitter:creator') ||
+            $('[rel="author"]').first().text().trim() || '';
+
+        const publishedDate = getMeta('article:published_time', 'og:updated_time', 'datePublished', 'date') || '';
+
+        const contentType = getMeta('og:type') || '';
+
+        const keywords = getMeta('keywords', 'article:tag') || '';
+
+        // Favicon: try multiple selectors
+        let favicon = $('link[rel="icon"][href]').attr('href') ||
+            $('link[rel="shortcut icon"][href]').attr('href') ||
+            $('link[rel="apple-touch-icon"][href]').attr('href') ||
+            $('link[rel="apple-touch-icon-precomposed"][href]').attr('href') ||
+            $('link[rel="fluid-icon"][href]').attr('href') || '';
+
+        favicon = resolveUrl(favicon);
+
+        // Fallback favicon via Google
         if (!favicon) {
             try {
                 const hostname = new URL(urlString).hostname;
                 favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
-            } catch (e) { }
+            } catch { }
         }
 
-        saveToCacheAndRespond({ title, description, image, siteName, favicon, url: urlString });
+        saveToCacheAndRespond({
+            title,
+            description,
+            image,
+            siteName,
+            favicon,
+            author,
+            publishedDate,
+            contentType,
+            keywords,
+            url: urlString
+        });
     } catch (error) {
         console.error('Link preview error:', error);
-        // Fallback: return basic info hostname
         try {
             const hostname = new URL(urlString).hostname;
             const fallbackData = {
                 title: hostname,
                 description: '',
                 image: '',
-                siteName: hostname,
+                siteName: hostname.replace('www.', ''),
                 favicon: `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`,
+                author: '',
+                publishedDate: '',
+                contentType: '',
+                keywords: '',
                 url: urlString
             };
             saveToCacheAndRespond(fallbackData);
         } catch (e) {
-            // Very last fallback, no cache? Or cache empty?
-            // Better to not cache errors aggressively or cache them for shorter time.
-            // For simplicity, just return.
             res.json({ title: '', description: '', image: '', siteName: '', url: urlString });
         }
     }
