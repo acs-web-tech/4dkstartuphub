@@ -450,6 +450,9 @@ export default function ChatRooms() {
                             {messages.map(msg => {
                                 const isOwn = msg.userId === user?.id;
                                 const msgUrl = extractFirstUrl(msg.content);
+                                // Remove URL from display text if it exists
+                                const cleanContent = msgUrl ? msg.content.replace(msgUrl, '').trim() : msg.content;
+
                                 return (
                                     <div key={msg.id} className={`chat-message ${isOwn ? 'own' : ''}`}>
                                         {!isOwn && (
@@ -459,12 +462,19 @@ export default function ChatRooms() {
                                         )}
                                         <div className="chat-msg-body">
                                             {!isOwn && <span className="chat-msg-author">{msg.displayName}</span>}
-                                            <div className="chat-msg-content">{renderMessageContent(msg.content)}</div>
+
+                                            {/* Only show text bubble if there is non-URL text */}
+                                            {cleanContent && (
+                                                <div className="chat-msg-content">{renderMessageContent(cleanContent)}</div>
+                                            )}
+
+                                            {/* Show Link Preview if URL exists */}
                                             {msgUrl && (
                                                 <div className="chat-msg-link-preview">
                                                     <LinkPreview url={msgUrl} compact />
                                                 </div>
                                             )}
+
                                             <span className="chat-msg-time">{formatTime(msg.createdAt)}</span>
                                         </div>
                                     </div>
@@ -509,17 +519,29 @@ export default function ChatRooms() {
                                     ))}
                                 </div>
                             )}
-                            <input
-                                ref={inputRef}
-                                type="text"
-                                className="form-input chat-input"
-                                placeholder="Type a message... Use @username to mention"
+                            <textarea
+                                ref={inputRef as any}
+                                className="form-input chat-input chat-textarea"
+                                placeholder="Type a message... (Shift+Enter for new line)"
                                 value={newMessage}
-                                onChange={handleInputChange}
-                                onKeyDown={handleInputKeyDown}
+                                onChange={(e) => {
+                                    handleInputChange(e as any);
+                                    e.target.style.height = 'auto'; // Reset height
+                                    e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px'; // Expand up to 150px
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleSend(e);
+                                    } else {
+                                        handleInputKeyDown(e as any);
+                                    }
+                                }}
                                 maxLength={2000}
                                 id="chat-message-input"
                                 disabled={isMuted}
+                                rows={1}
+                                style={{ resize: 'none', overflowY: 'auto' }}
                             />
                             <button type="submit" className="btn btn-primary" disabled={sending || !newMessage.trim() || isMuted} id="send-message-btn">
                                 {sending ? '...' : <Send size={20} />}
