@@ -240,6 +240,12 @@ router.post('/', authenticate, validate(createPostSchema), async (req: AuthReque
             return;
         }
 
+        // Restrict 'events' category to admins
+        if (category === 'events' && req.user?.role !== 'admin') {
+            res.status(403).json({ error: 'Only administrators can create Event/Meetup posts.' });
+            return;
+        }
+
         const newPost = await Post.create({
             user_id: userId,
             title: sanitizePlainText(title),
@@ -305,7 +311,14 @@ router.put('/:id', authenticate, validate(updatePostSchema), async (req: AuthReq
 
         if (req.body.title) post.title = sanitizePlainText(req.body.title);
         if (req.body.content) post.content = sanitizeHtml(req.body.content);
-        if (req.body.category) post.category = req.body.category;
+
+        if (req.body.category) {
+            if (req.body.category === 'events' && req.user?.role !== 'admin') {
+                res.status(403).json({ error: 'Only administrators can create Event/Meetup posts.' });
+                return;
+            }
+            post.category = req.body.category;
+        }
         if (req.body.videoUrl !== undefined) post.video_url = req.body.videoUrl;
         if (req.body.imageUrl !== undefined) post.image_url = req.body.imageUrl;
         if (req.body.eventDate !== undefined) post.event_date = req.body.eventDate ? new Date(req.body.eventDate) : undefined;

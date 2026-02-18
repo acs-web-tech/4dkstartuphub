@@ -9,8 +9,10 @@ import { PostCategory } from '../../types';
 import { CATEGORY_CONFIG } from '../../config';
 import { Rocket, Link as LinkIcon, Save, Calendar } from 'lucide-react';
 import LinkPreview from '../Common/LinkPreview';
+import { useAuth } from '../../context/AuthContext';
 
 export default function CreatePost() {
+    const { user } = useAuth();
     const navigate = useNavigate();
     const { id: editId } = useParams();
     const [searchParams] = useSearchParams();
@@ -190,22 +192,25 @@ export default function CreatePost() {
                 <div className="form-group">
                     <label htmlFor="post-category">Category</label>
                     <div className="category-selector">
-                        {(Object.entries(CATEGORY_CONFIG) as [PostCategory, typeof CATEGORY_CONFIG[PostCategory]][]).map(
-                            ([key, cat]) => {
-                                const Icon = cat.icon;
-                                return (
-                                    <button
-                                        key={key}
-                                        type="button"
-                                        className={`category-chip ${category === key ? 'active' : ''}`}
-                                        style={category === key ? { background: cat.color + '33', borderColor: cat.color, color: cat.color } : {}}
-                                        onClick={() => setCategory(key)}
-                                    >
-                                        <Icon size={14} className="inline mr-1" /> {cat.label}
-                                    </button>
-                                );
-                            }
-                        )}
+                        {(Object.entries(CATEGORY_CONFIG) as [PostCategory, typeof CATEGORY_CONFIG[PostCategory]][])
+                            .filter(([key]) => key !== 'events' || user?.role === 'admin')
+                            .map(
+                                ([key, cat]) => {
+                                    const Icon = cat.icon;
+                                    return (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            className={`category-chip ${category === key ? 'active' : ''}`}
+                                            style={category === key ? { background: cat.color + '33', borderColor: cat.color, color: cat.color } : {}}
+                                            onClick={() => setCategory(key)}
+                                        >
+                                            <Icon size={14} className="inline mr-1" /> {cat.label}
+                                        </button>
+                                    );
+                                }
+
+                            )}
                     </div>
                 </div>
 
