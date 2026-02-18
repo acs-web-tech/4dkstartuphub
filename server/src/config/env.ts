@@ -28,9 +28,9 @@ export const config = {
     uploadDir: process.env.UPLOAD_DIR || 'uploads',
     maxFileSize: 10 * 1024 * 1024, // 10MB
     rateLimits: {
-        auth: { windowMs: 15 * 60 * 1000, max: 50 },        // 50 per 15 min
-        api: { windowMs: 15 * 60 * 1000, max: 1000 },       // 1000 per 15 min
-        upload: { windowMs: 60 * 60 * 1000, max: 50 },      // 50 per hour
+        auth: { windowMs: 15 * 60 * 1000, max: 200 },        // Increased to 200
+        api: { windowMs: 15 * 60 * 1000, max: 5000 },       // Increased to 5000
+        upload: { windowMs: 60 * 60 * 1000, max: 200 },      // Increased to 200
     },
     aws: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
