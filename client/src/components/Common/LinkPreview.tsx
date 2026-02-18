@@ -69,7 +69,19 @@ export default function LinkPreview({ url, compact = false, initialData }: { url
             </div>
         </div>
     );
-    if (error || !meta) return null;
+    if (error || !meta) {
+        let hostname = url;
+        try { hostname = new URL(url).hostname; } catch { }
+
+        return (
+            <a href={url} target="_blank" rel="noopener noreferrer" className={`link-preview-card${compact ? ' compact' : ''}`} onClick={e => e.stopPropagation()}>
+                <div className="preview-content">
+                    <div className="preview-site">{hostname}</div>
+                    <div className="preview-url">{url}</div>
+                </div>
+            </a>
+        );
+    }
 
     // Format display URL
     let displayUrl = url;
