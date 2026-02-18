@@ -25,8 +25,37 @@ const UAGENTS = [
     'Twitterbot/1.0'
 ];
 
+const isSafeUrl = (urlString: string): boolean => {
+    try {
+        const url = new URL(urlString);
+        const hostname = url.hostname;
+
+        // Block local/private hostnames
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return false;
+
+        // Block private IP ranges (basic regex)
+        // 10.0.0.0/8
+        if (hostname.match(/^10\.\d+\.\d+\.\d+$/)) return false;
+        // 172.16.0.0/12
+        if (hostname.match(/^172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+$/)) return false;
+        // 192.168.0.0/16
+        if (hostname.match(/^192\.168\.\d+\.\d+$/)) return false;
+        // 169.254.0.0/16 (Link-local/Cloud metadata)
+        if (hostname.match(/^169\.254\.\d+\.\d+$/)) return false;
+
+        return true;
+    } catch {
+        return false;
+    }
+};
+
 export const getLinkPreview = async (urlString: string): Promise<LinkPreviewData> => {
     if (!urlString) throw new Error('URL is required');
+
+    // Security check: Block SSRF attempts
+    if (!isSafeUrl(urlString)) {
+        throw new Error('Invalid or restricted URL');
+    }
 
     // Check cache
     if (cache.has(urlString)) {
