@@ -139,27 +139,17 @@ const App = () => {
   }, []);
 
   // ─── 5. Handle Foreground Notifications ──────────────────────────────────
+  // No popup — silently navigate to the URL so the web app handles it natively
   useEffect(() => {
     const unsubscribe = messaging().onMessage(async remoteMessage => {
-      Alert.alert(
-        remoteMessage.notification?.title || 'New Notification',
-        remoteMessage.notification?.body,
-        [
-          {
-            text: 'View',
-            onPress: () => {
-              if (remoteMessage.data?.url) {
-                const url = remoteMessage.data.url as string;
-                const fullUrl = url.startsWith('/') ? `${WEBSITE_URL}${url}` : url;
-                webViewRef.current?.injectJavaScript(
-                  `window.location.href = ${JSON.stringify(fullUrl)}; true;`
-                );
-              }
-            }
-          },
-          { text: 'Dismiss', style: 'cancel' }
-        ]
-      );
+      if (remoteMessage.data?.url) {
+        const url = remoteMessage.data.url as string;
+        const fullUrl = url.startsWith('/') ? `${WEBSITE_URL}${url}` : url;
+        webViewRef.current?.injectJavaScript(
+          `window.location.href = ${JSON.stringify(fullUrl)}; true;`
+        );
+      }
+      // The web app's own notification UI (bell icon, toast, etc.) will handle display
     });
     return unsubscribe;
   }, []);
