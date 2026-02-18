@@ -3,7 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import { useSocket } from '../../context/SocketContext';
-import { WifiOff, RefreshCw, Download } from 'lucide-react';
+import { WifiOff, RefreshCw, Download, Rocket } from 'lucide-react';
 import { settingsApi } from '../../services/api';
 
 type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
@@ -144,13 +144,22 @@ export default function Layout() {
             )}
 
             {showInstallBtn && !(window as any).ReactNativeWebView && (
-                <div className="install-banner">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-                        <Download size={16} />
-                        <span>Install App</span>
+                <div className="install-banner-premium">
+                    <div className="install-content-wrapper">
+                        <div className="install-icon-box">
+                            <Rocket size={24} />
+                        </div>
+                        <div className="install-text-group">
+                            <h3>Experience StartupHub Natively</h3>
+                            <p>Get instant notifications and smoother navigation.</p>
+                        </div>
                     </div>
-                    <button className="btn btn-primary btn-xs" onClick={handleInstallClick}>Install</button>
-                    <button className="btn btn-ghost btn-xs" onClick={() => setShowInstallBtn(false)}>✕</button>
+                    <div className="install-action-buttons">
+                        <button className="btn btn-ghost btn-sm" onClick={() => setShowInstallBtn(false)}>Later</button>
+                        <button className="btn btn-primary btn-sm btn-install-app" onClick={handleInstallClick}>
+                            Get App <Download size={14} style={{ marginLeft: '4px' }} />
+                        </button>
+                    </div>
                 </div>
             )}
 
