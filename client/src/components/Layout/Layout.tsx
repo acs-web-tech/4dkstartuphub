@@ -147,7 +147,7 @@ export default function Layout() {
                 <div className="install-banner-premium">
                     <div className="install-content-wrapper">
                         <div className="install-icon-box">
-                            <Rocket size={24} />
+                            <img src="/logo.png" alt="App Logo" className="install-logo-img" />
                         </div>
                         <div className="install-text-group">
                             <h3>Experience StartupHub Natively</h3>
