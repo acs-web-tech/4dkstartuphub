@@ -19,8 +19,8 @@ interface FeedMemoryCache {
     timestamp: number;
 }
 
-// Module-level variable — survives component unmount/remount but NOT full page refreshes
-let feedMemoryCache: FeedMemoryCache | null = null;
+// Module-level variable — persists across SPA navigations
+const feedCache = new Map<string, FeedMemoryCache>();
 
 export default function Feed() {
     const { user } = useAuth();
@@ -30,18 +30,18 @@ export default function Feed() {
 
     const category = searchParams.get('category') || '';
     const search = searchParams.get('search') || '';
+    const cacheKey = JSON.stringify({ category, search });
 
     // Check if we have a valid in-memory cache matching current filters
     const getValidCache = (): FeedMemoryCache | null => {
-        if (!feedMemoryCache) return null;
-        // Only use cache if same category/search and within 10 minutes
-        if (
-            feedMemoryCache.category === category &&
-            feedMemoryCache.search === search &&
-            (Date.now() - feedMemoryCache.timestamp) < 10 * 60 * 1000
-        ) {
-            return feedMemoryCache;
+        const cached = feedCache.get(cacheKey);
+        if (!cached) return null;
+
+        // Only use cache if within 10 minutes
+        if ((Date.now() - cached.timestamp) < 10 * 60 * 1000) {
+            return cached;
         }
+        feedCache.delete(cacheKey);
         return null;
     };
 
@@ -127,15 +127,19 @@ export default function Feed() {
         return () => {
             const currentScroll = lastScrollY.current || window.scrollY;
             if (posts.length > 0) {
-                feedMemoryCache = {
-                    posts: posts.slice(0, 60), // Keep up to 60 posts in memory
+                const currentKey = JSON.stringify({
+                    category: categoryRef.current,
+                    search: searchRef.current
+                });
+                feedCache.set(currentKey, {
+                    posts: posts.slice(0, 60),
                     page: pageRef.current,
                     totalPages: pagination?.totalPages || 1,
                     category: categoryRef.current,
                     search: searchRef.current,
                     scrollY: currentScroll,
                     timestamp: Date.now(),
-                };
+                });
             }
         };
     }, [posts, pagination]);

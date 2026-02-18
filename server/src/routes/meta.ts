@@ -5,18 +5,40 @@ import * as cheerio from 'cheerio';
 
 const router = express.Router();
 
+const cache = new Map<string, { data: any, timestamp: number }>();
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
 router.get('/preview', async (req, res) => {
     const urlString = req.query.url as string;
     if (!urlString) {
         return res.status(400).json({ error: 'URL is required' });
     }
 
+    // Check cache
+    if (cache.has(urlString)) {
+        const { data, timestamp } = cache.get(urlString)!;
+        if (Date.now() - timestamp < CACHE_TTL) {
+            return res.json(data);
+        }
+        cache.delete(urlString);
+    }
+
+    const saveToCacheAndRespond = (data: any) => {
+        // Limit cache size to avoid memory leaks
+        if (cache.size > 1000) {
+            const firstKey = cache.keys().next().value;
+            if (firstKey) cache.delete(firstKey);
+        }
+        cache.set(urlString, { data, timestamp: Date.now() });
+        res.json(data);
+    };
+
     // YouTube oEmbed Strategy (More reliable for video titles/thumbnails)
     if (urlString.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/)) {
         try {
             const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(urlString)}&format=json`;
             const { data } = await axios.get(oembedUrl);
-            return res.json({
+            const metaData = {
                 title: data.title,
                 description: data.author_name ? `By ${data.author_name}` : '',
                 image: data.thumbnail_url,
@@ -24,7 +46,8 @@ router.get('/preview', async (req, res) => {
                 favicon: 'https://www.youtube.com/s/desktop/12d6b690/img/favicon.ico',
                 type: 'video',
                 url: urlString
-            });
+            };
+            return saveToCacheAndRespond(metaData);
         } catch (e) {
             console.error('YouTube oEmbed failed, falling back to scrape');
         }
@@ -76,21 +99,25 @@ router.get('/preview', async (req, res) => {
             } catch (e) { }
         }
 
-        res.json({ title, description, image, siteName, favicon, url: urlString });
+        saveToCacheAndRespond({ title, description, image, siteName, favicon, url: urlString });
     } catch (error) {
         console.error('Link preview error:', error);
         // Fallback: return basic info hostname
         try {
             const hostname = new URL(urlString).hostname;
-            res.json({
+            const fallbackData = {
                 title: hostname,
                 description: '',
                 image: '',
                 siteName: hostname,
                 favicon: `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`,
                 url: urlString
-            });
+            };
+            saveToCacheAndRespond(fallbackData);
         } catch (e) {
+            // Very last fallback, no cache? Or cache empty?
+            // Better to not cache errors aggressively or cache them for shorter time.
+            // For simplicity, just return.
             res.json({ title: '', description: '', image: '', siteName: '', url: urlString });
         }
     }
