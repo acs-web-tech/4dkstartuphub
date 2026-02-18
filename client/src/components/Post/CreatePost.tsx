@@ -19,12 +19,29 @@ export default function CreatePost() {
     const isEditing = !!editId;
     const preselectedCategory = searchParams.get('category') || '';
 
+    // Validate preselected category against permissions
+    const getInitialCategory = (): PostCategory => {
+        if (preselectedCategory === 'events') {
+            // Strictly block non-admins from starting with 'events'
+            if (user?.role !== 'admin') return 'general';
+            return 'events';
+        }
+        return (preselectedCategory && preselectedCategory in CATEGORY_CONFIG)
+            ? preselectedCategory as PostCategory
+            : 'general';
+    };
+
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [videoUrl, setVideoUrl] = useState('');
-    const [category, setCategory] = useState<PostCategory>(
-        (preselectedCategory && preselectedCategory in CATEGORY_CONFIG) ? preselectedCategory as PostCategory : 'general'
-    );
+    const [category, setCategory] = useState<PostCategory>(getInitialCategory());
+
+    // Safety check: if user role loads late or changes, boot them off 'events'
+    useEffect(() => {
+        if (category === 'events' && user && user.role !== 'admin') {
+            setCategory('general');
+        }
+    }, [user, category]);
     const [imageUrl, setImageUrl] = useState('');
     const [eventDate, setEventDate] = useState('');
     const [loading, setLoading] = useState(false);
