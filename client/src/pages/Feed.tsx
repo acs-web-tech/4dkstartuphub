@@ -326,7 +326,7 @@ export default function Feed() {
                     <span className="empty-icon"><Inbox size={48} /></span>
                     <h2>No posts yet</h2>
                     <p>Be the first to share something with the community!</p>
-                    {user && <Link to={`/create-post${category ? `?category=${category}` : ''}`} className="btn btn-primary">Create Post</Link>}
+                    {user && (category === 'events' ? user.role === 'admin' : true) && <Link to={`/create-post${category ? `?category=${category}` : ''}`} className="btn btn-primary">Create Post</Link>}
                 </div>
             ) : (
                 <>
