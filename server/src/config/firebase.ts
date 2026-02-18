@@ -7,15 +7,26 @@ import { config } from './env';
 // OR passing the service account object directly if you prefer (not recommended for repo).
 
 try {
-    if (process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.FIREBASE_SERVICE_ACCOUNT) {
+    const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+
+    if (serviceAccountPath) {
         admin.initializeApp({
             credential: admin.credential.applicationDefault(),
         });
-        console.log('✅ Firebase Admin initialized');
+        console.log('✅ Firebase Admin initialized (Env Var)');
     } else {
-        // Fallback or warning
-        console.warn('⚠️ Firebase Admin NOT initialized. Native push notifications will not work.');
-        console.warn('   Ensure GOOGLE_APPLICATION_CREDENTIALS is set to your service account key path.');
+        // Fallback: Try to load from root directory
+        try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const serviceAccount = require('../../service-account.json');
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount),
+            });
+            console.log('✅ Firebase Admin initialized (Local File)');
+        } catch (err) {
+            console.warn('⚠️ Firebase Admin NOT initialized. Native push notifications will not work.');
+            console.warn('   Ensure GOOGLE_APPLICATION_CREDENTIALS is set or service-account.json exists in server root.');
+        }
     }
 } catch (error) {
     console.error('❌ Firebase Admin initialization failed:', error);

@@ -13,8 +13,15 @@ export const getSessionImage = async (url: string): Promise<string> => {
     const cached = sessionBlobCache.get(url);
     if (cached) return cached;
 
-    const API_BASE = 'https://startup.4dk.in';
-    const fetchUrl = url.startsWith('/') ? `${API_BASE}${url}` : url;
+    // Rewrite localhost/127.0.0.1 to production URL to fix legacy/dev data
+    let finalUrl = url;
+    if (url.includes('localhost') || url.includes('127.0.0.1')) {
+        finalUrl = url.replace(/http:\/\/localhost:\d+/, 'https://startup.4dk.in')
+            .replace(/http:\/\/127.0.0.1:\d+/, 'https://startup.4dk.in');
+    }
+
+    // Prepend base URL if relative
+    const fetchUrl = finalUrl.startsWith('http') ? finalUrl : `https://startup.4dk.in${finalUrl.startsWith('/') ? '' : '/'}${finalUrl}`;
 
     try {
         const response = await fetch(fetchUrl);

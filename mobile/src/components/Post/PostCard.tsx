@@ -26,25 +26,33 @@ function PostCard({ post, onImageClick }: Props) {
     const initials = post.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     const isNew = (Date.now() - postDate.getTime() < 5000);
 
+    const resolveUrl = (url: string) => {
+        if (url.startsWith('http')) return url;
+        const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+        if (cleanUrl.startsWith('/uploads/')) return `https://startup.4dk.in${cleanUrl}`;
+        return `https://startup.4dk.in${cleanUrl}`;
+    };
+
     const handleContentClick = (e: React.MouseEvent) => {
         const target = e.target as HTMLElement;
         if (target.tagName === 'IMG' && onImageClick) {
-            onImageClick((target as HTMLImageElement).src);
+            const src = (target as HTMLImageElement).getAttribute('src') || '';
+            onImageClick(resolveUrl(src));
         }
     };
 
     const getGoogleCalendarUrl = () => {
         if (!post.eventDate) return '';
-        const start = new Date(post.eventDate).toISOString().replace(/-|:|\.\d+/g, '');
-        const end = new Date(new Date(post.eventDate).getTime() + 60 * 60 * 1000).toISOString().replace(/-|:|\.\d+/g, '');
+        const start = new Date(post.eventDate).toISOString().replace(/-|:|\.|Z/g, '').slice(0, 15) + 'Z';
+        const end = new Date(new Date(post.eventDate).getTime() + 60 * 60 * 1000).toISOString().replace(/-|:|\.|Z/g, '').slice(0, 15) + 'Z';
         const details = post.content.replace(/<[^>]*>/g, '').slice(0, 500);
         return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(post.title)}&dates=${start}/${end}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(`https://startup.4dk.in/posts/${post.id}`)}`;
     };
 
     const downloadIcs = () => {
         if (!post.eventDate) return;
-        const date = new Date(post.eventDate).toISOString().replace(/-|:|\.\d+/g, '');
-        const end = new Date(new Date(post.eventDate).getTime() + 60 * 60 * 1000).toISOString().replace(/-|:|\.\d+/g, '');
+        const date = new Date(post.eventDate).toISOString().replace(/-|:|\.|Z/g, '').slice(0, 15) + 'Z';
+        const end = new Date(new Date(post.eventDate).getTime() + 60 * 60 * 1000).toISOString().replace(/-|:|\.|Z/g, '').slice(0, 15) + 'Z';
         const icsContent = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
@@ -67,8 +75,12 @@ function PostCard({ post, onImageClick }: Props) {
         document.body.removeChild(link);
     };
 
+    // Fix relative images in content
+    const content = post.content.replace(/src="\/([^"]+)"/g, 'src="https://startup.4dk.in/$1"');
+
     return (
         <article className={`post-card${isNew ? ' realtime-new' : ''}`} id={`post-${post.id}`}>
+            {/* ... header ... */}
             <div className="post-card-corner">
                 {!!post.isPinned && <span className="pinned-tag" title="Pinned Post"><Pin size={14} /></span>}
             </div>
@@ -78,13 +90,12 @@ function PostCard({ post, onImageClick }: Props) {
                     <div className="post-avatar">
                         {post.avatarUrl ? (
                             <SmartImage
-                                src={post.avatarUrl}
+                                src={post.avatarUrl} // SmartImage handles resolution
                                 alt={post.displayName}
                             />
                         ) : (
                             <span>{initials}</span>
                         )}
-                        {/* Start Online Indicator */}
                         {post.userIsOnline && <span className="online-indicator-dot"></span>}
                     </div>
                     <div className="post-meta">
@@ -172,7 +183,7 @@ function PostCard({ post, onImageClick }: Props) {
             {post.imageUrl && (
                 <div
                     className="post-card-image cursor-pointer"
-                    onClick={() => onImageClick?.(post.imageUrl!)}
+                    onClick={() => onImageClick?.(resolveUrl(post.imageUrl!))}
                     title="Click to enlarge"
                 >
                     <SmartImage src={post.imageUrl} alt={post.title} />
@@ -181,7 +192,7 @@ function PostCard({ post, onImageClick }: Props) {
 
             <div
                 className="post-content-full ql-editor"
-                dangerouslySetInnerHTML={{ __html: post.content }}
+                dangerouslySetInnerHTML={{ __html: content }}
                 onClick={handleContentClick}
             />
 
