@@ -10,6 +10,7 @@ import { CATEGORY_CONFIG } from '../../config';
 import { Rocket, Link as LinkIcon, Save, Calendar } from 'lucide-react';
 import LinkPreview from '../Common/LinkPreview';
 import { useAuth } from '../../context/AuthContext';
+import { clearFeedCache } from '../../pages/Feed';
 
 export default function CreatePost() {
     const { user } = useAuth();
@@ -185,6 +186,7 @@ export default function CreatePost() {
                     imageUrl: imageUrl || undefined,
                     eventDate: eventDate ? new Date(eventDate).toISOString() : undefined
                 });
+                clearFeedCache(); // Invalidate cache so Feed fetches new post
                 navigate(`/posts/${data.postId}`);
             }
         } catch (err: any) {

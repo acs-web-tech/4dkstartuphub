@@ -22,6 +22,10 @@ interface FeedMemoryCache {
 // Module-level variable — persists across SPA navigations
 const feedCache = new Map<string, FeedMemoryCache>();
 
+export const clearFeedCache = () => {
+    feedCache.clear();
+};
+
 export default function Feed() {
     const { user } = useAuth();
     const { socket, connected, onlineUsers } = useSocket();
