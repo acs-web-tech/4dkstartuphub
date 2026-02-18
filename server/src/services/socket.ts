@@ -260,6 +260,14 @@ class SocketService {
     }
 
     /**
+     * Emit message deletion event
+     */
+    emitMessageDeleted(roomId: string, messageId: string) {
+        if (!this.io) return;
+        this.io.to(`chat:${roomId}`).emit('messageDeleted', { roomId, messageId });
+    }
+
+    /**
      * Emit comment count update
      */
     emitCommentCountUpdate(postId: string, commentCount: number) {

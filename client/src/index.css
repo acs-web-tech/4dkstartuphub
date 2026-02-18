@@ -6070,3 +6070,9 @@ img {
 .chat-send-btn { width: 48px; height: 48px; flex-shrink: 0; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; transition: all 0.2s; margin-bottom: 2px; }
 .chat-send-btn:hover { background: var(--accent-hover); transform: scale(1.05); }
 .chat-send-btn:disabled { background: var(--bg-tertiary); color: var(--text-muted); cursor: not-allowed; transform: none; }
+
+/*  Chat Message Delete  */
+.chat-msg-delete-btn { opacity: 0; transition: opacity 0.2s; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; margin-left: 0; vertical-align: middle; }
+.chat-message:hover .chat-msg-delete-btn { opacity: 1; }
+.chat-msg-delete-btn:hover { color: #ef4444; }
+.chat-msg-actions { display: flex; align-items: center; margin-top: 4px; }

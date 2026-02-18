@@ -170,6 +170,8 @@ export const chatApi = {
             method: 'POST',
             body: JSON.stringify({ content }),
         }),
+    deleteMessage: (roomId: string, messageId: string) =>
+        request(`/chatrooms/${roomId}/messages/${messageId}`, { method: 'DELETE' }),
     deleteRoom: (id: string) => request(`/chatrooms/${id}`, { method: 'DELETE' }),
 };
 

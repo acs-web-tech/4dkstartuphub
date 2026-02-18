@@ -35,6 +35,17 @@ export default function ChatRooms() {
     // Track rooms the user has been kicked from to prevent UI glitches
     const [kickedRooms, setKickedRooms] = useState<Set<string>>(new Set());
 
+    const handleDeleteMessage = async (messageId: string) => {
+        if (!activeRoom) return;
+        if (!window.confirm('Delete this message?')) return;
+        try {
+            await chatApi.deleteMessage(activeRoom, messageId);
+            setMessages(prev => prev.filter(m => m.id !== messageId));
+        } catch (err) {
+            console.error('Failed to delete message:', err);
+        }
+    };
+
     useEffect(() => {
         chatApi.getRooms()
             .then(d => setRooms(d.rooms))
@@ -139,6 +150,11 @@ export default function ChatRooms() {
 
         socket.on('newChatMessage', handleNewMessage);
         socket.on('chatError', handleChatError);
+        socket.on('messageDeleted', ({ roomId, messageId }: { roomId: string, messageId: string }) => {
+            if (activeRoom === roomId) {
+                setMessages(prev => prev.filter(m => m.id !== messageId));
+            }
+        });
 
         socket.on('memberKicked', ({ roomId }: { roomId: string }) => {
             // ── FRONTEND LEVEL: Immediate forced eviction ──
@@ -465,7 +481,9 @@ export default function ChatRooms() {
 
                                             {/* Only show text bubble if there is non-URL text */}
                                             {cleanContent && (
-                                                <div className="chat-msg-content">{renderMessageContent(cleanContent)}</div>
+                                                <div className="chat-msg-content">
+                                                    {renderMessageContent(cleanContent)}
+                                                </div>
                                             )}
 
                                             {/* Show Link Preview if URL exists */}
@@ -475,7 +493,19 @@ export default function ChatRooms() {
                                                 </div>
                                             )}
 
-                                            <span className="chat-msg-time">{formatTime(msg.createdAt)}</span>
+
+                                            <div className="chat-msg-actions">
+                                                <span className="chat-msg-time">{formatTime(msg.createdAt)}</span>
+                                                {(isOwn || isAdmin) && (
+                                                    <button
+                                                        className="chat-msg-delete-btn"
+                                                        onClick={() => handleDeleteMessage(msg.id)}
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2 size={13} />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 );

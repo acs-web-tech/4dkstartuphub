@@ -456,11 +456,49 @@ router.post('/:id/messages', authenticate, validate(chatMessageSchema), async (r
     }
 });
 
+// ── DELETE /api/chatrooms/:roomId/messages/:messageId ──
+router.delete('/:roomId/messages/:messageId', authenticate, async (req: AuthRequest, res) => {
+    try {
+        const { roomId, messageId } = req.params;
+        const msg = await ChatMessage.findById(messageId);
+
+        if (!msg) {
+            res.status(404).json({ error: 'Message not found' });
+            return;
+        }
+
+        if (msg.room_id.toString() !== roomId) {
+            res.status(400).json({ error: 'Message does not belong to this room' });
+            return;
+        }
+
+        if (msg.user_id.toString() !== req.user!.userId && req.user!.role !== 'admin') {
+            res.status(403).json({ error: 'Not authorized to delete this message' });
+            return;
+        }
+
+        await ChatMessage.deleteOne({ _id: messageId });
+        socketService.emitMessageDeleted(String(roomId), String(messageId));
+
+        res.json({ message: 'Message deleted' });
+    } catch (err) {
+        console.error('Delete message error:', err);
+        res.status(500).json({ error: 'Failed to delete message' });
+    }
+});
+
 // ── DELETE /api/chatrooms/:id (Admin only) ──────────────────
 router.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res) => {
     try {
         await ChatRoom.updateOne({ _id: req.params.id }, { $set: { is_active: false } });
-        res.json({ message: 'Chat room deactivated' });
+
+        // Cleanup messages and members
+        await Promise.all([
+            ChatMessage.deleteMany({ room_id: req.params.id }),
+            ChatRoomMember.deleteMany({ room_id: req.params.id })
+        ]);
+
+        res.json({ message: 'Chat room deactivated and cleaned up' });
     } catch (err) {
         console.error('Delete room error:', err);
         res.status(500).json({ error: 'Failed to delete chat room' });
