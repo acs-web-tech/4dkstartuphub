@@ -81,9 +81,10 @@ export const getLinkPreview = async (urlString: string): Promise<LinkPreviewData
                     'Accept-Language': 'en-US,en;q=0.9',
                     'Accept-Encoding': 'gzip, deflate, br',
                     'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1'
+                    'Upgrade-Insecure-Requests': '1',
+                    'Referer': 'https://www.google.com/'
                 },
-                timeout: 8000,
+                timeout: 4000,
                 maxRedirects: 5,
             });
 
@@ -117,7 +118,7 @@ export const getLinkPreview = async (urlString: string): Promise<LinkPreviewData
 
             // Multiple image fallbacks
             const image = resolveUrl(
-                getMeta('og:image', 'og:image:url', 'twitter:image', 'twitter:image:src', 'image')
+                getMeta('og:image', 'og:image:secure_url', 'og:image:url', 'twitter:image', 'twitter:image:src', 'image', 'src')
             );
 
             const siteName = getMeta('og:site_name', 'application-name') ||

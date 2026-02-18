@@ -12,6 +12,7 @@ import { sanitizeHtml } from '../utils/sanitize';
 import mongoose from 'mongoose';
 import { escapeRegExp } from '../utils/regex';
 import { pushService } from './push';
+import { getLinkPreview } from './metadata';
 
 /**
  * Socket.io service to manage real-time notifications
@@ -487,10 +488,23 @@ class SocketService {
             const content = sanitizeHtml(rawContent.trim());
             if (!content || content.length === 0) return;
 
+            // Scrape link preview if URL exists
+            let linkPreview = undefined;
+            try {
+                const urlMatch = content.match(/https?:\/\/[^\s]+/);
+                if (urlMatch) {
+                    linkPreview = await getLinkPreview(urlMatch[0]);
+                }
+            } catch (error) {
+                console.error('Failed to scrape link preview in socket chat:', error);
+            }
+
             const newMessage = await ChatMessage.create({
                 room_id: rObjectId,
                 user_id: uObjectId,
-                content
+                content,
+                link_preview: linkPreview,
+                created_at: new Date()
             });
 
             const messageData = {
@@ -501,6 +515,7 @@ class SocketService {
                 displayName: user?.display_name,
                 avatarUrl: user?.avatar_url,
                 createdAt: newMessage.created_at,
+                linkPreview: newMessage.link_preview
             };
 
             // Broadcast to all in room
