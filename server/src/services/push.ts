@@ -62,15 +62,26 @@ class PushNotificationService {
                 });
 
                 if (response.failureCount > 0) {
-                    const failedTokens: string[] = [];
+                    // Only remove PERMANENTLY invalid tokens (not temporary errors)
+                    const PERMANENT_ERRORS = [
+                        'messaging/invalid-registration-token',
+                        'messaging/registration-token-not-registered',
+                        'messaging/invalid-argument',
+                    ];
+                    const staleTokens: string[] = [];
                     response.responses.forEach((resp, idx) => {
                         if (!resp.success) {
-                            failedTokens.push(user.fcm_tokens[idx]);
+                            const code = resp.error?.code || '';
+                            console.warn(`⚠️ FCM token failed [${code}]: ${user.fcm_tokens[idx]?.substring(0, 20)}...`);
+                            if (PERMANENT_ERRORS.some(e => code.includes(e.split('/')[1]))) {
+                                staleTokens.push(user.fcm_tokens[idx]);
+                            }
                         }
                     });
-                    if (failedTokens.length > 0) {
+                    if (staleTokens.length > 0) {
+                        console.log(`🗑️ Removing ${staleTokens.length} stale FCM token(s) for user ${userId}`);
                         await User.findByIdAndUpdate(userId, {
-                            $pull: { fcm_tokens: { $in: failedTokens } }
+                            $pull: { fcm_tokens: { $in: staleTokens } }
                         });
                     }
                 }
@@ -120,6 +131,11 @@ class PushNotificationService {
                 console.log(`📱 Found ${uniqueTokens.length} unique FCM tokens for broadcast.`);
 
                 if (uniqueTokens.length > 0) {
+                    const PERMANENT_ERRORS = [
+                        'invalid-registration-token',
+                        'registration-token-not-registered',
+                        'invalid-argument',
+                    ];
                     const batchSize = 500;
                     for (let i = 0; i < uniqueTokens.length; i += batchSize) {
                         const batch = uniqueTokens.slice(i, i + batchSize);
@@ -139,9 +155,24 @@ class PushNotificationService {
                             console.log(`✅ Batch sent: ${response.successCount} success, ${response.failureCount} failed.`);
 
                             if (response.failureCount > 0) {
+                                const staleTokens: string[] = [];
                                 response.responses.forEach((r, idx) => {
-                                    if (!r.success) console.error(`❌ Token failed: ${batch[idx]} - ${r.error?.message}`);
+                                    if (!r.success) {
+                                        const code = r.error?.code || '';
+                                        console.warn(`⚠️ Broadcast token failed [${code}]: ${batch[idx]?.substring(0, 20)}...`);
+                                        if (PERMANENT_ERRORS.some(e => code.includes(e))) {
+                                            staleTokens.push(batch[idx]);
+                                        }
+                                    }
                                 });
+                                // Remove stale tokens from all users in bulk
+                                if (staleTokens.length > 0) {
+                                    console.log(`🗑️ Removing ${staleTokens.length} stale FCM tokens from broadcast batch`);
+                                    await User.updateMany(
+                                        { fcm_tokens: { $in: staleTokens } },
+                                        { $pull: { fcm_tokens: { $in: staleTokens } } }
+                                    );
+                                }
                             }
                         } catch (e) {
                             console.error('❌ FCM broadcast batch error:', e);
