@@ -68,22 +68,24 @@ export default function Sidebar({ isOpen, onClose }: Props) {
                         <Globe size={14} />
                         <span>All</span>
                     </button>
-                    {(Object.entries(CATEGORY_CONFIG) as [PostCategory, typeof CATEGORY_CONFIG[PostCategory]][]).map(
-                        ([key, cat]) => {
-                            const Icon = cat.icon;
-                            return (
-                                <button
-                                    key={key}
-                                    className={`sidebar-cat-chip ${activeCategory === key ? 'active' : ''}`}
-                                    onClick={() => handleCategoryClick(key)}
-                                    style={{ '--chip-color': cat.color } as any}
-                                >
-                                    <Icon size={14} />
-                                    <span>{cat.label}</span>
-                                </button>
-                            );
-                        }
-                    )}
+                    {(Object.entries(CATEGORY_CONFIG) as [PostCategory, typeof CATEGORY_CONFIG[PostCategory]][])
+                        .filter(([key]) => key !== 'events' || user?.role === 'admin')
+                        .map(
+                            ([key, cat]) => {
+                                const Icon = cat.icon;
+                                return (
+                                    <button
+                                        key={key}
+                                        className={`sidebar-cat-chip ${activeCategory === key ? 'active' : ''}`}
+                                        onClick={() => handleCategoryClick(key)}
+                                        style={{ '--chip-color': cat.color } as any}
+                                    >
+                                        <Icon size={14} />
+                                        <span>{cat.label}</span>
+                                    </button>
+                                );
+                            }
+                        )}
                 </div>
             </div>
 
