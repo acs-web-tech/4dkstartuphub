@@ -1,6 +1,6 @@
 
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { usersApi } from '../services/api';
 import {
     Users, User, Search, MapPin,
@@ -21,12 +21,26 @@ const CATEGORIES = [
 ];
 
 export default function Members() {
+    const [searchParams, setSearchParams] = useSearchParams();
     const [users, setUsers] = useState<any[]>([]);
-    const [filter, setFilter] = useState('online'); // Set 'online' as default as per user request
-    const [search, setSearch] = useState('');
-    const [page, setPage] = useState(1);
     const [pagination, setPagination] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+
+    // Read state from URL — back button naturally restores these
+    const filter = searchParams.get('filter') || 'online';
+    const search = searchParams.get('search') || '';
+    const page = parseInt(searchParams.get('page') || '1', 10);
+
+    // Helper to update URL params without losing others
+    const updateParams = (updates: Record<string, string>) => {
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            Object.entries(updates).forEach(([k, v]) => {
+                if (v) next.set(k, v); else next.delete(k);
+            });
+            return next;
+        }, { replace: false });
+    };
 
     useEffect(() => {
         setLoading(true);
@@ -41,7 +55,7 @@ export default function Members() {
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        setPage(1);
+        updateParams({ search, page: '1' });
     };
 
     const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -58,7 +72,7 @@ export default function Members() {
                         <button
                             key={cat.id}
                             className={`category-pill ${filter === cat.id ? 'active' : ''}`}
-                            onClick={() => { setFilter(cat.id); setPage(1); }}
+                            onClick={() => updateParams({ filter: cat.id, page: '1', search: '' })}
                         >
                             <span>{cat.label}</span>
                         </button>
@@ -71,7 +85,7 @@ export default function Members() {
                         type="text"
                         placeholder={filter === 'online' ? 'Search online members...' : 'Search members...'}
                         value={search}
-                        onChange={e => { setSearch(e.target.value); setPage(1); }}
+                        onChange={e => updateParams({ search: e.target.value, page: '1' })}
                         maxLength={100}
                     />
                 </form>
@@ -134,7 +148,7 @@ export default function Members() {
                                 <button
                                     key={p}
                                     className={`pagination-btn ${p === page ? 'active' : ''}`}
-                                    onClick={() => setPage(p)}
+                                    onClick={() => updateParams({ page: String(p) })}
                                 >
                                     {p}
                                 </button>
