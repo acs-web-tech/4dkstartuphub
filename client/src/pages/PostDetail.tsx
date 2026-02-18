@@ -491,8 +491,14 @@ export default function PostDetail() {
                             if (url) {
                                 try {
                                     const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                    // 1. Remove anchor tag
                                     const anchorRegex = new RegExp(`<a[^>]*href="${escapedUrl}"[^>]*>.*?</a>`, 'gi');
                                     displayContent = displayContent.replace(anchorRegex, '');
+
+                                    // 2. Remove plain text outside attributes
+                                    const textRegex = new RegExp(`(href=["']|src=["'])?(${escapedUrl})`, 'gi');
+                                    displayContent = displayContent.replace(textRegex, (match, prefix) => prefix ? match : '');
+
                                     displayContent = displayContent.replace(/<p>\s*<\/p>/g, '').replace(/<p><br><\/p>/g, '');
                                 } catch (e) { }
                             }

@@ -8,6 +8,7 @@ import { postsApi, uploadApi } from '../../services/api';
 import { PostCategory } from '../../types';
 import { CATEGORY_CONFIG } from '../../config';
 import { Rocket, Link as LinkIcon, Save, Calendar } from 'lucide-react';
+import LinkPreview from '../Common/LinkPreview';
 
 export default function CreatePost() {
     const navigate = useNavigate();
@@ -32,6 +33,16 @@ export default function CreatePost() {
     const quillRef = useRef<ReactQuill>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const thumbnailInputRef = useRef<HTMLInputElement>(null);
+    const [extractedUrl, setExtractedUrl] = useState('');
+
+    useEffect(() => {
+        const match = content.match(/href="(https?:\/\/[^"]+)"/) || content.match(/(https?:\/\/[^\s<"]+)/);
+        if (match) {
+            setExtractedUrl(match[1]);
+        } else {
+            setExtractedUrl('');
+        }
+    }, [content]);
 
     useEffect(() => {
         if (isEditing) {
@@ -307,6 +318,13 @@ export default function CreatePost() {
                         />
                     </div>
                 </div>
+
+                {extractedUrl && (
+                    <div className="form-group">
+                        <label style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Link Preview</label>
+                        <LinkPreview url={extractedUrl} />
+                    </div>
+                )}
 
                 <div className="form-group">
                     <label htmlFor="post-video">Video Link (Optional)</label>

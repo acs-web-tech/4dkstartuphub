@@ -187,16 +187,24 @@ function PostCard({ post, onImageClick }: Props) {
                 let displayContent = post.content;
                 if (url) {
                     try {
-                        // Remove the anchor tag containing the URL to avoid double display
+                        // 1. Remove the anchor tag containing the URL first (most common case in Quill)
                         const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                        // Logic: Remove <a ... href="url" ...>...</a>
                         const anchorRegex = new RegExp(`<a[^>]*href="${escapedUrl}"[^>]*>.*?</a>`, 'gi');
                         displayContent = displayContent.replace(anchorRegex, '');
 
-                        // Clean up empty paragraphs <p><br></p> or <p></p> left behind
+                        // 2. Remove plain text URL if it's not inside an attribute (e.g. href="..." or src="...")
+                        // We use a capture group for potential prefix (href=" or src=")
+                        // If prefix exists, we keep the match (don't delete). If no prefix, we delete.
+                        const textRegex = new RegExp(`(href=["']|src=["'])?(${escapedUrl})`, 'gi');
+                        displayContent = displayContent.replace(textRegex, (match, prefix) => {
+                            if (prefix) return match; // It is part of an attribute, preserve it
+                            return ''; // It is plain text, remove it
+                        });
+
+                        // Clean up empty paragraphs
                         displayContent = displayContent.replace(/<p>\s*<\/p>/g, '').replace(/<p><br><\/p>/g, '');
                     } catch (e) {
-                        console.error('Error stripping URL from content:', e);
+                        console.error('Error stripping URL:', e);
                     }
                 }
 
