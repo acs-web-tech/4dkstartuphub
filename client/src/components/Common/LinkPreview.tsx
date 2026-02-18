@@ -21,9 +21,17 @@ export default function LinkPreview({ url, compact = false, initialData }: { url
 
     useEffect(() => {
         if (initialData) {
-            setMeta(initialData);
-            setLoading(false);
-            return;
+            // Smart check: Use initialData if it has meaningful content.
+            // If it's just a fallback (title == hostname, no image), allow re-fetch.
+            const { title, image, siteName } = initialData;
+            const isFallback = (!title || (siteName && title === siteName && !image));
+
+            if (!isFallback || image) {
+                setMeta(initialData);
+                setLoading(false);
+                return;
+            }
+            // If fallback/empty, proceed to fetch to try and get better data
         }
 
         if (!url) return;

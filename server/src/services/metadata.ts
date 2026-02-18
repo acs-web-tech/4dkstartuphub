@@ -83,7 +83,7 @@ export const getLinkPreview = async (urlString: string): Promise<LinkPreviewData
                     'Connection': 'keep-alive',
                     'Upgrade-Insecure-Requests': '1'
                 },
-                timeout: 5000,
+                timeout: 8000,
                 maxRedirects: 5,
             });
 
