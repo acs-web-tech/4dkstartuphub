@@ -3,12 +3,22 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import { useSocket } from '../../context/SocketContext';
+import { useAuth } from '../../context/AuthContext';
+import { initializeNativePush } from '../../utils/nativePush';
 import { WifiOff, RefreshCw, Download } from 'lucide-react';
 
 export default function Layout() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const location = useLocation();
     const { status, reconnectAttempt } = useSocket();
+    const { user } = useAuth();
+
+    // Initialize Push Notifications when user is logged in
+    useEffect(() => {
+        if (user) {
+            initializeNativePush();
+        }
+    }, [user]);
 
     const toggleSidebar = useCallback(() => {
         setSidebarOpen(prev => !prev);

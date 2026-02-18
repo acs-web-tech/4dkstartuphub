@@ -38,7 +38,7 @@ function PostCard({ post, onImageClick }: Props) {
         const start = new Date(post.eventDate).toISOString().replace(/-|:|\.\d+/g, '');
         const end = new Date(new Date(post.eventDate).getTime() + 60 * 60 * 1000).toISOString().replace(/-|:|\.\d+/g, '');
         const details = post.content.replace(/<[^>]*>/g, '').slice(0, 500);
-        return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(post.title)}&dates=${start}/${end}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(`${window.location.origin}/posts/${post.id}`)}`;
+        return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(post.title)}&dates=${start}/${end}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(`https://startup.4dk.in/posts/${post.id}`)}`;
     };
 
     const downloadIcs = () => {
@@ -53,7 +53,7 @@ function PostCard({ post, onImageClick }: Props) {
             `DTEND:${end}`,
             `SUMMARY:${post.title}`,
             `DESCRIPTION:${post.content.replace(/<[^>]*>/g, '').slice(0, 500)}`,
-            `LOCATION:${window.location.origin}/posts/${post.id}`,
+            `LOCATION:https://startup.4dk.in/posts/${post.id}`,
             'END:VEVENT',
             'END:VCALENDAR'
         ].join('\n');

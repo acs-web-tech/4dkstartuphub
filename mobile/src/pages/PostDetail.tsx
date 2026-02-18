@@ -577,7 +577,7 @@ export default function PostDetail() {
                         {showShare && (
                             <div className="share-dropdown" onClick={e => e.stopPropagation()}>
                                 <a
-                                    href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(window.location.href)}`}
+                                    href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(post.title)}&url=${encodeURIComponent(`https://startup.4dk.in/posts/${id}`)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="share-item"
@@ -586,7 +586,7 @@ export default function PostDetail() {
                                     <span>X (Twitter)</span>
                                 </a>
                                 <a
-                                    href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`}
+                                    href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`https://startup.4dk.in/posts/${id}`)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="share-item"
@@ -595,7 +595,7 @@ export default function PostDetail() {
                                     <span>Facebook</span>
                                 </a>
                                 <a
-                                    href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`}
+                                    href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(`https://startup.4dk.in/posts/${id}`)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="share-item"
@@ -604,7 +604,7 @@ export default function PostDetail() {
                                     <span>LinkedIn</span>
                                 </a>
                                 <a
-                                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(post.title + '\n' + window.location.href)}`}
+                                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(post.title + '\n' + `https://startup.4dk.in/posts/${id}`)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="share-item"
@@ -613,7 +613,7 @@ export default function PostDetail() {
                                     <span>WhatsApp</span>
                                 </a>
                                 <a
-                                    href={`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(post.title)}`}
+                                    href={`https://t.me/share/url?url=${encodeURIComponent(`https://startup.4dk.in/posts/${id}`)}&text=${encodeURIComponent(post.title)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="share-item"
@@ -622,7 +622,7 @@ export default function PostDetail() {
                                     <span>Telegram</span>
                                 </a>
                                 <a
-                                    href={`mailto:?subject=${encodeURIComponent(post.title)}&body=${encodeURIComponent('Check out this post: ' + window.location.href)}`}
+                                    href={`mailto:?subject=${encodeURIComponent(post.title)}&body=${encodeURIComponent('Check out this post: ' + `https://startup.4dk.in/posts/${id}`)}`}
                                     className="share-item"
                                 >
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2" /><polyline points="22,7 12,13 2,7" /></svg>
@@ -631,7 +631,7 @@ export default function PostDetail() {
                                 <button
                                     className="share-item"
                                     onClick={() => {
-                                        navigator.clipboard.writeText(window.location.href);
+                                        navigator.clipboard.writeText(`https://startup.4dk.in/posts/${id}`);
                                         setLinkCopied(true);
                                         setTimeout(() => setLinkCopied(false), 2000);
                                     }}

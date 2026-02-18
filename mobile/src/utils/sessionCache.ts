@@ -13,8 +13,11 @@ export const getSessionImage = async (url: string): Promise<string> => {
     const cached = sessionBlobCache.get(url);
     if (cached) return cached;
 
+    const API_BASE = 'https://startup.4dk.in';
+    const fetchUrl = url.startsWith('/') ? `${API_BASE}${url}` : url;
+
     try {
-        const response = await fetch(url);
+        const response = await fetch(fetchUrl);
         if (!response.ok) throw new Error('Failed to fetch image');
 
         const blob = await response.blob();

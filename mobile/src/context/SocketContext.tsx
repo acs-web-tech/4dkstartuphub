@@ -42,6 +42,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const token = localStorage.getItem('access_token');
 
             const newSocket = io(backendUrl, {
+                path: '/api/socket.io',
                 auth: { token }, // precise token auth
                 // withCredentials: true, // Removed for Token Auth
                 transports: ['websocket', 'polling'],

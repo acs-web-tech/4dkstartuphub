@@ -23,7 +23,9 @@ import { initializeNativePush } from './utils/nativePush';
 
 export default function App() {
     useEffect(() => {
-        initializeNativePush();
+        // Debug connection string
+        const url = import.meta.env.VITE_API_URL;
+        // alert(`Debug: API URL is configured as: ${url || 'UNDEFINED/MISSING'}`);
     }, []);
 
     return (
