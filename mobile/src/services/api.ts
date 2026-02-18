@@ -15,7 +15,7 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     }
 
     const res = await fetch(`${BASE}${url}`, {
-        credentials: 'include',
+        // credentials: 'include', // Removed for Token Auth
         cache: 'no-store', // Prevent caching of API responses
         headers,
         ...options,
@@ -38,7 +38,7 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ refreshToken }),
-                credentials: 'include',
+                // credentials: 'include',
             });
 
             if (refreshRes.ok) {
@@ -49,7 +49,7 @@ async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
                 // Retry original request with new token
                 (headers as Record<string, string>)['Authorization'] = `Bearer ${data.accessToken}`;
                 const retryRes = await fetch(`${BASE}${url}`, {
-                    credentials: 'include',
+                    // credentials: 'include',
                     headers,
                     ...options,
                 });

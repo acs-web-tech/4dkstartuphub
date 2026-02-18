@@ -43,7 +43,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
             const newSocket = io(backendUrl, {
                 auth: { token }, // precise token auth
-                withCredentials: true,
+                // withCredentials: true, // Removed for Token Auth
                 transports: ['websocket', 'polling'],
                 reconnection: true,
                 reconnectionAttempts: Infinity,          // Never give up
