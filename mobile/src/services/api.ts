@@ -1,4 +1,5 @@
-const BASE = import.meta.env.VITE_API_URL || '/api';
+// Hardcode production URL to eliminate build config issues
+const BASE = 'https://startup.4dk.in/api';
 
 async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     const headers: HeadersInit = { ...options.headers };
