@@ -37,8 +37,18 @@ export default function LinkPreview({ url }: { url: string }) {
         return () => controller.abort();
     }, [url]);
 
-    if (loading) return null; // Don't show anything while loading to avoid layout shift jerkiness or show skeleton
+    if (loading) return null;
     if (error || !meta) return null;
+
+    // Format display URL: strip protocol, trim long paths
+    let displayUrl = url;
+    try {
+        const parsed = new URL(url);
+        displayUrl = parsed.hostname + (parsed.pathname !== '/' ? parsed.pathname : '');
+        if (displayUrl.length > 60) displayUrl = displayUrl.slice(0, 57) + '...';
+    } catch { }
+
+    const siteName = meta.siteName || (() => { try { return new URL(url).hostname; } catch { return url; } })();
 
     return (
         <a
@@ -46,11 +56,18 @@ export default function LinkPreview({ url }: { url: string }) {
             target="_blank"
             rel="noopener noreferrer"
             className="link-preview-card"
-            onClick={e => e.stopPropagation()} // Prevent parent click
+            onClick={e => e.stopPropagation()}
         >
             {meta.image && (
                 <div className="preview-image-container">
-                    <img src={meta.image} alt="" onError={e => (e.target as HTMLImageElement).style.display = 'none'} />
+                    <img
+                        src={meta.image}
+                        alt=""
+                        onError={e => {
+                            const el = e.target as HTMLImageElement;
+                            el.parentElement!.style.display = 'none';
+                        }}
+                    />
                 </div>
             )}
             <div className="preview-content">
@@ -63,10 +80,13 @@ export default function LinkPreview({ url }: { url: string }) {
                             onError={e => (e.target as HTMLImageElement).style.display = 'none'}
                         />
                     )}
-                    <div className="preview-site">{meta.siteName || new URL(url).hostname}</div>
+                    <span className="preview-site">{siteName}</span>
                 </div>
                 <div className="preview-title">{meta.title}</div>
-                {meta.description && <div className="preview-desc">{meta.description}</div>}
+                {meta.description && (
+                    <div className="preview-desc">{meta.description}</div>
+                )}
+                <div className="preview-url">{displayUrl}</div>
             </div>
         </a>
     );

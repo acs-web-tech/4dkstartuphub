@@ -170,17 +170,69 @@ function PostCard({ post, onImageClick }: Props) {
                 </div>
             )}
 
-            {post.imageUrl && (
-                <div
-                    className="post-card-image cursor-pointer"
-                    onClick={() => onImageClick?.(post.imageUrl!)}
-                    title="Click to enlarge"
-                >
-                    <SmartImage src={post.imageUrl} alt={post.title} />
-                </div>
-            )}
+
+            {/* ── Media Row: thumbnail + video side by side at top ── */}
+            {(post.imageUrl || post.videoUrl) && (() => {
+                const getEmbedUrl = (url: string) => {
+                    try {
+                        const u = new URL(url);
+                        if (u.hostname.includes('youtube.com') || u.hostname.includes('youtu.be')) {
+                            const id = u.hostname.includes('youtu.be')
+                                ? u.pathname.slice(1).split('?')[0]
+                                : u.searchParams.get('v');
+                            return id ? `https://www.youtube.com/embed/${id}` : null;
+                        }
+                        if (u.hostname.includes('vimeo.com')) {
+                            const id = u.pathname.split('/').filter(Boolean).pop();
+                            return id ? `https://player.vimeo.com/video/${id}` : null;
+                        }
+                        return null;
+                    } catch { return null; }
+                };
+
+                const embedUrl = post.videoUrl ? getEmbedUrl(post.videoUrl) : null;
+                const hasBoth = !!(post.imageUrl && post.videoUrl);
+
+                return (
+                    <div className={`post-card-media-row${hasBoth ? ' has-both' : ''}`}>
+                        {post.imageUrl && (
+                            <div
+                                className="post-card-media-thumb cursor-pointer"
+                                onClick={() => onImageClick?.(post.imageUrl!)}
+                                title="Click to enlarge"
+                            >
+                                <SmartImage src={post.imageUrl} alt={post.title} />
+                            </div>
+                        )}
+                        {post.videoUrl && (
+                            embedUrl ? (
+                                <div className="post-card-media-video">
+                                    <iframe
+                                        src={embedUrl}
+                                        title="Video"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                        loading="lazy"
+                                    />
+                                </div>
+                            ) : (
+                                <a
+                                    href={post.videoUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="post-card-video-link"
+                                    onClick={e => e.stopPropagation()}
+                                >
+                                    <Video size={16} /> Watch Video
+                                </a>
+                            )
+                        )}
+                    </div>
+                );
+            })()}
 
             {(() => {
+
                 const extractUrls = (html: string) => {
                     const unique = new Set<string>();
                     // Regex to find http/https URLs. 
@@ -246,7 +298,6 @@ function PostCard({ post, onImageClick }: Props) {
                     <span className={`stat-item${post.viewCount ? ' has-value' : ''}`}><Eye size={16} /> <span>{post.viewCount || '0'}</span></span>
                 </div>
                 <div className="post-actions-right">
-                    {post.videoUrl && <div className="post-video-tag"><Video size={14} /> <span>Review</span></div>}
                     <Link to={`/posts/${post.id}`} className="btn-read-more">
                         Read More <ArrowRight size={14} />
                     </Link>

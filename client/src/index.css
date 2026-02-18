@@ -1,46 +1,46 @@
 /* ═══════════════════════════════════════════════════════════════
-   StartupHub – Premium Dark Theme
-   Refined, Unique, Production-Ready Design
+   StartupHub – Forest & Amber Theme
+   Grounded, Human, Professional
    ═══════════════════════════════════════════════════════════════ */
 
 /* ── CSS Variables ─────────────────────────────────────────── */
 :root {
-  /* Deep Onyx – rich, layered surfaces */
-  --bg-primary: #08090c;
-  --bg-secondary: #0e1015;
-  --bg-tertiary: #161821;
-  --bg-card: #111318;
-  --bg-card-hover: #1a1c24;
-  --bg-input: #0c0d11;
-  --bg-sidebar: #090a0e;
-  --bg-header: #0a0b0f;
+  /* Deep Charcoal – warm-tinted dark surfaces */
+  --bg-primary: #0b0d0b;
+  --bg-secondary: #0f120f;
+  --bg-tertiary: #151a14;
+  --bg-card: #111511;
+  --bg-card-hover: #192019;
+  --bg-input: #0d100d;
+  --bg-sidebar: #0a0d0a;
+  --bg-header: #0c0f0c;
 
-  /* Borders – subtle warm temperature */
-  --border-color: #1e2028;
-  --border-light: #161820;
-  --border-hover: #2a2d38;
+  /* Borders – warm green-tinted */
+  --border-color: #1c221c;
+  --border-light: #161c16;
+  --border-hover: #273027;
   --glass-border: rgba(255, 255, 255, 0.06);
 
-  /* ★ Accessible Text Palette – WCAG AA+ on dark backgrounds */
-  --text-primary: #f0f0f2;
-  --text-secondary: #b8bcc8;
-  --text-muted: #717686;
+  /* ★ Accessible Text Palette */
+  --text-primary: #eef0ec;
+  --text-secondary: #b4bcb0;
+  --text-muted: #6b7568;
 
-  /* Premium Indigo Theme */
-  --accent: #6366F1;
-  --accent-hover: #4F46E5;
-  --accent-gradient: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
-  --accent-soft: rgba(99, 102, 241, 0.12);
-  --accent-border: rgba(99, 102, 241, 0.35);
+  /* ★ Forest Green + Amber Accent */
+  --accent: #3d9e5f;
+  --accent-hover: #2e8a4e;
+  --accent-gradient: linear-gradient(135deg, #3d9e5f 0%, #f59e0b 100%);
+  --accent-soft: rgba(61, 158, 95, 0.12);
+  --accent-border: rgba(61, 158, 95, 0.35);
 
-  /* Secondary brand accent - Deep Teal */
-  --accent-secondary: #14b8a6;
+  /* Secondary brand accent - Warm Amber */
+  --accent-secondary: #f59e0b;
 
   /* Status Colors */
-  --green: #34d399;
+  --green: #4ade80;
   --red: #f87171;
   --yellow: #fbbf24;
-  --purple: #a78bfa;
+  --purple: #c084fc;
   --blue: #60a5fa;
 
   /* Geometry */
@@ -49,10 +49,10 @@
   --radius-lg: 14px;
   --radius-xl: 30px;
 
-  /* Shadows – deeper, richer */
-  --shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 12px 28px -4px rgba(0, 0, 0, 0.45);
-  --shadow-accent: 0 4px 20px -4px rgba(224, 90, 58, 0.25);
+  /* Shadows */
+  --shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 28px -4px rgba(0, 0, 0, 0.5);
+  --shadow-accent: 0 4px 20px -4px rgba(61, 158, 95, 0.3);
 
   /* Typography */
   --font: 'Inter', -apple-system, system-ui, sans-serif;
@@ -5674,73 +5674,87 @@ img {
 }
 
 
-/* Link Preview */
-.link-preview-card {
+/* Post Card Media Row (thumbnail + video side by side) */
+.post-card-media-row {
   display: flex;
-  flex-direction: column;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius);
-  text-decoration: none;
+  gap: 10px;
   margin-top: 12px;
-  overflow: hidden;
-  transition: var(--transition-speed);
-}
-
-.link-preview-card:hover {
-  border-color: var(--accent-border);
-  transform: translateY(-2px);
-}
-
-.preview-image-container {
-  height: 160px;
+  border-radius: var(--radius);
   overflow: hidden;
 }
 
-.preview-image-container img {
+/* Single item: full width */
+.post-card-media-row .post-card-media-thumb,
+.post-card-media-row .post-card-media-video {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+/* Both present: 50/50 split */
+.post-card-media-row.has-both .post-card-media-thumb,
+.post-card-media-row.has-both .post-card-media-video {
+  flex: 1 1 50%;
+}
+
+.post-card-media-thumb {
+  border-radius: var(--radius);
+  overflow: hidden;
+  max-height: 220px;
+}
+
+.post-card-media-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
 
-.preview-content {
-  padding: 12px;
-}
-
-.preview-site {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.preview-title {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 4px;
-  white-space: nowrap;
+.post-card-media-video {
+  border-radius: var(--radius);
   overflow: hidden;
-  text-overflow: ellipsis;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  flex-shrink: 0;
 }
 
-.preview-desc {
+.post-card-media-video iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+.post-card-video-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
   font-size: 0.85rem;
-  color: var(--text-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.post-card-video-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 600px) {
+  .post-card-media-row.has-both {
+    flex-direction: column;
+  }
+
+  .post-card-media-row.has-both .post-card-media-thumb,
+  .post-card-media-row.has-both .post-card-media-video {
+    flex: 1 1 100%;
+  }
 }
 
 
-/*  Link Preview Card  */
-/*  Link Preview Card  */
+/* Link Preview Card */
 .link-preview-card {
   display: flex;
   flex-direction: column;
-  /* Vertical layout */
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
@@ -5759,7 +5773,6 @@ img {
 .preview-image-container {
   width: 100%;
   height: 200px;
-  /* Large cover image */
   background: var(--bg-secondary);
   position: relative;
   flex-shrink: 0;
@@ -5781,14 +5794,27 @@ img {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  gap: 4px;
+}
+
+.preview-meta-header {
+  display: flex;
+  align-items: center;
   gap: 6px;
+  margin-bottom: 2px;
+}
+
+.preview-favicon {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  flex-shrink: 0;
 }
 
 .preview-site {
   font-size: 0.75rem;
   color: var(--accent);
   font-weight: 600;
-  margin-bottom: 2px;
   text-transform: uppercase;
 }
 
@@ -5796,10 +5822,10 @@ img {
   font-size: 1rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 4px;
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -5810,14 +5836,24 @@ img {
   line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.preview-url {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.7;
 }
 
 @media (max-width: 480px) {
   .preview-image-container {
     height: 160px;
-    /* Slightly smaller on mobile */
   }
 }
 
@@ -5929,6 +5965,7 @@ img {
   object-fit: cover;
   border-radius: var(--radius);
 }
+
 .preview-meta-header {
   display: flex;
   align-items: center;
@@ -5946,4 +5983,3 @@ img {
 .preview-site {
   margin-bottom: 0 !important;
 }
-
