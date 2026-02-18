@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { BackHandler, Platform, Alert, StatusBar, SafeAreaView, PermissionsAndroid } from 'react-native';
+import { BackHandler, Platform, Alert, StatusBar, SafeAreaView, PermissionsAndroid, Linking } from 'react-native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import messaging from '@react-native-firebase/messaging';
 
@@ -13,6 +13,32 @@ const App = () => {
   const [webViewReady, setWebViewReady] = useState(false);
   // Store the token so we can send it once the WebView is ready
   const pendingToken = useRef<string | null>(null);
+  // Initial URL state for deep linking
+  const [startUrl, setStartUrl] = useState(WEBSITE_URL);
+
+  // ─── 0. Deep Linking Handling ─────────────────────────────────────────────
+  useEffect(() => {
+    // 1. App Launch from Link (Cold Start)
+    Linking.getInitialURL().then(url => {
+      if (url && (url.startsWith('http') || url.startsWith('startup4dk://'))) {
+        console.log('🔗 Deep Link (Cold):', url);
+        // Normalize custom scheme if used, but we use http/https mostly
+        setStartUrl(url);
+      }
+    });
+
+    // 2. App Already Open (Warm Start)
+    const handleDeepLink = (event: { url: string }) => {
+      const url = event.url;
+      if (url) {
+        console.log('🔗 Deep Link (Warm):', url);
+        webViewRef.current?.injectJavaScript(`window.location.href = '${url}'; true;`);
+      }
+    };
+
+    const sub = Linking.addEventListener('url', handleDeepLink);
+    return () => sub.remove();
+  }, []);
 
   // ─── Helper: Send token to WebView ───────────────────────────────────────
   // Uses postMessage so the web app receives it reliably via window.onmessage
@@ -185,7 +211,7 @@ const App = () => {
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       <WebView
         ref={webViewRef}
-        source={{ uri: WEBSITE_URL }}
+        source={{ uri: startUrl }}
         style={{ flex: 1 }}
         allowsBackForwardNavigationGestures
         onNavigationStateChange={(navState) => {

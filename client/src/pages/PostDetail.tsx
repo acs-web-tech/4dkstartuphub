@@ -13,6 +13,7 @@ import {
 import { useSocket } from '../context/SocketContext';
 import { SmartImage } from '../components/Common/SmartImage';
 import CommentsSection from '../components/Post/CommentsSection';
+import LinkPreview from '../components/Common/LinkPreview';
 
 export default function PostDetail() {
     const { id } = useParams<{ id: string }>();
@@ -487,6 +488,13 @@ export default function PostDetail() {
                             dangerouslySetInnerHTML={{ __html: post.content }}
                             onClick={handleContentClick}
                         />
+
+                        {/* Link Preview */}
+                        {(() => {
+                            const match = post.content.match(/href="(https?:\/\/[^"]+)"/) || post.content.match(/(https?:\/\/[^\s<]+)/);
+                            const url = match ? match[1] : null;
+                            return url ? <LinkPreview url={url} /> : null;
+                        })()}
 
                         {post.videoUrl && (() => {
                             const getEmbedUrl = (url: string) => {

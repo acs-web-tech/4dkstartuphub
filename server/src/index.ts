@@ -18,6 +18,7 @@ import pitchRoutes from './routes/pitch';
 import notificationRoutes from './routes/notifications';
 import uploadRoutes from './routes/upload';
 import paymentRoutes from './routes/payment';
+import metaRoutes from './routes/meta';
 
 // ── Environment Flag ─────────────────────────────────────────
 const isProd = process.env.NODE_ENV === 'production';
@@ -83,7 +84,7 @@ app.use(helmet({
             defaultSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
             fontSrc: ["'self'", "https://fonts.gstatic.com"],
-            imgSrc: ["'self'", "data:", "blob:", "https://*.amazonaws.com", "https://*.razorpay.com"],
+            imgSrc: ["'self'", "data:", "blob:", "https:", "http:"],
             mediaSrc: ["'self'", "https://*.amazonaws.com"],
             scriptSrc: ["'self'", "https://checkout.razorpay.com", "'unsafe-inline'"],
             frameSrc: ["'self'", "https://api.razorpay.com", "https://checkout.razorpay.com"],
@@ -149,6 +150,7 @@ app.use('/api/chatrooms', chatRoomRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/pitch', pitchRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/meta', metaRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/payment', paymentRoutes);
 
@@ -165,12 +167,16 @@ app.get('/api/settings/public', async (_req, res) => {
         const amountSetting = await Setting.findOne({ key: 'registration_payment_amount' });
         const pitchPaymentSetting = await Setting.findOne({ key: 'pitch_request_payment_required' });
         const pitchAmountSetting = await Setting.findOne({ key: 'pitch_request_payment_amount' });
+        const androidUrl = await Setting.findOne({ key: 'android_app_url' });
+        const iosUrl = await Setting.findOne({ key: 'ios_app_url' });
 
         res.json({
             registration_payment_required: paymentSetting?.value === 'true',
             registration_payment_amount: parseInt(amountSetting?.value || '950', 10),
             pitch_request_payment_required: pitchPaymentSetting?.value === 'true',
             pitch_request_payment_amount: parseInt(pitchAmountSetting?.value || '950', 10),
+            android_app_url: androidUrl?.value || '',
+            ios_app_url: iosUrl?.value || '',
         });
     } catch (err) {
         console.error('Public settings error:', err);
@@ -178,7 +184,9 @@ app.get('/api/settings/public', async (_req, res) => {
             registration_payment_required: true,
             registration_payment_amount: 950,
             pitch_request_payment_required: true,
-            pitch_request_payment_amount: 950
+            pitch_request_payment_amount: 950,
+            android_app_url: '',
+            ios_app_url: ''
         });
     }
 });

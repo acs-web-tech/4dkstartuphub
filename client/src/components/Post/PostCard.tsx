@@ -5,6 +5,7 @@ import { Post } from '../../types';
 import { CATEGORY_CONFIG } from '../../config';
 import { Pin, Heart, MessageSquare, Eye, Video, MoreVertical, Calendar, Download, ArrowRight } from 'lucide-react';
 import { SmartImage } from '../Common/SmartImage';
+import LinkPreview from '../Common/LinkPreview';
 
 interface Props {
     post: Post;
@@ -184,6 +185,13 @@ function PostCard({ post, onImageClick }: Props) {
                 dangerouslySetInnerHTML={{ __html: post.content }}
                 onClick={handleContentClick}
             />
+
+            {/* Link Preview */}
+            {(() => {
+                const match = post.content.match(/href="(https?:\/\/[^"]+)"/) || post.content.match(/(https?:\/\/[^\s<]+)/);
+                const url = match ? match[1] : null;
+                return url ? <LinkPreview url={url} /> : null;
+            })()}
 
             <div className="post-card-footer">
                 <div className="post-stats-group">

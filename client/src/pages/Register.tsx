@@ -14,8 +14,17 @@ declare global {
 type UserType = 'startup' | 'investor';
 
 export default function Register() {
-    const { register } = useAuth();
+    const { register, user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
+
+    // Redirect if already logged in
+    useEffect(() => {
+        if (!authLoading && user) {
+            navigate('/feed', { replace: true });
+        }
+    }, [user, authLoading, navigate]);
+
+    if (authLoading) return <div className="loading-container"><div className="spinner" /></div>;
     const [form, setForm] = useState({ username: '', email: '', password: '', confirmPassword: '', displayName: '' });
     const [userType, setUserType] = useState<UserType | null>(null);
     const [error, setError] = useState('');

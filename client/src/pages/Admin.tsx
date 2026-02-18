@@ -5,7 +5,7 @@ import { AdminStats, PitchRequest, User } from '../types';
 import {
     Settings, BarChart2, Users, MessageCircle, Megaphone, Trash2, Send, X, Link as LinkIcon,
     Lightbulb, CheckCircle2, XCircle, Clock, Volume2, VolumeX, Shield, UserPlus, LogOut, FileText,
-    CreditCard, ToggleLeft, ToggleRight, Rocket, ShieldCheck, Gem, TrendingUp
+    CreditCard, ToggleLeft, ToggleRight, Rocket, ShieldCheck, Gem, TrendingUp, Download
 } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -52,6 +52,8 @@ export default function Admin() {
     const [welcomeTitle, setWelcomeTitle] = useState('');
     const [welcomeContent, setWelcomeContent] = useState('');
     const [welcomeVideoUrl, setWelcomeVideoUrl] = useState('');
+    const [androidUrl, setAndroidUrl] = useState('');
+    const [iosUrl, setIosUrl] = useState('');
     const [settingsLoading, setSettingsLoading] = useState(false);
 
     useEffect(() => {
@@ -87,6 +89,8 @@ export default function Admin() {
                 setWelcomeTitle(data.settings.welcome_notification_title || '');
                 setWelcomeContent(data.settings.welcome_notification_content || '');
                 setWelcomeVideoUrl(data.settings.welcome_notification_video_url || '');
+                setAndroidUrl(data.settings.android_app_url || '');
+                setIosUrl(data.settings.ios_app_url || '');
             })
             .catch(() => { })
             .finally(() => setSettingsLoading(false));
@@ -150,6 +154,18 @@ export default function Admin() {
             setMessageType('success');
         } catch (err: any) {
             setMessage(err.message || 'Failed to update welcome notification');
+            setMessageType('error');
+        }
+    };
+
+    const handleSaveAppUrls = async () => {
+        try {
+            await adminApi.updateSetting('android_app_url', androidUrl);
+            await adminApi.updateSetting('ios_app_url', iosUrl);
+            setMessage('App URLs updated successfully');
+            setMessageType('success');
+        } catch (err: any) {
+            setMessage(err.message || 'Failed to update app URLs');
             setMessageType('error');
         }
     };
@@ -1121,6 +1137,52 @@ export default function Admin() {
                                         disabled={settingsLoading || isImageUploading}
                                     >
                                         {isImageUploading ? 'Uploading Image...' : <><Send size={16} className="inline mr-1" /> Save Welcome Notification</>}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Mobile App Settings */}
+                            <div className="card" style={{ marginTop: '24px', padding: '24px' }}>
+                                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Download size={20} /> Mobile App Configuration
+                                </h3>
+                                <p className="text-muted" style={{ marginBottom: '24px', fontSize: '0.9rem' }}>
+                                    Configure download links for Android and iOS apps.
+                                </p>
+
+                                <div className="form-group">
+                                    <label htmlFor="android-url" style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>Android App URL</label>
+                                    <input
+                                        id="android-url"
+                                        type="url"
+                                        className="form-input"
+                                        placeholder="https://play.google.com/..."
+                                        value={androidUrl}
+                                        onChange={e => setAndroidUrl(e.target.value)}
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+
+                                <div className="form-group" style={{ marginTop: '16px' }}>
+                                    <label htmlFor="ios-url" style={{ display: 'block', marginBottom: '8px', fontWeight: 600 }}>iOS App URL</label>
+                                    <input
+                                        id="ios-url"
+                                        type="url"
+                                        className="form-input"
+                                        placeholder="https://apps.apple.com/..."
+                                        value={iosUrl}
+                                        onChange={e => setIosUrl(e.target.value)}
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={handleSaveAppUrls}
+                                        disabled={settingsLoading}
+                                    >
+                                        Save App URLs
                                     </button>
                                 </div>
                             </div>

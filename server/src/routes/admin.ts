@@ -331,7 +331,9 @@ router.get('/settings', async (_req: AuthRequest, res) => {
             'welcome_notification_content',
             'welcome_notification_video_url',
             'pitch_request_payment_required',
-            'pitch_request_payment_amount'
+            'pitch_request_payment_amount',
+            'android_app_url',
+            'ios_app_url'
         ];
 
         const settings = await Setting.find({ key: { $in: allowedKeys } });
@@ -363,7 +365,9 @@ router.put('/settings', async (req: AuthRequest, res) => {
             'welcome_notification_content',
             'welcome_notification_video_url',
             'pitch_request_payment_required',
-            'pitch_request_payment_amount'
+            'pitch_request_payment_amount',
+            'android_app_url',
+            'ios_app_url'
         ];
         if (!allowedKeys.includes(key)) {
             res.status(400).json({ error: 'Unknown setting key' });

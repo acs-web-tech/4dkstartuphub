@@ -223,7 +223,12 @@ export const notificationsApi = {
 
 // ── Public Settings (no auth) ───────────────────────────────
 export const settingsApi = {
-    getPublic: () => request<{ registration_payment_required: boolean; registration_payment_amount: number }>('/settings/public'),
+    getPublic: () => request<{
+        registration_payment_required: boolean;
+        registration_payment_amount: number;
+        android_app_url?: string;
+        ios_app_url?: string;
+    }>('/settings/public'),
 };
 
 export const uploadApi = {

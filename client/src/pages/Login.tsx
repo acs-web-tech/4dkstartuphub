@@ -1,17 +1,26 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Rocket, Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
-    const { login } = useAuth();
+    const { login, user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+
+    // Redirect if already logged in (prevents login page flicker)
+    useEffect(() => {
+        if (!authLoading && user) {
+            navigate('/feed', { replace: true });
+        }
+    }, [user, authLoading, navigate]);
+
+    if (authLoading) return <div className="loading-container"><div className="spinner" /></div>;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
