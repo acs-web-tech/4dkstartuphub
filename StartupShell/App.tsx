@@ -139,17 +139,15 @@ const App = () => {
   }, []);
 
   // ─── 5. Handle Foreground Notifications ──────────────────────────────────
-  // No popup — silently navigate to the URL so the web app handles it natively
+  // App is open → do NOT navigate (avoids page refresh mid-chat/post).
+  // The web app's WebSocket already updates the bell badge in real time.
+  // Background/quit notifications still navigate via onNotificationOpenedApp
+  // and getInitialNotification below — those are unaffected.
   useEffect(() => {
-    const unsubscribe = messaging().onMessage(async remoteMessage => {
-      if (remoteMessage.data?.url) {
-        const url = remoteMessage.data.url as string;
-        const fullUrl = url.startsWith('/') ? `${WEBSITE_URL}${url}` : url;
-        webViewRef.current?.injectJavaScript(
-          `window.location.href = ${JSON.stringify(fullUrl)}; true;`
-        );
-      }
-      // The web app's own notification UI (bell icon, toast, etc.) will handle display
+    // Must subscribe to onMessage so Firebase delivers the notification
+    // to the device even when the app is in foreground — just do nothing with it.
+    const unsubscribe = messaging().onMessage(async _remoteMessage => {
+      // Intentionally empty — web app handles display via WebSocket
     });
     return unsubscribe;
   }, []);
