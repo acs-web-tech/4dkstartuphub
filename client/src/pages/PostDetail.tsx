@@ -484,24 +484,32 @@ export default function PostDetail() {
                         )}
 
                         {(() => {
-                            const match = post.content.match(/href="(https?:\/\/[^"]+)"/) || post.content.match(/(https?:\/\/[^\s<]+)/);
-                            const url = match ? match[1] : null;
+                            const extractUrls = (html: string) => {
+                                const unique = new Set<string>();
+                                const regex = /(?:href="|src=")?(https?:\/\/[^\s<"]+)/g;
+                                let match;
+                                while ((match = regex.exec(html)) !== null) {
+                                    if (match[0].startsWith('src=')) continue;
+                                    unique.add(match[1]);
+                                }
+                                return Array.from(unique);
+                            };
 
+                            const urls = extractUrls(post.content);
                             let displayContent = post.content;
-                            if (url) {
+
+                            urls.forEach(url => {
                                 try {
                                     const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                                    // 1. Remove anchor tag
                                     const anchorRegex = new RegExp(`<a[^>]*href="${escapedUrl}"[^>]*>.*?</a>`, 'gi');
                                     displayContent = displayContent.replace(anchorRegex, '');
 
-                                    // 2. Remove plain text outside attributes
                                     const textRegex = new RegExp(`(href=["']|src=["'])?(${escapedUrl})`, 'gi');
                                     displayContent = displayContent.replace(textRegex, (match, prefix) => prefix ? match : '');
-
-                                    displayContent = displayContent.replace(/<p>\s*<\/p>/g, '').replace(/<p><br><\/p>/g, '');
                                 } catch (e) { }
-                            }
+                            });
+
+                            displayContent = displayContent.replace(/<p>\s*<\/p>/g, '').replace(/<p><br><\/p>/g, '');
 
                             return (
                                 <>
@@ -510,7 +518,7 @@ export default function PostDetail() {
                                         dangerouslySetInnerHTML={{ __html: displayContent }}
                                         onClick={handleContentClick}
                                     />
-                                    {url && <LinkPreview url={url} />}
+                                    {urls.map(url => <LinkPreview url={url} key={url} />)}
                                 </>
                             );
                         })()}

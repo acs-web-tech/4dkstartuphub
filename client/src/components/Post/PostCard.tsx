@@ -181,41 +181,60 @@ function PostCard({ post, onImageClick }: Props) {
             )}
 
             {(() => {
-                const match = post.content.match(/href="(https?:\/\/[^"]+)"/) || post.content.match(/(https?:\/\/[^\s<]+)/);
-                const url = match ? match[1] : null;
+                const extractUrls = (html: string) => {
+                    const unique = new Set<string>();
+                    // Regex to find http/https URLs. 
+                    // Use a capture group for the URL itself.
+                    const regex = /(?:href="|src=")?(https?:\/\/[^\s<"]+)/g;
+                    let match;
+                    while ((match = regex.exec(html)) !== null) {
+                        // match[0] contains the prefix (href= or src=) if present
+                        // match[1] contains the actual URL
 
+                        // Ignore generic image sources if they are just src="..."
+                        // But wait, link preview for an image URL? Maybe. 
+                        // Usually we don't want to preview the image src if it's rendered as an <img> tag.
+                        // Quill uses <img src="...">.
+                        if (match[0].startsWith('src=')) continue;
+
+                        // Also ignore if it is part of a mailto or other schemes (regex limits to http)
+                        unique.add(match[1]);
+                    }
+                    return Array.from(unique);
+                };
+
+                const urls = extractUrls(post.content);
                 let displayContent = post.content;
-                if (url) {
+
+                urls.forEach(url => {
                     try {
-                        // 1. Remove the anchor tag containing the URL first (most common case in Quill)
                         const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+                        // 1. Remove anchor tags
                         const anchorRegex = new RegExp(`<a[^>]*href="${escapedUrl}"[^>]*>.*?</a>`, 'gi');
                         displayContent = displayContent.replace(anchorRegex, '');
 
-                        // 2. Remove plain text URL if it's not inside an attribute (e.g. href="..." or src="...")
-                        // We use a capture group for potential prefix (href=" or src=")
-                        // If prefix exists, we keep the match (don't delete). If no prefix, we delete.
+                        // 2. Remove plain text URLs
                         const textRegex = new RegExp(`(href=["']|src=["'])?(${escapedUrl})`, 'gi');
-                        displayContent = displayContent.replace(textRegex, (match, prefix) => {
-                            if (prefix) return match; // It is part of an attribute, preserve it
-                            return ''; // It is plain text, remove it
-                        });
-
-                        // Clean up empty paragraphs
-                        displayContent = displayContent.replace(/<p>\s*<\/p>/g, '').replace(/<p><br><\/p>/g, '');
+                        displayContent = displayContent.replace(textRegex, (match, prefix) => prefix ? match : '');
                     } catch (e) {
                         console.error('Error stripping URL:', e);
                     }
-                }
+                });
+
+                // Clean up empty lines left behind
+                displayContent = displayContent.replace(/<p>\s*<\/p>/g, '').replace(/<p><br><\/p>/g, '');
 
                 return (
                     <>
                         <div
-                            className="post-content-full ql-editor"
+                            className="post-content-full ql-editor" // ql-editor class ensures styles match
                             dangerouslySetInnerHTML={{ __html: displayContent }}
                             onClick={handleContentClick}
                         />
-                        {url && <LinkPreview url={url} />}
+                        {urls.map(url => (
+                            <LinkPreview url={url} key={url} />
+                        ))}
                     </>
                 );
             })()}

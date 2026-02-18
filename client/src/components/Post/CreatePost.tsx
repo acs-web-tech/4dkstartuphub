@@ -33,17 +33,23 @@ export default function CreatePost() {
     const quillRef = useRef<ReactQuill>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const thumbnailInputRef = useRef<HTMLInputElement>(null);
-    const [extractedUrl, setExtractedUrl] = useState('');
+    const [extractedUrls, setExtractedUrls] = useState<string[]>([]);
 
+    // Extract URLs for preview
     useEffect(() => {
-        const match = content.match(/href="(https?:\/\/[^"]+)"/) || content.match(/(https?:\/\/[^\s<"]+)/);
-        if (match) {
-            setExtractedUrl(match[1]);
-        } else {
-            setExtractedUrl('');
+        const unique = new Set<string>();
+        const regex = /(?:href="|src=")?(https?:\/\/[^\s<"]+)/g;
+        let match;
+        // Search in content string
+        while ((match = regex.exec(content)) !== null) {
+            // Ignore src="..." (images)
+            if (match[0].startsWith('src=')) continue;
+            unique.add(match[1]);
         }
+        setExtractedUrls(Array.from(unique));
     }, [content]);
 
+    // Fetch post for editing
     useEffect(() => {
         if (isEditing) {
             const fetchPost = async () => {
@@ -319,10 +325,12 @@ export default function CreatePost() {
                     </div>
                 </div>
 
-                {extractedUrl && (
+                {extractedUrls.length > 0 && (
                     <div className="form-group">
-                        <label style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Link Preview</label>
-                        <LinkPreview url={extractedUrl} />
+                        <label style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Link Preview(s)</label>
+                        {extractedUrls.map(url => (
+                            <LinkPreview url={url} key={url} />
+                        ))}
                     </div>
                 )}
 
