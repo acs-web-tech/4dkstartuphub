@@ -1,12 +1,13 @@
 
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { usersApi } from '../services/api';
 import { CATEGORY_CONFIG } from '../config';
 import { MapPin, Globe, FileText, Calendar, Heart, MessageSquare, ArrowLeft } from 'lucide-react';
 
 export default function UserDetail() {
     const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
     const [user, setUser] = useState<any>(null);
     const [posts, setPosts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -30,9 +31,13 @@ export default function UserDetail() {
     return (
         <div className="page-container">
             <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-                <Link to="/members" className="btn btn-ghost btn-sm" style={{ padding: '8px' }}>
+                <button
+                    onClick={() => navigate(-1)}
+                    className="btn btn-ghost btn-sm"
+                    style={{ padding: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
                     <ArrowLeft size={20} /> Back
-                </Link>
+                </button>
                 <h1>User Profile</h1>
             </div>
 
