@@ -6076,3 +6076,7 @@ img {
 .chat-message:hover .chat-msg-delete-btn { opacity: 1; }
 .chat-msg-delete-btn:hover { color: #ef4444; }
 .chat-msg-actions { display: flex; align-items: center; margin-top: 4px; }
+
+/*  Chat Input Polish  */
+.chat-textarea { border-radius: 24px !important; padding: 12px 18px !important; background-color: var(--bg-secondary) !important; border: 1px solid var(--border-color) !important; min-height: 48px; line-height: 1.5; }
+.chat-input-form { padding: 12px 16px; background: var(--bg-primary); border-top: 1px solid var(--border-color); display: flex; gap: 10px; align-items: flex-end; }

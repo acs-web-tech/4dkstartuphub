@@ -583,7 +583,7 @@ export default function ChatRooms() {
                             <textarea
                                 ref={inputRef as any}
                                 className="form-input chat-input chat-textarea"
-                                placeholder="Type a message... (Shift+Enter for new line)"
+                                placeholder="Type a message..."
                                 value={newMessage}
                                 onChange={(e) => {
                                     handleInputChange(e as any);
@@ -591,12 +591,9 @@ export default function ChatRooms() {
                                     e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px'; // Expand up to 150px
                                 }}
                                 onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                        e.preventDefault();
-                                        handleSend(e);
-                                    } else {
-                                        handleInputKeyDown(e as any);
-                                    }
+                                    // Allow Enter to insert new line (default behavior)
+                                    // Handle mentions navigation if needed
+                                    handleInputKeyDown(e as any);
                                 }}
                                 maxLength={2000}
                                 id="chat-message-input"
