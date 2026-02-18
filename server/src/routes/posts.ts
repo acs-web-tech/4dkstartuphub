@@ -15,6 +15,7 @@ import PostView from '../models/PostView';
 import Notification from '../models/Notification';
 import mongoose from 'mongoose';
 import { escapeRegExp } from '../utils/regex';
+import { getLinkPreview } from '../services/metadata';
 
 const router = Router();
 
@@ -100,6 +101,7 @@ router.get('/', authenticate, async (req, res) => {
                     userPostCount: { $ifNull: ['$user.post_count', 0] },
                     createdAt: '$created_at',
                     updatedAt: '$updated_at',
+                    linkPreview: '$link_preview'
                 }
             }
         ]);
@@ -199,6 +201,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
                 userPostCount: (author as any)?.post_count || 0,
                 createdAt: post.created_at,
                 updatedAt: post.updated_at,
+                linkPreview: post.link_preview,
             },
             comments: comments.map(c => {
                 const cUser = c.user_id as any;
@@ -224,7 +227,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
 // ── POST /api/posts ──────────────────────────────────────────
 router.post('/', authenticate, validate(createPostSchema), async (req: AuthRequest, res) => {
     try {
-        const { title, content, category, videoUrl, imageUrl, eventDate } = req.body;
+        const { title, content: rawContent, category, videoUrl, imageUrl, eventDate } = req.body;
         const userId = new mongoose.Types.ObjectId(req.user!.userId);
 
         // Prevent accidental double-posts
@@ -246,14 +249,27 @@ router.post('/', authenticate, validate(createPostSchema), async (req: AuthReque
             return;
         }
 
+        const content = sanitizeHtml(rawContent);
+
+        let linkPreview = undefined;
+        try {
+            const urlMatch = content.match(/https?:\/\/[^\s]+/);
+            if (urlMatch) {
+                linkPreview = await getLinkPreview(urlMatch[0]);
+            }
+        } catch (error) {
+            console.error('Failed to generate link preview:', error);
+        }
+
         const newPost = await Post.create({
             user_id: userId,
             title: sanitizePlainText(title),
-            content: sanitizeHtml(content),
+            content,
             category,
             video_url: videoUrl || '',
             image_url: imageUrl || '',
-            event_date: eventDate ? new Date(eventDate) : undefined
+            event_date: eventDate ? new Date(eventDate) : undefined,
+            link_preview: linkPreview
         });
 
         // Increment user post count
@@ -283,6 +299,7 @@ router.post('/', authenticate, validate(createPostSchema), async (req: AuthReque
                 userPostCount: user.post_count + 1,
                 createdAt: newPost.created_at,
                 updatedAt: newPost.updated_at,
+                linkPreview: newPost.link_preview
             });
         }
 
@@ -310,7 +327,19 @@ router.put('/:id', authenticate, validate(updatePostSchema), async (req: AuthReq
         }
 
         if (req.body.title) post.title = sanitizePlainText(req.body.title);
-        if (req.body.content) post.content = sanitizeHtml(req.body.content);
+        if (req.body.content) {
+            post.content = sanitizeHtml(req.body.content);
+            try {
+                const urlMatch = post.content.match(/https?:\/\/[^\s]+/);
+                if (urlMatch) {
+                    post.link_preview = await getLinkPreview(urlMatch[0]);
+                } else {
+                    post.link_preview = undefined;
+                }
+            } catch (error) {
+                console.error('Failed to update link preview:', error);
+            }
+        }
 
         if (req.body.category) {
             if (req.body.category === 'events' && req.user?.role !== 'admin') {
@@ -351,6 +380,7 @@ router.put('/:id', authenticate, validate(updatePostSchema), async (req: AuthReq
                 eventDate: updatedPost.event_date,
                 createdAt: updatedPost.created_at,
                 updatedAt: updatedPost.updated_at,
+                linkPreview: updatedPost.link_preview
             });
         }
 

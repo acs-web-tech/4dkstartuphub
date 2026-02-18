@@ -471,7 +471,7 @@ export default function ChatRooms() {
                                             {/* Show Link Preview if URL exists */}
                                             {msgUrl && (
                                                 <div className="chat-msg-link-preview">
-                                                    <LinkPreview url={msgUrl} compact />
+                                                    <LinkPreview url={msgUrl} compact initialData={msg.linkPreview} />
                                                 </div>
                                             )}
 

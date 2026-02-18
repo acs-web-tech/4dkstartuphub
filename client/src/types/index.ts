@@ -38,6 +38,7 @@ export interface Post {
     userType?: 'startup' | 'investor';
     userPostCount?: number;
     userIsOnline?: boolean;
+    linkPreview?: any;
     createdAt: string;
     updatedAt: string;
 }
@@ -100,6 +101,7 @@ export interface ChatMessage {
     username: string;
     displayName: string;
     avatarUrl: string;
+    linkPreview?: any;
     createdAt: string;
 }
 

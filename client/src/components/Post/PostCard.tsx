@@ -284,8 +284,12 @@ function PostCard({ post, onImageClick }: Props) {
                             dangerouslySetInnerHTML={{ __html: displayContent }}
                             onClick={handleContentClick}
                         />
-                        {urls.map(url => (
-                            <LinkPreview url={url} key={url} />
+                        {urls.map((url, i) => (
+                            <LinkPreview
+                                key={url}
+                                url={url}
+                                initialData={i === 0 ? post.linkPreview : null}
+                            />
                         ))}
                     </>
                 );

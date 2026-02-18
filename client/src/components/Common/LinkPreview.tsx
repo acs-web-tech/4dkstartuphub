@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 
+
 interface MetaData {
     title: string;
     description: string;
@@ -13,12 +14,18 @@ interface MetaData {
     contentType?: string;
 }
 
-export default function LinkPreview({ url, compact = false }: { url: string; compact?: boolean }) {
-    const [meta, setMeta] = useState<MetaData | null>(null);
-    const [loading, setLoading] = useState(true);
+export default function LinkPreview({ url, compact = false, initialData }: { url: string; compact?: boolean; initialData?: MetaData | null }) {
+    const [meta, setMeta] = useState<MetaData | null>(initialData || null);
+    const [loading, setLoading] = useState(!initialData);
     const [error, setError] = useState(false);
 
     useEffect(() => {
+        if (initialData) {
+            setMeta(initialData);
+            setLoading(false);
+            return;
+        }
+
         if (!url) return;
         setLoading(true);
         setError(false);
@@ -39,7 +46,7 @@ export default function LinkPreview({ url, compact = false }: { url: string; com
             .finally(() => setLoading(false));
 
         return () => controller.abort();
-    }, [url]);
+    }, [url, initialData]);
 
     if (loading) return (
         <div className="link-preview-card link-preview-loading">

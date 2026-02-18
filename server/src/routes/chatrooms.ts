@@ -11,6 +11,7 @@ import User from '../models/User';
 import Notification from '../models/Notification';
 import mongoose from 'mongoose';
 import { socketService } from '../services/socket';
+import { getLinkPreview } from '../services/metadata';
 
 const router = Router();
 
@@ -315,6 +316,7 @@ router.get('/:id/messages', authenticate, async (req: AuthRequest, res) => {
                     displayName: mUser.display_name,
                     avatarUrl: mUser.avatar_url,
                     createdAt: m.created_at,
+                    linkPreview: m.link_preview
                 };
             }),
             members: members
@@ -389,10 +391,22 @@ router.post('/:id/messages', authenticate, validate(chatMessageSchema), async (r
         }
 
         const content = sanitizeHtml(req.body.content);
+
+        let linkPreview = undefined;
+        try {
+            const urlMatch = content.match(/https?:\/\/[^\s]+/);
+            if (urlMatch) {
+                linkPreview = await getLinkPreview(urlMatch[0]);
+            }
+        } catch (error) {
+            console.error('Failed to generate link preview:', error);
+        }
+
         const newMessage = await ChatMessage.create({
             room_id: rObjectId,
             user_id: uObjectId,
-            content
+            content,
+            link_preview: linkPreview
         });
 
         const user = await User.findById(req.user!.userId);
@@ -428,6 +442,7 @@ router.post('/:id/messages', authenticate, validate(chatMessageSchema), async (r
                 displayName: user?.display_name,
                 avatarUrl: user?.avatar_url,
                 createdAt: newMessage.created_at,
+                linkPreview: newMessage.link_preview,
             },
         };
 

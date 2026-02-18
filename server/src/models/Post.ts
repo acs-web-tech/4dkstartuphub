@@ -11,6 +11,7 @@ export interface IPost extends Document {
     is_pinned: boolean;
     is_locked: boolean;
     view_count: number;
+    link_preview?: any;
     created_at: Date;
     updated_at: Date;
 }
@@ -30,6 +31,18 @@ const PostSchema: Schema = new Schema({
     is_pinned: { type: Boolean, default: false },
     is_locked: { type: Boolean, default: false },
     view_count: { type: Number, default: 0 },
+    link_preview: {
+        title: String,
+        description: String,
+        image: String,
+        siteName: String,
+        favicon: String,
+        author: String,
+        publishedDate: String,
+        contentType: String,
+        keywords: String,
+        url: String
+    }
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
     toJSON: {
@@ -43,6 +56,8 @@ const PostSchema: Schema = new Schema({
             ret.isPinned = ret.is_pinned ? 1 : 0;
             ret.isLocked = ret.is_locked ? 1 : 0;
             ret.viewCount = ret.view_count;
+            ret.linkPreview = ret.link_preview;
+            delete ret.link_preview;
             ret.createdAt = ret.created_at;
             ret.updatedAt = ret.updated_at;
             delete ret._id;
