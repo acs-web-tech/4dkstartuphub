@@ -10,6 +10,7 @@ import {
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { editorModules, editorFormats } from '../config/editor';
+import { SmartImage } from '../components/Common/SmartImage'; // Added Import
 
 export default function Admin() {
     const [tab, setTab] = useState<'dashboard' | 'users' | 'rooms' | 'pitch' | 'broadcast' | 'settings'>('dashboard');
@@ -711,7 +712,9 @@ export default function Admin() {
                                                                 onClick={() => handleAddMember(user.id)}
                                                             >
                                                                 <div className="flex items-center gap-2">
-                                                                    <img src={user.avatarUrl || '/default-avatar.png'} alt="" className="w-6 h-6 rounded-full" />
+                                                                    <div className="w-6 h-6 rounded-full overflow-hidden">
+                                                                        {user.avatarUrl ? <SmartImage src={user.avatarUrl} alt="" className="w-full h-full object-cover" /> : <img src="/default-avatar.png" alt="" className="w-full h-full" />}
+                                                                    </div>
                                                                     <span>{user.displayName}</span>
                                                                     <span className="text-xs text-gray-400">@{user.username}</span>
                                                                 </div>
@@ -728,7 +731,9 @@ export default function Admin() {
                                             {roomMembers.map(member => (
                                                 <div key={member.id} className="flex items-center justify-between p-3 bg-dark-lighter rounded">
                                                     <div className="flex items-center gap-3">
-                                                        <img src={member.avatarUrl || '/default-avatar.png'} alt="" className="w-8 h-8 rounded-full" />
+                                                        <div className="w-8 h-8 rounded-full overflow-hidden">
+                                                            {member.avatarUrl ? <SmartImage src={member.avatarUrl} alt="" className="w-full h-full object-cover" /> : <img src="/default-avatar.png" alt="" className="w-full h-full" />}
+                                                        </div>
                                                         <div>
                                                             <div className="font-medium">{member.displayName}</div>
                                                             <div className="text-xs text-gray-400">@{member.username}</div>

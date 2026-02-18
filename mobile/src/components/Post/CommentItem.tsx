@@ -2,6 +2,7 @@
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { Comment } from '../../types';
+import { SmartImage } from '../Common/SmartImage';
 
 interface CommentItemProps {
     comment: Comment;
@@ -35,7 +36,7 @@ function CommentItem({ comment }: CommentItemProps) {
         <div className={`comment-item ${isOptimistic ? 'optimistic' : ''} ${isRealtimeNew ? 'realtime-new' : ''}`}>
             <Link to={`/users/${comment.userId}`} className="comment-avatar">
                 {comment.avatarUrl ? (
-                    <img src={comment.avatarUrl} alt={comment.displayName} loading="lazy" />
+                    <SmartImage src={comment.avatarUrl} alt={comment.displayName} />
                 ) : (
                     <span>{cInitials}</span>
                 )}

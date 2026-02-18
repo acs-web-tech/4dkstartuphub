@@ -5,6 +5,7 @@ import { usersApi, uploadApi } from '../services/api';
 import {
     User, Camera, Pencil, Mail, MapPin, Globe, Briefcase, Twitter, Calendar, Save, CheckCircle, AlertCircle
 } from 'lucide-react';
+import { SmartImage } from '../components/Common/SmartImage';
 
 export default function Profile() {
     const { user, refreshUser } = useAuth();
@@ -121,7 +122,15 @@ export default function Profile() {
                         title={editing ? "Click to change avatar" : ""}
                         style={{ cursor: editing && !uploading ? 'pointer' : 'default', position: 'relative' }}
                     >
-                        {(editing ? form.avatarUrl : user.avatarUrl) ? <img src={editing ? form.avatarUrl : user.avatarUrl} alt="" style={uploading ? { opacity: 0.5 } : {}} /> : <span>{initials}</span>}
+                        {(editing ? form.avatarUrl : user.avatarUrl) ? (
+                            <SmartImage
+                                src={editing ? form.avatarUrl : user.avatarUrl}
+                                alt=""
+                                style={uploading ? { opacity: 0.5 } : {}}
+                            />
+                        ) : (
+                            <span>{initials}</span>
+                        )}
 
                         {uploading && (
                             <div className="avatar-overlay" style={{ background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

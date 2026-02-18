@@ -5,6 +5,7 @@ import { useSocket } from '../context/SocketContext';
 import { chatApi } from '../services/api';
 import { ChatRoom, ChatMessage } from '../types';
 import { MessageCircle, Trash2, Send, Plus, Lock, Shield } from 'lucide-react';
+import { SmartImage } from '../components/Common/SmartImage';
 
 export default function ChatRooms() {
     const { user } = useAuth();
@@ -446,7 +447,11 @@ export default function ChatRooms() {
                                     <div key={msg.id} className={`chat-message ${isOwn ? 'own' : ''}`}>
                                         {!isOwn && (
                                             <div className="chat-msg-avatar">
-                                                {msg.avatarUrl ? <img src={msg.avatarUrl} alt="" /> : <span>{getInitials(msg.displayName)}</span>}
+                                                {msg.avatarUrl ? (
+                                                    <SmartImage src={msg.avatarUrl} alt="" />
+                                                ) : (
+                                                    <span>{getInitials(msg.displayName)}</span>
+                                                )}
                                             </div>
                                         )}
                                         <div className="chat-msg-body">
@@ -483,10 +488,11 @@ export default function ChatRooms() {
                                             onMouseEnter={() => setMentionIndex(i)}
                                         >
                                             <div className="mention-avatar">
-                                                {m.avatarUrl
-                                                    ? <img src={m.avatarUrl} alt="" />
-                                                    : <span>{getInitials(m.displayName)}</span>
-                                                }
+                                                {m.avatarUrl ? (
+                                                    <SmartImage src={m.avatarUrl} alt="" />
+                                                ) : (
+                                                    <span>{getInitials(m.displayName)}</span>
+                                                )}
                                             </div>
                                             <div className="mention-info">
                                                 <span className="mention-name">{m.displayName}</span>

@@ -57,7 +57,7 @@ export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, ...props 
             className={`${props.className || ''} ${loading ? 'smart-image-loading' : 'smart-image-loaded'}`}
             style={{
                 ...props.style,
-                opacity: loading ? 0 : 1,
+                opacity: loading ? 0 : (props.style?.opacity ?? 1),
                 transition: 'opacity 0.4s ease-out'
             }}
         />

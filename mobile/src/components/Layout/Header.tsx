@@ -359,7 +359,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                         >
                                             <div className="search-result-avatar">
                                                 {u.avatarUrl ? (
-                                                    <img src={u.avatarUrl} alt="" />
+                                                    <SmartImage src={u.avatarUrl} alt="" />
                                                 ) : (
                                                     <span>{getInitials(u.displayName)}</span>
                                                 )}
