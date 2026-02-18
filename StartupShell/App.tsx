@@ -72,32 +72,20 @@ const App = () => {
         // Step 1: Android 13+ (API 33+) requires explicit POST_NOTIFICATIONS permission
         if (Platform.OS === 'android' && Platform.Version >= 33) {
           const granted = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-            {
-              title: '4DK Startup Hub Notifications',
-              message: 'Allow 4DK Startup Hub to send you notifications about new posts, comments, and messages.',
-              buttonPositive: 'Allow',
-              buttonNegative: 'Not Now',
-            }
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
           );
-          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-            Alert.alert(
-              'Notifications Disabled',
-              'You won\'t receive push notifications. You can enable them anytime in Settings.',
-              [{ text: 'OK' }]
-            );
-            return;
-          }
+          console.log('🔔 Android Permission Status:', granted);
         }
 
-        // Step 2: Firebase permission request (handles iOS + older Android)
+        // Step 2: Firebase permission request (Internal registration)
+        // We call this unconditionally to ensure Firebase internals are ready
         const authStatus = await messaging().requestPermission();
         const enabled =
           authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
           authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
         if (!enabled) {
-          console.log('Push notification permission denied by Firebase');
+          console.log('🚫 Push notification permission denied by Firebase');
           return;
         }
 
@@ -105,6 +93,7 @@ const App = () => {
         const token = await messaging().getToken();
         console.log('✅ FCM Token obtained:', token.substring(0, 20) + '...');
         pendingToken.current = token;
+
         // If WebView is already ready, send immediately
         if (webViewReady) {
           sendTokenToWebView(token);
@@ -115,7 +104,7 @@ const App = () => {
     };
 
     init();
-  }, []); // Run once on mount
+  }, []);
 
   // ─── 2. Send pending token when WebView becomes ready ────────────────────
   useEffect(() => {

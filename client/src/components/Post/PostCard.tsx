@@ -180,17 +180,36 @@ function PostCard({ post, onImageClick }: Props) {
                 </div>
             )}
 
-            <div
-                className="post-content-full ql-editor"
-                dangerouslySetInnerHTML={{ __html: post.content }}
-                onClick={handleContentClick}
-            />
-
-            {/* Link Preview */}
             {(() => {
                 const match = post.content.match(/href="(https?:\/\/[^"]+)"/) || post.content.match(/(https?:\/\/[^\s<]+)/);
                 const url = match ? match[1] : null;
-                return url ? <LinkPreview url={url} /> : null;
+
+                let displayContent = post.content;
+                if (url) {
+                    try {
+                        // Remove the anchor tag containing the URL to avoid double display
+                        const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        // Logic: Remove <a ... href="url" ...>...</a>
+                        const anchorRegex = new RegExp(`<a[^>]*href="${escapedUrl}"[^>]*>.*?</a>`, 'gi');
+                        displayContent = displayContent.replace(anchorRegex, '');
+
+                        // Clean up empty paragraphs <p><br></p> or <p></p> left behind
+                        displayContent = displayContent.replace(/<p>\s*<\/p>/g, '').replace(/<p><br><\/p>/g, '');
+                    } catch (e) {
+                        console.error('Error stripping URL from content:', e);
+                    }
+                }
+
+                return (
+                    <>
+                        <div
+                            className="post-content-full ql-editor"
+                            dangerouslySetInnerHTML={{ __html: displayContent }}
+                            onClick={handleContentClick}
+                        />
+                        {url && <LinkPreview url={url} />}
+                    </>
+                );
             })()}
 
             <div className="post-card-footer">

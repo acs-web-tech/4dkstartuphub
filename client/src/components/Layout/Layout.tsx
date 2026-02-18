@@ -57,18 +57,16 @@ export default function Layout() {
     }, [status]);
 
     useEffect(() => {
-        // PWA Install Prompt
+        // PWA Install Prompt - Desktop Only
         const handler = (e: any) => {
             e.preventDefault();
-            setDeferredPrompt(e);
-            setShowInstallBtn(true);
+            const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+            if (!isMobile) {
+                setDeferredPrompt(e);
+                setShowInstallBtn(true);
+            }
         };
         window.addEventListener('beforeinstallprompt', handler);
-
-        // Check if we should show "Get App" even if PWA prompt not fired (e.g. iOS or manual config)
-        // Only if not already installed (PWA check is hard, but we rely on deferredPrompt for PWA)
-        // If we have appUrls, we force show button on mobile ?
-        // For now, let's hook into deferredPrompt primarily, but if on mobile we might want to override.
 
         return () => window.removeEventListener('beforeinstallprompt', handler);
     }, []);

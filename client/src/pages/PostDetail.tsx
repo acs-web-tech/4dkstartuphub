@@ -483,17 +483,30 @@ export default function PostDetail() {
                             </div>
                         )}
 
-                        <div
-                            className="post-detail-content ql-editor"
-                            dangerouslySetInnerHTML={{ __html: post.content }}
-                            onClick={handleContentClick}
-                        />
-
-                        {/* Link Preview */}
                         {(() => {
                             const match = post.content.match(/href="(https?:\/\/[^"]+)"/) || post.content.match(/(https?:\/\/[^\s<]+)/);
                             const url = match ? match[1] : null;
-                            return url ? <LinkPreview url={url} /> : null;
+
+                            let displayContent = post.content;
+                            if (url) {
+                                try {
+                                    const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                    const anchorRegex = new RegExp(`<a[^>]*href="${escapedUrl}"[^>]*>.*?</a>`, 'gi');
+                                    displayContent = displayContent.replace(anchorRegex, '');
+                                    displayContent = displayContent.replace(/<p>\s*<\/p>/g, '').replace(/<p><br><\/p>/g, '');
+                                } catch (e) { }
+                            }
+
+                            return (
+                                <>
+                                    <div
+                                        className="post-detail-content ql-editor"
+                                        dangerouslySetInnerHTML={{ __html: displayContent }}
+                                        onClick={handleContentClick}
+                                    />
+                                    {url && <LinkPreview url={url} />}
+                                </>
+                            );
                         })()}
 
                         {post.videoUrl && (() => {
