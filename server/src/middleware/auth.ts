@@ -18,7 +18,15 @@ export interface AuthRequest extends Request {
  * Follows OWASP guidelines for secure token handling.
  */
 export async function authenticate(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-    const token = req.cookies?.access_token;
+    let token = req.cookies?.access_token;
+
+    // Support Bearer token from header (Critical for Mobile)
+    if (!token && req.headers.authorization) {
+        const parts = req.headers.authorization.split(' ');
+        if (parts.length === 2 && parts[0] === 'Bearer') {
+            token = parts[1];
+        }
+    }
 
     if (!token) {
         res.status(401).json({ error: 'Authentication required' });
@@ -61,7 +69,14 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
  * Optional authentication - doesn't fail if no token present
  */
 export function optionalAuth(req: AuthRequest, res: Response, next: NextFunction): void {
-    const token = req.cookies?.access_token;
+    let token = req.cookies?.access_token;
+
+    if (!token && req.headers.authorization) {
+        const parts = req.headers.authorization.split(' ');
+        if (parts.length === 2 && parts[0] === 'Bearer') {
+            token = parts[1];
+        }
+    }
 
     if (!token) {
         next();
