@@ -50,7 +50,10 @@ export default function LinkPreview({ url, compact = false, initialData }: { url
                 if (!data.title && !data.description) throw new Error('No metadata');
                 setMeta(data);
             })
-            .catch(() => setError(true))
+            .catch(() => {
+                setError(true);
+                if (initialData) setMeta(initialData);
+            })
             .finally(() => setLoading(false));
 
         return () => controller.abort();
