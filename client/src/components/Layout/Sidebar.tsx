@@ -69,7 +69,6 @@ export default function Sidebar({ isOpen, onClose }: Props) {
                         <span>All</span>
                     </button>
                     {(Object.entries(CATEGORY_CONFIG) as [PostCategory, typeof CATEGORY_CONFIG[PostCategory]][])
-                        .filter(([key]) => key !== 'events' || user?.role === 'admin')
                         .map(
                             ([key, cat]) => {
                                 const Icon = cat.icon;
