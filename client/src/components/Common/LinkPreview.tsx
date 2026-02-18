@@ -7,6 +7,7 @@ interface MetaData {
     image: string;
     siteName: string;
     url: string;
+    favicon?: string;
 }
 
 export default function LinkPreview({ url }: { url: string }) {
@@ -53,7 +54,17 @@ export default function LinkPreview({ url }: { url: string }) {
                 </div>
             )}
             <div className="preview-content">
-                {meta.siteName && <div className="preview-site">{meta.siteName}</div>}
+                <div className="preview-meta-header">
+                    {meta.favicon && (
+                        <img
+                            src={meta.favicon}
+                            alt=""
+                            className="preview-favicon"
+                            onError={e => (e.target as HTMLImageElement).style.display = 'none'}
+                        />
+                    )}
+                    <div className="preview-site">{meta.siteName || new URL(url).hostname}</div>
+                </div>
                 <div className="preview-title">{meta.title}</div>
                 {meta.description && <div className="preview-desc">{meta.description}</div>}
             </div>

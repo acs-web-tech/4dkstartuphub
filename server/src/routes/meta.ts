@@ -6,36 +6,93 @@ import * as cheerio from 'cheerio';
 const router = express.Router();
 
 router.get('/preview', async (req, res) => {
-    const url = req.query.url as string;
-    if (!url) {
+    const urlString = req.query.url as string;
+    if (!urlString) {
         return res.status(400).json({ error: 'URL is required' });
     }
 
+    // YouTube oEmbed Strategy (More reliable for video titles/thumbnails)
+    if (urlString.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/)) {
+        try {
+            const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(urlString)}&format=json`;
+            const { data } = await axios.get(oembedUrl);
+            return res.json({
+                title: data.title,
+                description: data.author_name ? `By ${data.author_name}` : '',
+                image: data.thumbnail_url,
+                siteName: 'YouTube',
+                favicon: 'https://www.youtube.com/s/desktop/12d6b690/img/favicon.ico',
+                type: 'video',
+                url: urlString
+            });
+        } catch (e) {
+            console.error('YouTube oEmbed failed, falling back to scrape');
+        }
+    }
+
     try {
-        const response = await axios.get(url, {
+        const { data: html } = await axios.get(urlString, {
             headers: {
-                'User-Agent': 'StartupHub-LinkPreview/1.0 (Mozilla/5.0; Compatible)',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
             },
             timeout: 5000,
         });
 
-        const html = response.data;
         const $ = cheerio.load(html);
-
         const getMeta = (prop: string) =>
             $(`meta[property="${prop}"]`).attr('content') ||
             $(`meta[name="${prop}"]`).attr('content');
 
         const title = getMeta('og:title') || $('title').text() || '';
         const description = getMeta('og:description') || getMeta('description') || '';
-        const image = getMeta('og:image') || '';
-        const siteName = getMeta('og:site_name') || '';
+        const image = getMeta('og:image') || getMeta('twitter:image') || '';
+        const siteName = getMeta('og:site_name') || getMeta('application-name') || '';
 
-        res.json({ title, description, image, siteName, url });
+        // Favicon Logic
+        let favicon = $('link[rel="icon"]').attr('href') ||
+            $('link[rel="shortcut icon"]').attr('href') ||
+            $('link[rel="apple-touch-icon"]').attr('href');
+
+        // Resolve partial URLs
+        if (favicon && !favicon.startsWith('http')) {
+            try {
+                const baseUrl = new URL(urlString);
+                if (favicon.startsWith('//')) {
+                    favicon = `https:${favicon}`;
+                } else if (favicon.startsWith('/')) {
+                    favicon = `${baseUrl.origin}${favicon}`;
+                } else {
+                    favicon = `${baseUrl.origin}/${baseUrl.pathname.split('/').slice(0, -1).join('/')}/${favicon}`;
+                }
+            } catch (e) { }
+        }
+
+        // Fallback favicon using Google's service if none found (reliable)
+        if (!favicon) {
+            try {
+                const hostname = new URL(urlString).hostname;
+                favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
+            } catch (e) { }
+        }
+
+        res.json({ title, description, image, siteName, favicon, url: urlString });
     } catch (error) {
         console.error('Link preview error:', error);
-        // Fallback: return basic info if fetch fails
-        res.json({ title: '', description: '', image: '', siteName: '', url });
+        // Fallback: return basic info hostname
+        try {
+            const hostname = new URL(urlString).hostname;
+            res.json({
+                title: hostname,
+                description: '',
+                image: '',
+                siteName: hostname,
+                favicon: `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`,
+                url: urlString
+            });
+        } catch (e) {
+            res.json({ title: '', description: '', image: '', siteName: '', url: urlString });
+        }
     }
 });
 

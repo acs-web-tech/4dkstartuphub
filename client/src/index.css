@@ -5929,3 +5929,21 @@ img {
   object-fit: cover;
   border-radius: var(--radius);
 }
+.preview-meta-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.preview-favicon {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  object-fit: contain;
+}
+
+.preview-site {
+  margin-bottom: 0 !important;
+}
+
