@@ -209,7 +209,7 @@ async function start() {
     // Initialize WebSockets
     socketService.initialize(httpServer);
 
-    httpServer.listen(config.port, '0.0.0.0', () => {
+    httpServer.listen(config.port, () => {
         console.log(`
   ╔══════════════════════════════════════════╗
   ║   🚀 StartupHub API Server Running      ║
