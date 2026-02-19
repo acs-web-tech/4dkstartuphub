@@ -12,7 +12,7 @@ interface AuthContextType {
         username: string; email: string; password: string; displayName: string;
         userType: 'startup' | 'investor';
         payment?: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
-    }) => Promise<void>;
+    }) => Promise<any>;
     logout: () => Promise<void>;
     refreshUser: () => Promise<void>;
 }
@@ -120,7 +120,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         payment?: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
     }) => {
         const data: any = await authApi.register(regData);
-        setUser(data.user);
+        if (data.user) {
+            setUser(data.user);
+        }
+        return data;
     };
 
     const logout = async () => {

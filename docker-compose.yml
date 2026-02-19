@@ -43,6 +43,13 @@ services:
       - JWT_SECRET=askdlsdko0r9r3874763426272099%#@!
       - JWT_REFRESH_SECRET=45094rkejerkjlew;le@*(1!jkldelk)
       - CORS_ORIGIN=https://startup.4dk.in
+      # Email Configuration (SMTP)
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=your-email@gmail.com
+      - SMTP_PASS=your-app-password
+      - SMTP_FROM=StartupHub <noreply@startuphub.com>
+      - SMTP_SECURE=false
     volumes:
       - stp_uploads:/app/server/uploads
       - certbot_certs:/etc/letsencrypt

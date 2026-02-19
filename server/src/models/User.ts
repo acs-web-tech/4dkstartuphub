@@ -24,6 +24,16 @@ export interface IUser extends Document {
     created_at: Date;
     updated_at: Date;
     fcm_tokens: string[];
+    is_email_verified: boolean;
+    email_verification_token?: string;
+    reset_password_token?: string;
+    reset_password_expires?: Date;
+    email_preferences: {
+        likes: boolean;
+        comments: boolean;
+        mentions: boolean;
+        broadcasts: boolean;
+    };
 }
 
 const UserSchema: Schema = new Schema({
@@ -48,6 +58,16 @@ const UserSchema: Schema = new Schema({
     last_seen: { type: Date, default: Date.now },
     post_count: { type: Number, default: 0 },
     fcm_tokens: { type: [String], default: [] },
+    is_email_verified: { type: Boolean, default: false },
+    email_verification_token: { type: String },
+    reset_password_token: { type: String },
+    reset_password_expires: { type: Date },
+    email_preferences: {
+        likes: { type: Boolean, default: true },
+        comments: { type: Boolean, default: true },
+        mentions: { type: Boolean, default: true },
+        broadcasts: { type: Boolean, default: true }
+    }
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
     toJSON: {

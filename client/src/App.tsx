@@ -18,6 +18,8 @@ import PitchRequests from './pages/PitchRequests';
 
 import { SocketProvider } from './context/SocketContext';
 import ScrollRestoration from './components/Common/ScrollRestoration';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 export default function App() {
     return (
@@ -29,6 +31,8 @@ export default function App() {
                         {/* Auth pages (no layout) */}
                         <Route path="/login" element={<Login />} />
                         <Route path="/register" element={<Register />} />
+                        <Route path="/forgot-password" element={<ForgotPassword />} />
+                        <Route path="/reset-password" element={<ResetPassword />} />
 
                         {/* Main app layout */}
                         <Route element={<Layout />}>

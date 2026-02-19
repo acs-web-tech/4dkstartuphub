@@ -12,6 +12,7 @@ import Setting from '../models/Setting';
 import Notification from '../models/Notification';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
+import { emailService } from '../services/email';
 
 const router = Router();
 
@@ -134,6 +135,20 @@ router.post('/register', authLimiter, validate(registerSchema), async (req, res)
             expiryDate = date;
         }
 
+        // Check for Email Verification Setting
+        const verifySetting = await Setting.findOne({ key: 'registration_email_verification_required' });
+        const isVerificationRequired = verifySetting?.value === 'true';
+
+        let emailVerified = false;
+        let verificationToken = undefined;
+
+        if (isVerificationRequired) {
+            verificationToken = crypto.randomBytes(32).toString('hex');
+            // Send email immediately
+        } else {
+            emailVerified = true; // Auto-verify if not required
+        }
+
         const newUser = await User.create({
             username: username.toLowerCase(),
             email: email.toLowerCase(),
@@ -143,8 +158,26 @@ router.post('/register', authLimiter, validate(registerSchema), async (req, res)
             payment_status: paymentStatus,
             razorpay_payment_id: razorpayPaymentId,
             razorpay_order_id: razorpayOrderId,
-            premium_expiry: expiryDate
+            premium_expiry: expiryDate,
+            is_email_verified: emailVerified,
+            email_verification_token: verificationToken
         });
+
+        // Send notifications/emails async
+        if (isVerificationRequired && verificationToken) {
+            try {
+                await emailService.sendVerificationEmail(newUser.email, newUser.display_name, verificationToken);
+            } catch (e) {
+                console.error("Failed to send verification email", e);
+            }
+        } else {
+            try {
+                // No verification required, send welcome email
+                await emailService.sendWelcomeEmail(newUser.email, newUser.display_name);
+            } catch (e) {
+                console.error("Failed to send welcome email", e);
+            }
+        }
 
         // Create welcome notification
         const welcomeTitle = await Setting.findOne({ key: 'welcome_notification_title' });
@@ -162,6 +195,14 @@ router.post('/register', authLimiter, validate(registerSchema), async (req, res)
             title: welcomeTitle?.value || 'Welcome to StartupHub! 🚀',
             content: finalContent
         });
+
+        if (isVerificationRequired) {
+            res.status(201).json({
+                message: 'Registration successful. A verification email has been sent to your inbox. Please verify to login.',
+                requireVerification: true
+            });
+            return;
+        }
 
         const { accessToken, refreshToken } = generateTokens(newUser._id.toString(), 'user');
         setTokenCookies(res, accessToken, refreshToken);
@@ -181,11 +222,109 @@ router.post('/register', authLimiter, validate(registerSchema), async (req, res)
                 userType: newUser.user_type,
                 paymentStatus: newUser.payment_status,
                 premiumExpiry: newUser.premium_expiry,
+                isEmailVerified: newUser.is_email_verified
             },
         });
     } catch (err) {
         console.error('Registration error:', err);
         res.status(500).json({ error: 'Registration failed. Please try again.' });
+    }
+});
+
+// ── GET /api/auth/verify-email ───────────────────────────────
+router.get('/verify-email', async (req, res) => {
+    try {
+        const { token } = req.query;
+
+        if (!token) {
+            res.status(400).json({ error: 'Token required' });
+            return;
+        }
+
+        const user = await User.findOne({ email_verification_token: token });
+
+        if (!user) {
+            res.status(400).json({ error: 'Invalid or expired verification token' });
+            return;
+        }
+
+        user.is_email_verified = true;
+        user.email_verification_token = undefined;
+        await user.save();
+
+        try {
+            await emailService.sendWelcomeEmail(user.email, user.display_name);
+        } catch (e) {
+            console.error("Failed to send welcome email after verification", e);
+        }
+
+        // Redirect to login with specific query param
+        const frontendUrl = config.corsOrigin;
+        res.redirect(`${frontendUrl}/login?verified=true`);
+    } catch (err) {
+        console.error('Verify email error:', err);
+        res.status(500).json({ error: 'Verification failed' });
+    }
+});
+
+// ── POST /api/auth/forgot-password ───────────────────────────
+router.post('/forgot-password', authLimiter, async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            res.status(400).json({ error: 'Email required' });
+            return;
+        }
+
+        const user = await User.findOne({ email: email.toLowerCase() });
+
+        if (user) {
+            const token = crypto.randomBytes(32).toString('hex');
+            user.reset_password_token = token;
+            user.reset_password_expires = new Date(Date.now() + 3600000); // 1 hour
+            await user.save();
+
+            // Send email async (don't block response too long, or await ensures delivery)
+            await emailService.sendPasswordResetEmail(user.email, user.display_name, token);
+        }
+
+        // Always return success to prevent user enumeration
+        res.json({ message: 'If an account exists, a password reset email has been sent.' });
+    } catch (err) {
+        console.error('Forgot password error:', err);
+        res.status(500).json({ error: 'Request failed' });
+    }
+});
+
+// ── POST /api/auth/reset-password ────────────────────────────
+router.post('/reset-password', authLimiter, async (req, res) => {
+    try {
+        const { token, password } = req.body;
+
+        if (!token || !password) {
+            res.status(400).json({ error: 'Token and password required' });
+            return;
+        }
+
+        const user = await User.findOne({
+            reset_password_token: token,
+            reset_password_expires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            res.status(400).json({ error: 'Password reset token is invalid or has expired.' });
+            return;
+        }
+
+        user.password_hash = bcrypt.hashSync(password, config.bcryptRounds);
+        user.reset_password_token = undefined;
+        user.reset_password_expires = undefined;
+        await user.save();
+
+        res.json({ message: 'Password has been reset successfully. Please login.' });
+    } catch (err) {
+        console.error('Reset password error:', err);
+        res.status(500).json({ error: 'Reset failed' });
     }
 });
 
@@ -203,6 +342,13 @@ router.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
 
         if (!user.is_active) {
             res.status(403).json({ error: 'Account has been deactivated. Contact admin.' });
+            return;
+        }
+
+        // Check if email verification is enabled and user is verified
+        const verifySetting = await Setting.findOne({ key: 'registration_email_verification_required' });
+        if (verifySetting?.value === 'true' && !user.is_email_verified) {
+            res.status(403).json({ error: 'Please verify your email address before logging in.' });
             return;
         }
 

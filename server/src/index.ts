@@ -208,11 +208,32 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 // ── Initialize DB & Start Server ────────────────────────────
 import { createServer } from 'http';
 import { socketService } from './services/socket';
+import { startEmailWorker } from './services/email';
 
 const httpServer = createServer(app);
 
 async function start() {
     await initializeDatabase();
+
+    // Start Email Worker (Background Thread)
+    startEmailWorker();
+
+    // Migration: Set existing users as verified and init preferences
+    try {
+        const User = (await import('./models/User')).default;
+        await User.updateMany(
+            { is_email_verified: { $exists: false } },
+            {
+                $set: {
+                    is_email_verified: true,
+                    email_preferences: { likes: true, comments: true, mentions: true, broadcasts: true }
+                }
+            }
+        );
+        console.log('✅ User migration check complete.');
+    } catch (e) {
+        console.error('Migration failed:', e);
+    }
 
     // Initialize WebSockets
     socketService.initialize(httpServer);
@@ -227,6 +248,7 @@ async function start() {
   ║   CORS: ${config.corsOrigin || 'ALL'}                     ║
   ║   S3 Bucket: ${config.aws.bucketName ? '✅ ' + config.aws.bucketName : '❌ MISSING'}            ║
   ║   Razorpay: ${config.razorpay.keyId ? '✅ Configured' : '❌ MISSING'}            ║
+  ║   Email Worker: ✅ Running (Thread)               ║
   ║   Web Push: ${config.vapid.publicKey ? '✅ Ready' : '❌ NOT CONFIGURED'}            ║
   ╚══════════════════════════════════════════╝
     `);

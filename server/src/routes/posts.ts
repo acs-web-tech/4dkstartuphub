@@ -16,6 +16,7 @@ import Notification from '../models/Notification';
 import mongoose from 'mongoose';
 import { escapeRegExp } from '../utils/regex';
 import { getLinkPreview } from '../services/metadata';
+import { emailService } from '../services/email';
 
 const router = Router();
 
@@ -477,6 +478,22 @@ router.post('/:id/like', authenticate, async (req: AuthRequest, res) => {
                             senderAvatarUrl: liker.avatar_url,
                             referenceId: id
                         });
+
+                        // Email Notification for Like
+                        try {
+                            const postAuthor = await User.findById(post.user_id);
+                            if (postAuthor && postAuthor.email_preferences?.likes && postAuthor.is_active) {
+                                emailService.sendNotificationEmail(
+                                    postAuthor.email,
+                                    postAuthor.display_name,
+                                    'like',
+                                    { actorName: liker.display_name, postTitle: post.title }
+                                );
+                            }
+                        } catch (e) {
+                            console.error("Email like notification failed", e);
+                        }
+
                     }
                 }
             }
@@ -570,6 +587,25 @@ router.post('/:id/comments', authenticate, validate(createCommentSchema), async 
                 isRead: 0,
                 createdAt: notif.created_at
             });
+
+            // Email Notification to Author
+            try {
+                const postAuthor = await User.findById(post.user_id);
+                if (postAuthor && postAuthor.email_preferences?.comments && postAuthor.is_active) {
+                    emailService.sendNotificationEmail(
+                        postAuthor.email,
+                        postAuthor.display_name,
+                        'comment',
+                        {
+                            actorName: commenter.display_name,
+                            postTitle: post.title,
+                            contentSnippet: content.substring(0, 100)
+                        }
+                    );
+                }
+            } catch (e) {
+                console.error("Email notification failed", e);
+            }
         }
 
         // Handle @mentions
@@ -608,6 +644,24 @@ router.post('/:id/comments', authenticate, validate(createCommentSchema), async 
                         isRead: 0,
                         createdAt: mNotif.created_at
                     });
+
+                    // Email Notification for Mention
+                    try {
+                        if (targetUser.email_preferences?.mentions && targetUser.is_active) {
+                            emailService.sendNotificationEmail(
+                                targetUser.email,
+                                targetUser.display_name,
+                                'mention',
+                                {
+                                    actorName: commenter.display_name,
+                                    postTitle: post.title,
+                                    contentSnippet: content.substring(0, 100)
+                                }
+                            );
+                        }
+                    } catch (e) {
+                        console.error("Email mention notification failed", e);
+                    }
                 }
             }
         }

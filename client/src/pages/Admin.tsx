@@ -54,6 +54,7 @@ export default function Admin() {
     const [welcomeVideoUrl, setWelcomeVideoUrl] = useState('');
     const [androidUrl, setAndroidUrl] = useState('');
     const [iosUrl, setIosUrl] = useState('');
+    const [emailVerificationRequired, setEmailVerificationRequired] = useState(false);
     const [settingsLoading, setSettingsLoading] = useState(false);
 
     useEffect(() => {
@@ -91,6 +92,7 @@ export default function Admin() {
                 setWelcomeVideoUrl(data.settings.welcome_notification_video_url || '');
                 setAndroidUrl(data.settings.android_app_url || '');
                 setIosUrl(data.settings.ios_app_url || '');
+                setEmailVerificationRequired(data.settings.registration_email_verification_required === 'true');
             })
             .catch(() => { })
             .finally(() => setSettingsLoading(false));
@@ -102,6 +104,19 @@ export default function Admin() {
             await adminApi.updateSetting('registration_payment_required', String(newValue));
             setPaymentRequired(newValue);
             setMessage(`Registration payment ${newValue ? 'enabled' : 'disabled'}`);
+            setMessageType('success');
+        } catch (err: any) {
+            setMessage(err.message || 'Failed to update setting');
+            setMessageType('error');
+        }
+    };
+
+    const handleToggleEmailVerification = async () => {
+        const newValue = !emailVerificationRequired;
+        try {
+            await adminApi.updateSetting('registration_email_verification_required', String(newValue));
+            setEmailVerificationRequired(newValue);
+            setMessage(`Email verification ${newValue ? 'enabled' : 'disabled'}`);
             setMessageType('success');
         } catch (err: any) {
             setMessage(err.message || 'Failed to update setting');
@@ -999,6 +1014,30 @@ export default function Admin() {
                                 <p className="text-muted" style={{ marginBottom: '24px', fontSize: '0.9rem' }}>
                                     Control whether users are required to pay during registration to access premium features like pitch requests.
                                 </p>
+
+                                {/* Email Verification Toggle */}
+                                <div className="settings-toggle-row" style={{ marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '24px' }}>
+                                    <div className="settings-toggle-info">
+                                        <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '4px' }}>
+                                            {emailVerificationRequired ? '🔒 Email Verification Required' : '🔓 Email Verification Optional'}
+                                        </div>
+                                        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                                            {emailVerificationRequired
+                                                ? 'New users must verify their email address before they can log in.'
+                                                : 'Users can log in immediately after registration without verifying their email.'}
+                                        </div>
+                                    </div>
+                                    <button
+                                        className={`settings-toggle-btn ${emailVerificationRequired ? 'active' : ''}`}
+                                        onClick={handleToggleEmailVerification}
+                                        disabled={settingsLoading}
+                                        id="toggle-email-verification"
+                                    >
+                                        {emailVerificationRequired
+                                            ? <ToggleRight size={40} />
+                                            : <ToggleLeft size={40} />}
+                                    </button>
+                                </div>
 
                                 <div className="settings-toggle-row">
                                     <div className="settings-toggle-info">

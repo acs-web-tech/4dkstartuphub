@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Rocket, Eye, EyeOff } from 'lucide-react';
 
@@ -12,6 +12,8 @@ export default function Login() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [searchParams] = useSearchParams();
+    const verified = searchParams.get('verified') === 'true';
 
     // Redirect if already logged in (prevents login page flicker)
     useEffect(() => {
@@ -49,6 +51,7 @@ export default function Login() {
                     <h2>Welcome Back</h2>
                     <p className="auth-subtitle">Log in to your account</p>
 
+                    {verified && <div className="alert alert-success" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' }}>Email Verified! Please log in.</div>}
                     {error && <div className="alert alert-error">{error}</div>}
 
                     <form onSubmit={handleSubmit}>
@@ -67,7 +70,10 @@ export default function Login() {
                         </div>
 
                         <div className="form-group">
-                            <label htmlFor="login-password">Password</label>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <label htmlFor="login-password">Password</label>
+                                <Link to="/forgot-password" style={{ fontSize: '0.85rem', color: 'var(--primary-color)' }}>Forgot Password?</Link>
+                            </div>
                             <div className="password-wrapper relative">
                                 <input
                                     id="login-password"

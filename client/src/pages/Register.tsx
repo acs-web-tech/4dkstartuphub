@@ -33,6 +33,7 @@ export default function Register() {
     const [step, setStep] = useState<'role' | 'details' | 'payment'>('role');
     const [paymentRequired, setPaymentRequired] = useState<boolean | null>(null); // null = loading
     const [paymentAmount, setPaymentAmount] = useState(950);
+    const [verificationSent, setVerificationSent] = useState(false);
 
     // Fetch public settings on mount
     useEffect(() => {
@@ -93,14 +94,18 @@ export default function Register() {
         // If payment is NOT required, register directly (free)
         if (!paymentRequired) {
             try {
-                await register({
+                const res = await register({
                     username: form.username,
                     email: form.email,
                     password: form.password,
                     displayName: form.displayName,
                     userType: userType!,
                 });
-                navigate('/feed');
+                if (res.requireVerification) {
+                    setVerificationSent(true);
+                } else {
+                    navigate('/feed');
+                }
             } catch (err: any) {
                 setError(err.message || 'Registration failed');
                 setLoading(false);
@@ -132,7 +137,7 @@ export default function Register() {
                 handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
                     try {
                         // Step 3: Register with payment proof
-                        await register({
+                        const res = await register({
                             username: form.username,
                             email: form.email,
                             password: form.password,
@@ -144,7 +149,11 @@ export default function Register() {
                                 razorpay_signature: response.razorpay_signature,
                             },
                         });
-                        navigate('/feed');
+                        if (res.requireVerification) {
+                            setVerificationSent(true);
+                        } else {
+                            navigate('/feed');
+                        }
                     } catch (err: any) {
                         setError(err.message || 'Registration failed after payment');
                         setLoading(false);
@@ -234,141 +243,160 @@ export default function Register() {
 
                     {stepIndicator}
 
+                    {stepIndicator}
+
                     {error && <div className="alert alert-error">{error}</div>}
 
-                    {/* ── Step 1: Role Selection ──────────────────────── */}
-                    {step === 'role' && (
-                        <div className="role-selection">
-                            <p className="role-prompt">I am a…</p>
-                            <div className="role-cards">
-                                <button
-                                    className={`role-card ${userType === 'startup' ? 'selected' : ''}`}
-                                    onClick={() => handleRoleSelect('startup')}
-                                    id="role-startup"
-                                >
-                                    <div className="role-card-icon startup-icon">
-                                        <Building2 size={32} />
-                                    </div>
-                                    <h3>Startup</h3>
-                                    <p>I'm building a product, looking for investors, co-founders, or talent.</p>
-                                    <span className="role-card-badge">Builder</span>
-                                </button>
-
-                                <button
-                                    className={`role-card ${userType === 'investor' ? 'selected' : ''}`}
-                                    onClick={() => handleRoleSelect('investor')}
-                                    id="role-investor"
-                                >
-                                    <div className="role-card-icon investor-icon">
-                                        <TrendingUp size={32} />
-                                    </div>
-                                    <h3>Investor</h3>
-                                    <p>I invest in startups, looking for the next big idea to fund.</p>
-                                    <span className="role-card-badge">Backer</span>
-                                </button>
+                    {verificationSent ? (
+                        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                            <div style={{ background: 'rgba(16, 185, 129, 0.1)', width: '80px', height: '80px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px' }}>
+                                <Check size={40} color="#10b981" />
                             </div>
+                            <h3 style={{ marginBottom: '16px' }}>Verify your email</h3>
+                            <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>
+                                We've sent a verification link to <strong>{form.email}</strong>.<br />
+                                Please check your inbox (and spam folder) to complete your registration.
+                            </p>
+                            <Link to="/login" className="btn btn-primary">Go to Login</Link>
                         </div>
-                    )}
+                    ) : (
+                        <>
 
-                    {/* ── Step 2: Details Form ────────────────────────── */}
-                    {step === 'details' && (
-                        <form onSubmit={handleDetailsSubmit}>
-                            <div className="form-group">
-                                <label htmlFor="reg-display">Display Name</label>
-                                <input id="reg-display" type="text" className="form-input" placeholder="Your full name"
-                                    value={form.displayName} onChange={e => updateField('displayName', e.target.value)} required maxLength={50} />
-                            </div>
-                            <div className="form-group">
-                                <label htmlFor="reg-username">Username</label>
-                                <input id="reg-username" type="text" className="form-input" placeholder="Choose a username"
-                                    value={form.username} onChange={e => updateField('username', e.target.value)} required maxLength={30} />
-                                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
-                                    Letters, numbers, and underscores only
-                                </p>
-                            </div>
-                            <div className="form-group">
-                                <label htmlFor="reg-email">Email</label>
-                                <input id="reg-email" type="email" className="form-input" placeholder="you@example.com"
-                                    value={form.email} onChange={e => updateField('email', e.target.value)} required />
-                            </div>
-                            <div className="form-group">
-                                <label htmlFor="reg-password">Password</label>
-                                <div style={{ position: 'relative' }}>
-                                    <input id="reg-password" type={showPassword ? 'text' : 'password'} className="form-input" placeholder="Create a strong password"
-                                        value={form.password} onChange={e => updateField('password', e.target.value)} required />
-                                    <button type="button" onClick={() => setShowPassword(!showPassword)}
-                                        style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
-                                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                                    </button>
+                            {/* ── Step 1: Role Selection ──────────────────────── */}
+                            {step === 'role' && (
+                                <div className="role-selection">
+                                    <p className="role-prompt">I am a…</p>
+                                    <div className="role-cards">
+                                        <button
+                                            className={`role-card ${userType === 'startup' ? 'selected' : ''}`}
+                                            onClick={() => handleRoleSelect('startup')}
+                                            id="role-startup"
+                                        >
+                                            <div className="role-card-icon startup-icon">
+                                                <Building2 size={32} />
+                                            </div>
+                                            <h3>Startup</h3>
+                                            <p>I'm building a product, looking for investors, co-founders, or talent.</p>
+                                            <span className="role-card-badge">Builder</span>
+                                        </button>
+
+                                        <button
+                                            className={`role-card ${userType === 'investor' ? 'selected' : ''}`}
+                                            onClick={() => handleRoleSelect('investor')}
+                                            id="role-investor"
+                                        >
+                                            <div className="role-card-icon investor-icon">
+                                                <TrendingUp size={32} />
+                                            </div>
+                                            <h3>Investor</h3>
+                                            <p>I invest in startups, looking for the next big idea to fund.</p>
+                                            <span className="role-card-badge">Backer</span>
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="password-checks">
-                                    {passwordChecks.map((check, i) => (
-                                        <div key={i} className={`pwd-check ${check.valid ? 'valid' : ''}`}>
-                                            {check.valid ? <Check size={12} className="inline mr-1" /> : <Circle size={12} className="inline mr-1" />}
-                                            {check.label}
+                            )}
+
+                            {/* ── Step 2: Details Form ────────────────────────── */}
+                            {step === 'details' && (
+                                <form onSubmit={handleDetailsSubmit}>
+                                    <div className="form-group">
+                                        <label htmlFor="reg-display">Display Name</label>
+                                        <input id="reg-display" type="text" className="form-input" placeholder="Your full name"
+                                            value={form.displayName} onChange={e => updateField('displayName', e.target.value)} required maxLength={50} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="reg-username">Username</label>
+                                        <input id="reg-username" type="text" className="form-input" placeholder="Choose a username"
+                                            value={form.username} onChange={e => updateField('username', e.target.value)} required maxLength={30} />
+                                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                                            Letters, numbers, and underscores only
+                                        </p>
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="reg-email">Email</label>
+                                        <input id="reg-email" type="email" className="form-input" placeholder="you@example.com"
+                                            value={form.email} onChange={e => updateField('email', e.target.value)} required />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="reg-password">Password</label>
+                                        <div style={{ position: 'relative' }}>
+                                            <input id="reg-password" type={showPassword ? 'text' : 'password'} className="form-input" placeholder="Create a strong password"
+                                                value={form.password} onChange={e => updateField('password', e.target.value)} required />
+                                            <button type="button" onClick={() => setShowPassword(!showPassword)}
+                                                style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                            </button>
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className="form-group">
-                                <label htmlFor="reg-confirm">Confirm Password</label>
-                                <input id="reg-confirm" type="password" className="form-input" placeholder="Repeat your password"
-                                    value={form.confirmPassword} onChange={e => updateField('confirmPassword', e.target.value)} required />
-                            </div>
-
-                            <div className="form-actions-row">
-                                <button type="button" className="btn btn-ghost" onClick={() => setStep('role')}>← Back</button>
-                                <button type="submit" className="btn btn-primary" disabled={loading} id="register-details-submit">
-                                    {loading ? 'Creating Account...' : (paymentRequired ? 'Continue to Payment →' : 'Create Account')}
-                                </button>
-                            </div>
-                        </form>
-                    )}
-
-                    {/* ── Step 3: Payment (only if required) ──────────── */}
-                    {step === 'payment' && paymentRequired && (
-                        <div className="payment-step">
-                            <div className="payment-summary-card">
-                                <div className="payment-summary-header">
-                                    <CreditCard size={20} /> Order Summary
-                                </div>
-                                <div className="payment-summary-body">
-                                    <div className="payment-line">
-                                        <span>Account Type</span>
-                                        <span className="payment-type-badge">
-                                            {userType === 'startup' ? <Building2 size={14} /> : <TrendingUp size={14} />}
-                                            {userType === 'startup' ? 'Startup' : 'Investor'}
-                                        </span>
+                                        <div className="password-checks">
+                                            {passwordChecks.map((check, i) => (
+                                                <div key={i} className={`pwd-check ${check.valid ? 'valid' : ''}`}>
+                                                    {check.valid ? <Check size={12} className="inline mr-1" /> : <Circle size={12} className="inline mr-1" />}
+                                                    {check.label}
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <div className="payment-line">
-                                        <span>User</span>
-                                        <span>{form.displayName} (@{form.username})</span>
+                                    <div className="form-group">
+                                        <label htmlFor="reg-confirm">Confirm Password</label>
+                                        <input id="reg-confirm" type="password" className="form-input" placeholder="Repeat your password"
+                                            value={form.confirmPassword} onChange={e => updateField('confirmPassword', e.target.value)} required />
                                     </div>
-                                    <div className="payment-divider" />
-                                    <div className="payment-line payment-total">
-                                        <span>Registration Fee</span>
-                                        <span className="payment-amount">₹{paymentAmount}</span>
+
+                                    <div className="form-actions-row">
+                                        <button type="button" className="btn btn-ghost" onClick={() => setStep('role')}>← Back</button>
+                                        <button type="submit" className="btn btn-primary" disabled={loading} id="register-details-submit">
+                                            {loading ? 'Creating Account...' : (paymentRequired ? 'Continue to Payment →' : 'Create Account')}
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+
+                            {/* ── Step 3: Payment (only if required) ──────────── */}
+                            {step === 'payment' && paymentRequired && (
+                                <div className="payment-step">
+                                    <div className="payment-summary-card">
+                                        <div className="payment-summary-header">
+                                            <CreditCard size={20} /> Order Summary
+                                        </div>
+                                        <div className="payment-summary-body">
+                                            <div className="payment-line">
+                                                <span>Account Type</span>
+                                                <span className="payment-type-badge">
+                                                    {userType === 'startup' ? <Building2 size={14} /> : <TrendingUp size={14} />}
+                                                    {userType === 'startup' ? 'Startup' : 'Investor'}
+                                                </span>
+                                            </div>
+                                            <div className="payment-line">
+                                                <span>User</span>
+                                                <span>{form.displayName} (@{form.username})</span>
+                                            </div>
+                                            <div className="payment-divider" />
+                                            <div className="payment-line payment-total">
+                                                <span>Registration Fee</span>
+                                                <span className="payment-amount">₹{paymentAmount}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="payment-security">
+                                        <Shield size={16} />
+                                        <span>Secured by Razorpay — 256-bit encryption</span>
+                                    </div>
+
+                                    <div className="form-actions-row">
+                                        <button type="button" className="btn btn-ghost" onClick={() => setStep('details')}>← Back</button>
+                                        <button
+                                            className="btn btn-primary btn-pay"
+                                            onClick={handlePayment}
+                                            disabled={loading}
+                                            id="pay-and-register"
+                                        >
+                                            {loading ? 'Processing...' : `💳 Pay ₹${paymentAmount} & Register`}
+                                        </button>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="payment-security">
-                                <Shield size={16} />
-                                <span>Secured by Razorpay — 256-bit encryption</span>
-                            </div>
-
-                            <div className="form-actions-row">
-                                <button type="button" className="btn btn-ghost" onClick={() => setStep('details')}>← Back</button>
-                                <button
-                                    className="btn btn-primary btn-pay"
-                                    onClick={handlePayment}
-                                    disabled={loading}
-                                    id="pay-and-register"
-                                >
-                                    {loading ? 'Processing...' : `💳 Pay ₹${paymentAmount} & Register`}
-                                </button>
-                            </div>
-                        </div>
+                            )}
+                        </>
                     )}
                 </div>
 

@@ -1,6 +1,6 @@
 const BASE = '/api';
 
-async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
+export async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     const headers: HeadersInit = { ...options.headers };
 
     if (!(options.body instanceof FormData)) {
