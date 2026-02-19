@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Mail, Loader2 } from 'lucide-react';
 import { request } from '../services/api';
-import '../styles/auth.css'; // Assuming using same auth styles
+
 
 const ForgotPassword = () => {
     const [email, setEmail] = useState('');

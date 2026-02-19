@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Lock, Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
 import { request } from '../services/api';
-import '../styles/auth.css';
+
 
 const ResetPassword = () => {
     const [searchParams] = useSearchParams();
