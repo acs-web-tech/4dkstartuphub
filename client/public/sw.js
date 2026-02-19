@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stphub-v2';
+const CACHE_NAME = 'stphub-v3';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -59,6 +59,7 @@ self.addEventListener('push', (event) => {
         badge: '/logo.png',
         data: data.url || '/',
         vibrate: [100, 50, 100],
+        requireInteraction: !!data.image, // Keep on screen if image present
         actions: [
             { action: 'open', title: 'Open App' }
         ]
