@@ -146,7 +146,7 @@ class PushNotificationService {
                                 notification: {
                                     title: data.title,
                                     body: data.body,
-                                    imageUrl: data.image // FCM supports imageUrl for BigPicture
+                                    ...(data.image ? { imageUrl: data.image } : {}) // Only add if defined
                                 },
                                 data: {
                                     url: data.url || '/',
