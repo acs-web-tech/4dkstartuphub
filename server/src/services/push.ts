@@ -149,7 +149,10 @@ class PushNotificationService {
                                     ...(data.image ? { imageUrl: data.image } : {})
                                 },
                                 android: {
+                                    priority: 'high',
                                     notification: {
+                                        defaultSound: true,
+                                        notificationCount: 1,
                                         ...(data.image ? { imageUrl: data.image } : {})
                                     }
                                 },
