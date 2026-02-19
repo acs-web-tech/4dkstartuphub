@@ -214,9 +214,10 @@ class SocketService {
         this.io.to(userId).emit('notification', notification);
 
         // Native Push
+        const cleanBody = (notification.content || '').replace(/<[^>]*>?/gm, '').trim();
         pushService.sendToUser(userId, {
             title: notification.title,
-            body: (notification.content || '').replace(/<[^>]*>?/gm, ''),
+            body: cleanBody || 'New notification',
             url: notification.referenceId ? `/posts/${notification.referenceId}` : '/',
             icon: notification.senderAvatarUrl || '/logo.png'
         });
@@ -240,9 +241,10 @@ class SocketService {
 
         // Native Push for broadcasts
         if (event === 'broadcast') {
+            const cleanBody = (data.content || '').replace(/<[^>]*>?/gm, '').trim();
             pushService.broadcast({
-                title: data.title || 'Administrative Broadcast',
-                body: (data.content || '').replace(/<[^>]*>?/gm, ''),
+                title: data.title || 'Administrative Broadcast', // Fallback title
+                body: cleanBody || 'Tap to view content',     // Fallback body
                 url: data.referenceId ? `/posts/${data.referenceId}` : '/',
                 image: data.imageUrl
             });
