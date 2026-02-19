@@ -293,6 +293,10 @@ router.post('/notifications/broadcast', async (req: AuthRequest, res) => {
             fullContent += `<div class="broadcast-video"><a href="${videoUrl.trim()}" target="_blank" rel="noopener noreferrer">🎬 Watch Video</a></div>`;
         }
 
+        // Extract first image from content for notifications
+        const imgMatch = content.match(/<img[^>]+src="([^">]+)"/);
+        const imageUrl = imgMatch ? imgMatch[1] : undefined;
+
         const users = await User.find({ is_active: true }).select('_id');
 
         const notifications = users.map(user => ({
@@ -310,7 +314,8 @@ router.post('/notifications/broadcast', async (req: AuthRequest, res) => {
         socketService.broadcast('broadcast', {
             title,
             content: fullContent,
-            referenceId
+            referenceId,
+            imageUrl
         });
 
         res.json({ message: `Notification sent to ${users.length} users` });

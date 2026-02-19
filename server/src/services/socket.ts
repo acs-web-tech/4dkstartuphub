@@ -243,7 +243,8 @@ class SocketService {
             pushService.broadcast({
                 title: data.title || 'Administrative Broadcast',
                 body: (data.content || '').replace(/<[^>]*>?/gm, ''),
-                url: data.referenceId ? `/posts/${data.referenceId}` : '/'
+                url: data.referenceId ? `/posts/${data.referenceId}` : '/',
+                image: data.imageUrl
             });
         }
     }

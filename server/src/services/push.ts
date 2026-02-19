@@ -94,7 +94,7 @@ class PushNotificationService {
     /**
      * Broadcast a push notification to all users
      */
-    async broadcast(data: { title: string; body: string; url?: string; icon?: string }) {
+    async broadcast(data: { title: string; body: string; url?: string; icon?: string; image?: string }) {
         try {
             // 1. Web Push
             const subscriptions = await PushSubscription.find({});
@@ -104,7 +104,8 @@ class PushNotificationService {
                     title: data.title,
                     body: data.body,
                     url: data.url || '/',
-                    icon: data.icon || '/logo.png'
+                    icon: data.icon || '/logo.png',
+                    image: data.image
                 });
 
                 const sendPromises = subscriptions.map(sub => {
@@ -145,6 +146,7 @@ class PushNotificationService {
                                 notification: {
                                     title: data.title,
                                     body: data.body,
+                                    imageUrl: data.image // FCM supports imageUrl for BigPicture
                                 },
                                 data: {
                                     url: data.url || '/',
