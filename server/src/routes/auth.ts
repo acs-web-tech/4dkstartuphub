@@ -465,7 +465,7 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
             const token = crypto.randomBytes(32).toString('hex');
             user.reset_password_token = token;
             user.reset_password_expires = new Date(Date.now() + 3600000); // 1 hour
-            await user.save();
+            await user.save({ validateModifiedOnly: true });
 
             // Send email async (don't block response too long, or await ensures delivery)
             await emailService.sendPasswordResetEmail(user.email, user.display_name, token);
@@ -502,7 +502,7 @@ router.post('/reset-password', authLimiter, async (req, res) => {
         user.password_hash = bcrypt.hashSync(password, config.bcryptRounds);
         user.reset_password_token = undefined;
         user.reset_password_expires = undefined;
-        await user.save();
+        await user.save({ validateModifiedOnly: true });
 
         res.json({ message: 'Password has been reset successfully. Please login.' });
     } catch (err) {

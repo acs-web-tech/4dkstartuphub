@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Mail, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { request } from '../services/api';
 
 
@@ -30,49 +30,47 @@ const ForgotPassword = () => {
     };
 
     return (
-        <div className="auth-container">
-            <div className="auth-card">
-                <div className="auth-header">
-                    <Link to="/login" className="back-link">
-                        <ArrowLeft size={20} />
+        <div className="auth-page">
+            <div className="auth-container">
+                <div className="auth-card card">
+                    <Link to="/login" className="back-link" style={{ justifyContent: 'flex-start', marginTop: 0, marginBottom: '16px' }}>
+                        <ArrowLeft size={18} />
                         Back to Login
                     </Link>
-                    <h1>Forgot Password</h1>
-                    <p>Enter your email address and we'll send you a link to reset your password.</p>
-                </div>
+                    <h2 style={{ background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '8px' }}>Forgot Password</h2>
+                    <p className="auth-subtitle">Enter your email address and we'll send you a link to reset your password.</p>
 
-                {message && (
-                    <div className="success-message" style={{ padding: '12px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', color: '#10b981', borderRadius: '8px', marginBottom: '16px' }}>
-                        {message}
-                    </div>
-                )}
+                    {message && (
+                        <div className="alert alert-success" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)', marginBottom: '16px' }}>
+                            {message}
+                        </div>
+                    )}
 
-                {error && (
-                    <div className="error-message">
-                        {error}
-                    </div>
-                )}
+                    {error && (
+                        <div className="alert alert-error" style={{ marginBottom: '16px' }}>
+                            {error}
+                        </div>
+                    )}
 
-                <form onSubmit={handleSubmit} className="auth-form">
-                    <div className="form-group">
-                        <label htmlFor="email">Email Address</label>
-                        <div className="input-wrapper">
-                            <Mail size={20} />
+                    <form onSubmit={handleSubmit}>
+                        <div className="form-group">
+                            <label htmlFor="email">Email Address</label>
                             <input
                                 id="email"
                                 type="email"
+                                className="form-input"
                                 placeholder="Enter your email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
                             />
                         </div>
-                    </div>
 
-                    <button type="submit" className="btn-primary" disabled={loading}>
-                        {loading ? <Loader2 className="animate-spin" size={20} /> : 'Send Reset Link'}
-                    </button>
-                </form>
+                        <button type="submit" className="btn btn-primary btn-full" disabled={loading} style={{ marginTop: '16px' }}>
+                            {loading ? <Loader2 className="animate-spin" size={20} /> : 'Send Reset Link'}
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     );
