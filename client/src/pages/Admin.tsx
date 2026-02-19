@@ -478,7 +478,9 @@ export default function Admin() {
                 try {
                     setIsImageUploading(true);
                     const data = await uploadApi.upload(file);
-                    setBroadcast(prev => ({ ...prev, imageUrl: data.url }));
+                    // Ensure absolute URL for push notifications and browser validation
+                    const absoluteUrl = new URL(data.url, window.location.origin).href;
+                    setBroadcast(prev => ({ ...prev, imageUrl: absoluteUrl }));
                 } catch (err) {
                     alert('Image upload failed');
                 } finally {
@@ -963,6 +965,17 @@ export default function Admin() {
                                                 Upload
                                             </button>
                                         </div>
+                                        {broadcast.imageUrl && (
+                                            <div style={{ marginTop: '10px' }}>
+                                                <p style={{ fontSize: '0.8rem', color: '#9ca3af', marginBottom: '4px' }}>Preview:</p>
+                                                <img
+                                                    src={broadcast.imageUrl}
+                                                    alt="Notification Preview"
+                                                    style={{ height: '100px', width: 'auto', borderRadius: '4px', border: '1px solid #374151' }}
+                                                    onError={(e) => (e.currentTarget.style.display = 'none')}
+                                                />
+                                            </div>
+                                        )}
                                     </div>
                                     <button type="submit" className="btn btn-primary" id="send-broadcast" disabled={isBroadcasting || isImageUploading}>
                                         {isBroadcasting ? (
