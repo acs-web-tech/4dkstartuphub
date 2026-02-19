@@ -205,7 +205,25 @@ export default function Feed() {
         if (prev.category !== category || prev.search !== search) {
             const freshCache = getValidCache();
             if (freshCache) {
-                // We already initialized from cache — skip fetch
+                // Restore from cache immediately (vital for navigation updates)
+                setPosts(freshCache.posts);
+                setPage(freshCache.page);
+                setPagination({
+                    page: freshCache.page,
+                    totalPages: freshCache.totalPages,
+                    total: freshCache.posts.length,
+                    limit: 10
+                });
+                setHasMore(freshCache.page < freshCache.totalPages);
+                setLoading(false);
+
+                // Restore scroll position
+                if (freshCache.scrollY > 0) {
+                    requestAnimationFrame(() => window.scrollTo({ top: freshCache.scrollY, behavior: 'auto' }));
+                } else {
+                    window.scrollTo(0, 0);
+                }
+
                 skipFetchRef.current = true;
                 return;
             }
