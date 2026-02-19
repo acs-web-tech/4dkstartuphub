@@ -24,7 +24,8 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
         }
 
         // Refresh failed - redirect to login
-        if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+        const publicPages = ['/login', '/register', '/forgot-password', '/reset-password'];
+        if (!publicPages.includes(window.location.pathname)) {
             // Try refresh
             const refreshRes = await fetch(`${BASE}/auth/refresh`, {
                 method: 'POST',
@@ -46,7 +47,7 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
         }
 
         // If we are here, refresh failed or we are on login/register page
-        if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+        if (!publicPages.includes(window.location.pathname)) {
             window.location.href = '/login';
         }
         throw new Error(errMessage);
