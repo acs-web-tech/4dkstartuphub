@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Header from './Header';
 import Sidebar from './Sidebar';
+import BackToTop from '../Common/BackToTop';
 import { useSocket } from '../../context/SocketContext';
 import { WifiOff, RefreshCw, Download, Rocket } from 'lucide-react';
 import { settingsApi } from '../../services/api';
@@ -171,6 +172,8 @@ export default function Layout() {
             </div>
             {/* Overlay for mobile sidebar */}
             {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+
+            <BackToTop />
         </div>
     );
 }

@@ -6084,3 +6084,66 @@ img {
 /*  Chat Layout Fix  */
 .chat-textarea { flex: 1; width: 100%; box-sizing: border-box; }
 .chat-input-form { width: 100%; box-sizing: border-box; }
+
+/* 
+   Back To Top Component
+   - */
+.back-to-top-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.scroll-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(24, 24, 27, 0.85);
+  border: 1px solid var(--border-color);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: auto;
+  outline: none;
+  animation: scaleIn 0.2s ease-out;
+}
+
+.scroll-btn:hover {
+  background: var(--bg-card-hover);
+  transform: translateY(-3px);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: var(--shadow-accent);
+}
+
+.scroll-btn:active {
+  transform: translateY(0) scale(0.95);
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 640px) {
+  .back-to-top-container {
+    bottom: 80px;
+    right: 16px;
+  }
+  .scroll-btn {
+    width: 40px;
+    height: 40px;
+  }
+}
+
