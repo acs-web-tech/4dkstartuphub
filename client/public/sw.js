@@ -55,6 +55,7 @@ self.addEventListener('push', (event) => {
     const options = {
         body: data.body || 'You have a new update from StartupHub.',
         icon: data.icon || '/logo.png',
+        image: data.image, // Show big picture in notification bar
         badge: '/logo.png',
         data: data.url || '/',
         vibrate: [100, 50, 100],
