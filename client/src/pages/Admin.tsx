@@ -35,7 +35,7 @@ export default function Admin() {
     const [memberSearchResults, setMemberSearchResults] = useState<User[]>([]);
 
     // Broadcast State
-    const [broadcast, setBroadcast] = useState<{ title: string; content: string; videoUrl: string; referenceId?: string }>({ title: '', content: '', videoUrl: '' });
+    const [broadcast, setBroadcast] = useState<{ title: string; content: string; videoUrl: string; referenceId?: string; imageUrl?: string }>({ title: '', content: '', videoUrl: '', imageUrl: '' });
     const broadcastQuillRef = useRef<ReactQuill>(null);
     // Welcome notification ref
     const welcomeQuillRef = useRef<ReactQuill>(null);
@@ -466,6 +466,28 @@ export default function Admin() {
         }
     }), []);
 
+    const broadcastNotificationImageHandler = () => {
+        const input = document.createElement('input');
+        input.setAttribute('type', 'file');
+        input.setAttribute('accept', 'image/*');
+        input.click();
+
+        input.onchange = async () => {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                try {
+                    setIsImageUploading(true);
+                    const data = await uploadApi.upload(file);
+                    setBroadcast(prev => ({ ...prev, imageUrl: data.url }));
+                } catch (err) {
+                    alert('Image upload failed');
+                } finally {
+                    setIsImageUploading(false);
+                }
+            }
+        }
+    };
+
     const handleBroadcast = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!broadcast.title.trim() || !broadcast.content.trim()) return;
@@ -478,7 +500,8 @@ export default function Admin() {
                 broadcast.title.trim(),
                 broadcast.content.trim(),
                 broadcast.videoUrl.trim() || undefined,
-                broadcast.referenceId?.trim()
+                broadcast.referenceId?.trim(),
+                broadcast.imageUrl
             );
             setMessage(data.message);
             setMessageType('success');
@@ -918,6 +941,27 @@ export default function Admin() {
                                                 onChange={e => setBroadcast(prev => ({ ...prev, videoUrl: e.target.value }))}
                                                 maxLength={500}
                                             />
+                                        </div>
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="broadcast-image">Notification Image (Optional)</label>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <input
+                                                id="broadcast-image"
+                                                type="url"
+                                                className="form-input"
+                                                placeholder="https://example.com/image.jpg"
+                                                value={broadcast.imageUrl || ''}
+                                                onChange={e => setBroadcast(prev => ({ ...prev, imageUrl: e.target.value }))}
+                                                style={{ flex: 1 }}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary"
+                                                onClick={broadcastNotificationImageHandler}
+                                            >
+                                                Upload
+                                            </button>
                                         </div>
                                     </div>
                                     <button type="submit" className="btn btn-primary" id="send-broadcast" disabled={isBroadcasting || isImageUploading}>

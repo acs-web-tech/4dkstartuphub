@@ -281,7 +281,7 @@ router.delete('/posts/:id', async (req: AuthRequest, res) => {
 // ── POST /api/admin/notifications/broadcast ─────────────────
 router.post('/notifications/broadcast', async (req: AuthRequest, res) => {
     try {
-        const { title, content, videoUrl, referenceId } = req.body;
+        const { title, content, videoUrl, referenceId, imageUrl } = req.body;
 
         if (!title || !content) {
             res.status(400).json({ error: 'Title and content are required' });
@@ -293,9 +293,8 @@ router.post('/notifications/broadcast', async (req: AuthRequest, res) => {
             fullContent += `<div class="broadcast-video"><a href="${videoUrl.trim()}" target="_blank" rel="noopener noreferrer">🎬 Watch Video</a></div>`;
         }
 
-        // Extract first image from content for notifications
-        const imgMatch = content.match(/<img[^>]+src="([^">]+)"/);
-        const imageUrl = imgMatch ? imgMatch[1] : undefined;
+        // Use explicit imageUrl if provided, otherwise extract from content
+        const finalImageUrl = imageUrl || (content.match(/<img[^>]+src="([^">]+)"/)?.[1]);
 
         const users = await User.find({ is_active: true }).select('_id');
 
@@ -315,7 +314,7 @@ router.post('/notifications/broadcast', async (req: AuthRequest, res) => {
             title,
             content: fullContent,
             referenceId,
-            imageUrl
+            imageUrl: finalImageUrl
         });
 
         res.json({ message: `Notification sent to ${users.length} users` });

@@ -207,8 +207,8 @@ export const adminApi = {
         request(`/admin/users/${id}/premium`, { method: 'PUT', body: JSON.stringify(data) }),
     deleteUser: (id: string) => request(`/admin/users/${id}`, { method: 'DELETE' }),
     deletePost: (id: string) => request(`/admin/posts/${id}`, { method: 'DELETE' }),
-    broadcast: (title: string, content: string, videoUrl?: string, referenceId?: string) =>
-        request('/admin/notifications/broadcast', { method: 'POST', body: JSON.stringify({ title, content, videoUrl, referenceId }) }),
+    broadcast: (title: string, content: string, videoUrl?: string, referenceId?: string, imageUrl?: string) =>
+        request('/admin/notifications/broadcast', { method: 'POST', body: JSON.stringify({ title, content, videoUrl, referenceId, imageUrl }) }),
     getSettings: () => request<{ settings: Record<string, string> }>('/admin/settings'),
     updateSetting: (key: string, value: string) =>
         request<{ message: string }>('/admin/settings', { method: 'PUT', body: JSON.stringify({ key, value }) }),
