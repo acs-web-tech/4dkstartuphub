@@ -171,15 +171,29 @@ function PostCard({ post, onImageClick }: Props) {
             )}
 
 
-            {/* ── Media Row: thumbnail + video side by side at top ── */}
-            {(post.imageUrl || post.videoUrl) && (() => {
+            {/* ── Media Row: Smart Image Selection ── */}
+            {(() => {
+                // 1. Determine priority image source
+                // Priority: Explicit Cover -> Video -> Content First Image
+
+                const getContentImage = (html: string) => {
+                    const match = html.match(/<img[^>]+src="([^">]+)"/);
+                    return match ? match[1] : null;
+                };
+
+                const contentImage = getContentImage(post.content);
+                const hasExplicitCover = !!post.imageUrl;
+                const hasVideo = !!post.videoUrl;
+
+                // If no explicit media, try to use content image
+                const displayImage = hasExplicitCover ? post.imageUrl : (!hasVideo ? contentImage : null);
+
+                // Helper to check video embeds
                 const getEmbedUrl = (url: string) => {
                     try {
                         const u = new URL(url);
                         if (u.hostname.includes('youtube.com') || u.hostname.includes('youtu.be')) {
-                            const id = u.hostname.includes('youtu.be')
-                                ? u.pathname.slice(1).split('?')[0]
-                                : u.searchParams.get('v');
+                            const id = u.hostname.includes('youtu.be') ? u.pathname.slice(1).split('?')[0] : u.searchParams.get('v');
                             return id ? `https://www.youtube.com/embed/${id}` : null;
                         }
                         if (u.hostname.includes('vimeo.com')) {
@@ -191,17 +205,19 @@ function PostCard({ post, onImageClick }: Props) {
                 };
 
                 const embedUrl = post.videoUrl ? getEmbedUrl(post.videoUrl) : null;
-                const hasBoth = !!(post.imageUrl && post.videoUrl);
+                const showMediaRow = !!displayImage || !!post.videoUrl;
+
+                if (!showMediaRow) return null;
 
                 return (
-                    <div className={`post-card-media-row${hasBoth ? ' has-both' : ''}`}>
-                        {post.imageUrl && (
+                    <div className={`post-card-media-row${(displayImage && post.videoUrl) ? ' has-both' : ''}`}>
+                        {displayImage && (
                             <div
                                 className="post-card-media-thumb cursor-pointer"
-                                onClick={() => onImageClick?.(post.imageUrl!)}
+                                onClick={() => onImageClick?.(displayImage!)}
                                 title="Click to enlarge"
                             >
-                                <SmartImage src={post.imageUrl} alt={post.title} />
+                                <SmartImage src={displayImage} alt={post.title} />
                             </div>
                         )}
                         {post.videoUrl && (
@@ -232,24 +248,12 @@ function PostCard({ post, onImageClick }: Props) {
             })()}
 
             {(() => {
-
                 const extractUrls = (html: string) => {
                     const unique = new Set<string>();
-                    // Regex to find http/https URLs. 
-                    // Use a capture group for the URL itself.
                     const regex = /(?:href="|src=")?(https?:\/\/[^\s<"]+)/g;
                     let match;
                     while ((match = regex.exec(html)) !== null) {
-                        // match[0] contains the prefix (href= or src=) if present
-                        // match[1] contains the actual URL
-
-                        // Ignore generic image sources if they are just src="..."
-                        // But wait, link preview for an image URL? Maybe. 
-                        // Usually we don't want to preview the image src if it's rendered as an <img> tag.
-                        // Quill uses <img src="...">.
                         if (match[0].startsWith('src=')) continue;
-
-                        // Also ignore if it is part of a mailto or other schemes (regex limits to http)
                         unique.add(match[1]);
                     }
                     return Array.from(unique);
@@ -258,32 +262,51 @@ function PostCard({ post, onImageClick }: Props) {
                 const urls = extractUrls(post.content);
                 let displayContent = post.content;
 
+                // 2. If we promoted a content image, strip it from text to avoid duplicate
+                const contentImageMatch = post.content.match(/<img[^>]+src="([^">]+)"/);
+                const contentImage = contentImageMatch ? contentImageMatch[1] : null;
+
+                // Check if we used this image as cover (re-derive logic or check prop?)
+                // Accessing 'displayImage' from above scope is hard in this block.
+                // Re-evaluate logic:
+                const hasExplicitCover = !!post.imageUrl;
+                const hasVideo = !!post.videoUrl;
+                const usedContentImageAsCover = !hasExplicitCover && !hasVideo && !!contentImage;
+
+                if (usedContentImageAsCover && contentImageMatch) {
+                    displayContent = displayContent.replace(contentImageMatch[0], '');
+                }
+
+                // 3. Strip URLs robustly
                 urls.forEach(url => {
                     try {
-                        const escapedUrl = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-                        // 1. Remove anchor tags
-                        const anchorRegex = new RegExp(`<a[^>]*href="${escapedUrl}"[^>]*>.*?</a>`, 'gi');
-                        displayContent = displayContent.replace(anchorRegex, '');
-
-                        // 2. Remove plain text URLs
-                        const textRegex = new RegExp(`(href=["']|src=["'])?(${escapedUrl})`, 'gi');
-                        displayContent = displayContent.replace(textRegex, (match, prefix) => prefix ? match : '');
-                    } catch (e) {
-                        console.error('Error stripping URL:', e);
-                    }
+                        const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const regex = new RegExp(`(href=["']|src=["'])?(${escaped})`, 'g');
+                        displayContent = displayContent.replace(regex, (match, prefix) => {
+                            if (prefix) return match;
+                            return '';
+                        });
+                    } catch (e) { }
                 });
 
-                // Clean up empty lines left behind
-                displayContent = displayContent.replace(/<p>\s*<\/p>/g, '').replace(/<p><br><\/p>/g, '');
+                // Clean up empty paragraphs
+                displayContent = displayContent
+                    .replace(/<a[^>]*>\s*<\/a>/g, '')
+                    .replace(/<p>\s*<\/p>/g, '')
+                    .replace(/<p><br><\/p>/g, '')
+                    .trim();
+
+                const hasContent = displayContent.length > 0 && displayContent !== '<p></p>';
 
                 return (
                     <>
-                        <div
-                            className="post-content-full ql-editor" // ql-editor class ensures styles match
-                            dangerouslySetInnerHTML={{ __html: displayContent }}
-                            onClick={handleContentClick}
-                        />
+                        {hasContent && (
+                            <div
+                                className="post-content-full ql-editor"
+                                dangerouslySetInnerHTML={{ __html: displayContent }}
+                                onClick={handleContentClick}
+                            />
+                        )}
                         {urls.map((url, i) => (
                             <LinkPreview
                                 key={url}
