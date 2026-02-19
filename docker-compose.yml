@@ -29,27 +29,27 @@ services:
       - NODE_ENV=production
       - MONGODB_URI=mongodb://mongodb:mongodb@mongodb:27017/stphub?authSource=admin
       # AWS S3 Configuration
-      - AWS_ACCESS_KEY_ID=YOUR_AWS_KEY_ID
-      - AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_KEY
-      - AWS_REGION=us-east-1
-      - AWS_BUCKET_NAME=4dkstartups
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
       # Razorpay Configuration
-      - RAZORPAY_KEY_ID=rzp_test_SEsbosl3t0RcoK
-      - RAZORPAY_KEY_SECRET=bToWYlXGVWcYgTF8SpUVyaP0
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
       # VAPID Keys for Push Notifications
-      - VAPID_PUBLIC_KEY=BFZr3byvJte9PbaOWgCDC4kEK4RK1g8Ub-1kX0RMQBeGPAfdBb1c06zVt9sseFBWk8f5rw0OnYuCsdT4tauT9AU
-      - VAPID_PRIVATE_KEY=EvXUaB6A2_S1DsOX3AvH7GLwBYt7Mibe1KFY9jDw3vM
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
       # JWT & Security
-      - JWT_SECRET=askdlsdko0r9r3874763426272099%#@!
-      - JWT_REFRESH_SECRET=45094rkejerkjlew;le@*(1!jkldelk)
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - CORS_ORIGIN=https://startup.4dk.in
       # Email Configuration (SMTP)
-      - SMTP_HOST=smtp.gmail.com
-      - SMTP_PORT=587
-      - SMTP_USER=your-email@gmail.com
-      - SMTP_PASS=your-app-password
-      - SMTP_FROM=StartupHub <noreply@startuphub.com>
-      - SMTP_SECURE=false
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM}
+      - SMTP_SECURE=${SMTP_SECURE}
     volumes:
       - stp_uploads:/app/server/uploads
       - certbot_certs:/etc/letsencrypt

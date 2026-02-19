@@ -13,8 +13,18 @@ import Notification from '../models/Notification';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
 import { emailService } from '../services/email';
+import Razorpay from 'razorpay';
 
 const router = Router();
+
+// Initialize Razorpay
+let razorpay: Razorpay | null = null;
+if (config.razorpay.keyId && config.razorpay.keySecret) {
+    razorpay = new Razorpay({
+        key_id: config.razorpay.keyId,
+        key_secret: config.razorpay.keySecret,
+    });
+}
 
 // ── Helper: Generate tokens ──────────────────────────────────
 function generateTokens(userId: string, role: string) {
@@ -71,6 +81,179 @@ router.post('/check-availability', async (req, res) => {
     } catch (err) {
         console.error('Check availability error:', err);
         res.status(500).json({ error: 'Check failed' });
+    }
+});
+
+// ── POST /api/auth/register-init ─────────────────────────────
+router.post('/register-init', authLimiter, validate(registerSchema), async (req, res) => {
+    try {
+        const { username, email, password, displayName, userType } = req.body;
+
+        // Check for existing user (completed or pending)
+        let user = await User.findOne({
+            $or: [{ email: email.toLowerCase() }, { username: username.toLowerCase() }]
+        });
+
+        if (user && user.payment_status === 'completed') {
+            res.status(409).json({ error: 'User already exists' });
+            return;
+        }
+
+        // Verify payment is required
+        const paymentSetting = await Setting.findOne({ key: 'registration_payment_required' });
+        const paymentRequired = paymentSetting?.value === 'true';
+
+        let orderId = '';
+        let amount = 0;
+
+        if (paymentRequired && razorpay) {
+            const amountSetting = await Setting.findOne({ key: 'registration_payment_amount' });
+            const amountInRupees = parseInt(amountSetting?.value || '950', 10);
+            amount = amountInRupees * 100; // paise
+
+            const options = {
+                amount,
+                currency: 'INR',
+                receipt: `receipt_${Date.now()}_${email.substring(0, 5)}`,
+                notes: { email, username } // Store for webhook context
+            };
+            const order = await razorpay.orders.create(options);
+            orderId = order.id;
+        }
+
+        const passwordHash = bcrypt.hashSync(password, config.bcryptRounds);
+        const sanitizedName = sanitizeHtml(displayName);
+
+        if (user) {
+            // Update existing pending user
+            user.username = username.toLowerCase();
+            user.email = email.toLowerCase();
+            user.password_hash = passwordHash;
+            user.display_name = sanitizedName;
+            user.user_type = userType || 'startup';
+            user.razorpay_order_id = orderId;
+            user.payment_status = paymentRequired ? 'pending' : 'completed';
+            user.is_active = !paymentRequired;
+            user.is_active = !paymentRequired;
+            await user.save();
+        } else {
+            // Create new pending user
+            user = await User.create({
+                username: username.toLowerCase(),
+                email: email.toLowerCase(),
+                password_hash: passwordHash,
+                display_name: sanitizedName,
+                user_type: userType || 'startup',
+                payment_status: paymentRequired ? 'pending' : 'completed',
+                razorpay_order_id: orderId,
+                is_active: !paymentRequired,
+                is_email_verified: false
+            });
+        }
+
+        if (!paymentRequired) {
+            const { accessToken, refreshToken } = generateTokens(user._id.toString(), 'user');
+            setTokenCookies(res, accessToken, refreshToken);
+
+            try {
+                // await emailService.sendWelcomeEmail(user.email, user.display_name);
+            } catch (e) { }
+
+            res.json({
+                message: 'Registration successful',
+                user: user.toJSON(),
+                accessToken, refreshToken,
+                paymentRequired: false
+            });
+            return;
+        }
+
+        res.json({
+            orderId,
+            keyId: config.razorpay.keyId,
+            amount,
+            currency: 'INR',
+            userId: user._id,
+            paymentRequired: true
+        });
+
+    } catch (err) {
+        console.error('Registration Init error:', err);
+        res.status(500).json({ error: 'Failed to initiate registration' });
+    }
+});
+
+// ── POST /api/auth/register-finalize ─────────────────────────
+router.post('/register-finalize', authLimiter, async (req, res) => {
+    try {
+        const { order_id, payment_id, signature } = req.body;
+
+        if (!order_id || !payment_id || !signature) {
+            res.status(400).json({ error: 'Missing payment details' });
+            return;
+        }
+
+        const user = await User.findOne({ razorpay_order_id: order_id });
+        if (!user) {
+            res.status(404).json({ error: 'User not found for this order' });
+            return;
+        }
+
+        const shasum = crypto.createHmac('sha256', config.razorpay.keySecret || '');
+        shasum.update(`${order_id}|${payment_id}`);
+        const digest = shasum.digest('hex');
+
+        if (digest !== signature) {
+            res.status(400).json({ error: 'Invalid payment signature' });
+            return;
+        }
+
+        const validitySetting = await Setting.findOne({ key: 'membership_validity_months' });
+        const validityMonths = parseInt(validitySetting?.value || '12', 10);
+        const expiryDate = new Date();
+        expiryDate.setMonth(expiryDate.getMonth() + validityMonths);
+
+        user.payment_status = 'completed';
+        user.razorpay_payment_id = payment_id;
+        user.premium_expiry = expiryDate;
+        user.is_active = true;
+
+        const verifySetting = await Setting.findOne({ key: 'registration_email_verification_required' });
+        const isVerificationRequired = verifySetting?.value === 'true';
+
+        if (isVerificationRequired) {
+            const token = crypto.randomBytes(32).toString('hex');
+            user.email_verification_token = token;
+            await user.save();
+            try {
+                await emailService.sendVerificationEmail(user.email, user.display_name, token);
+            } catch (e) { console.error('Verification email failed', e); }
+
+            res.status(201).json({
+                message: 'Payment successful! Verification email sent.',
+                requireVerification: true
+            });
+            return;
+        } else {
+            user.is_email_verified = true;
+            await user.save();
+            try {
+                await emailService.sendWelcomeEmail(user.email, user.display_name);
+            } catch (e) { console.error('Welcome email failed', e); }
+        }
+
+        const { accessToken, refreshToken } = generateTokens(user._id.toString(), 'user');
+        setTokenCookies(res, accessToken, refreshToken);
+
+        res.json({
+            message: 'Registration complete!',
+            user: user.toJSON(),
+            accessToken, refreshToken
+        });
+
+    } catch (err) {
+        console.error('Finalize error:', err);
+        res.status(500).json({ error: 'Failed to complete registration' });
     }
 });
 

@@ -4,6 +4,7 @@ import { requireAdmin } from '../middleware/admin';
 import { validate } from '../middleware/validate';
 import { updateUserRoleSchema } from '../validators/schemas';
 import { socketService } from '../services/socket';
+import { emailService } from '../services/email';
 import User from '../models/User';
 import Post from '../models/Post';
 import Comment from '../models/Comment';
@@ -12,6 +13,7 @@ import ChatMessage from '../models/ChatMessage';
 import Notification from '../models/Notification';
 import Setting from '../models/Setting';
 import mongoose from 'mongoose';
+import crypto from 'crypto';
 import { escapeRegExp } from '../utils/regex';
 
 const router = Router();
@@ -264,6 +266,36 @@ router.delete('/users/:id', async (req: AuthRequest, res) => {
     } catch (err) {
         console.error('Delete user error:', err);
         res.status(500).json({ error: 'Failed to delete user' });
+    }
+});
+
+// ── POST /api/admin/users/:id/reset-password ────────────────
+router.post('/users/:id/reset-password', async (req: AuthRequest, res) => {
+    try {
+        const { id } = req.params;
+        const user = await User.findById(id);
+
+        if (!user) {
+            res.status(404).json({ error: 'User not found' });
+            return;
+        }
+
+        // Generate reset token
+        const resetBuffer = crypto.randomBytes(32);
+        const resetToken = resetBuffer.toString('hex');
+
+        user.reset_password_token = crypto.createHash('sha256').update(resetToken).digest('hex');
+        user.reset_password_expires = new Date(Date.now() + 3600000); // 1 hour
+        await user.save();
+
+        // Send email
+        const resetUrl = `https://startup.4dk.in/reset-password?token=${resetToken}`;
+        await emailService.sendPasswordResetEmail(user.email, user.display_name, resetToken); // Fix: pass name and token correctly
+
+        res.json({ message: 'Password reset link sent to user email.' });
+    } catch (err) {
+        console.error('Admin reset password error:', err);
+        res.status(500).json({ error: 'Failed to send reset email' });
     }
 });
 

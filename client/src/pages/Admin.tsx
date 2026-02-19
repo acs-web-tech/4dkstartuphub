@@ -673,6 +673,23 @@ export default function Admin() {
                                                             <option value="free">Reset to Free</option>
                                                         </select>
                                                         <button
+                                                            className="btn btn-xs btn-ghost"
+                                                            onClick={async () => {
+                                                                if (!confirm(`Send password reset link to ${u.email}?`)) return;
+                                                                try {
+                                                                    await adminApi.sendPasswordReset(u.id);
+                                                                    setMessage('Reset link sent!');
+                                                                    setMessageType('success');
+                                                                } catch (e: any) {
+                                                                    setMessage(e.message || 'Failed to send reset link');
+                                                                    setMessageType('error');
+                                                                }
+                                                            }}
+                                                            title="Send Password Reset Link"
+                                                        >
+                                                            <Send size={14} />
+                                                        </button>
+                                                        <button
                                                             className="btn btn-xs btn-ghost danger-text"
                                                             onClick={() => handleDeleteUser(u.id)}
                                                             title="Delete User"

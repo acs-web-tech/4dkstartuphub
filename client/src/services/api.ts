@@ -73,6 +73,10 @@ export const authApi = {
         payment?: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
     }) =>
         request('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
+    initiateRegistration: (data: any) =>
+        request<{ orderId: string, keyId: string, amount: number, currency: string, userId: string }>('/auth/register-init', { method: 'POST', body: JSON.stringify(data) }),
+    finalizeRegistration: (data: { order_id: string, payment_id: string, signature: string }) =>
+        request<{ message: string, user: any, accessToken?: string, refreshToken?: string, requireVerification?: boolean }>('/auth/register-finalize', { method: 'POST', body: JSON.stringify(data) }),
     login: (data: { email: string; password: string }) =>
         request('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
     logout: () => request('/auth/logout', { method: 'POST' }),
@@ -212,6 +216,8 @@ export const adminApi = {
     getSettings: () => request<{ settings: Record<string, string> }>('/admin/settings'),
     updateSetting: (key: string, value: string) =>
         request<{ message: string }>('/admin/settings', { method: 'PUT', body: JSON.stringify({ key, value }) }),
+    sendPasswordReset: (id: string) =>
+        request<{ message: string }>(`/admin/users/${id}/reset-password`, { method: 'POST' }),
 };
 
 // ── Notifications (Push) ────────────────────────────────────

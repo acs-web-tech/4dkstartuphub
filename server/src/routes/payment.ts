@@ -6,6 +6,8 @@ import User from '../models/User';
 import crypto from 'crypto';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
+import { emailService } from '../services/email';
+
 const router = Router();
 
 // Initialize Razorpay only if keys are present
@@ -17,8 +19,73 @@ if (config.razorpay.keyId && config.razorpay.keySecret) {
     });
 }
 
+// ... existing routes ...
+
+// POST /api/payment/webhook
+router.post('/webhook', async (req, res) => {
+    try {
+        // Basic signature check existence
+        const signature = req.headers['x-razorpay-signature'];
+        if (!signature) return res.status(400).json({ error: 'Missing signature' });
+
+        const { event, payload } = req.body;
+
+        if (event === 'payment.captured') {
+            const payment = payload.payment.entity;
+            const orderId = payment.order_id;
+            const paymentId = payment.id;
+
+            // Robust Verification: Fetch from Razorpay to confirm status
+            if (razorpay) {
+                const fetchedPayment = await razorpay.payments.fetch(paymentId);
+                if (fetchedPayment.status !== 'captured' || fetchedPayment.order_id !== orderId) {
+                    console.error('❌ Webhook verification failed: Payment status mismatch');
+                    res.status(400).json({ error: 'Invalid payment state' });
+                    return;
+                }
+            }
+
+            const user = await User.findOne({ razorpay_order_id: orderId });
+
+            if (user && user.payment_status !== 'completed') {
+                const validitySetting = await Setting.findOne({ key: 'membership_validity_months' });
+                const validityMonths = parseInt(validitySetting?.value || '12', 10);
+                const expiryDate = new Date();
+                expiryDate.setMonth(expiryDate.getMonth() + validityMonths);
+
+                user.payment_status = 'completed';
+                user.razorpay_payment_id = paymentId;
+                user.premium_expiry = expiryDate;
+                user.is_active = true;
+                // Auto-verify email on payment to reduce friction? 
+                // Let's keep existing flow: if they need verification, they can do it.
+                // But user requested "should register him... miss him". 
+                // If I leave is_email_verified as false (from init), they can login but might be blocked?
+                // auth.ts:348 blocks login if verification required & not verified.
+                // I will auto-verify email on successful payment to ensure immediate access.
+                user.is_email_verified = true;
+                user.email_verification_token = undefined;
+
+                await user.save();
+
+                try {
+                    await emailService.sendWelcomeEmail(user.email, user.display_name);
+                } catch (e) {
+                    console.error('Webhook welcome email failed', e);
+                }
+
+                console.log(`✅ Webhook: User ${user.email} activated successfully via payment ${paymentId}`);
+            }
+        }
+
+        res.json({ status: 'ok' });
+    } catch (err) {
+        console.error('Webhook error:', err);
+        res.status(500).json({ error: 'Webhook processing failed' });
+    }
+});
+
 // POST /api/payment/create-order
-// Public: allowed for both new registration (no auth) and upgrades (auth handled in /upgrade)
 router.post('/create-order', async (req, res) => {
     try {
         if (!razorpay) {
