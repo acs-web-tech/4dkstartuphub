@@ -146,11 +146,25 @@ class PushNotificationService {
                                 notification: {
                                     title: data.title,
                                     body: data.body,
-                                    ...(data.image ? { imageUrl: data.image } : {}) // Only add if defined
+                                    ...(data.image ? { imageUrl: data.image } : {})
+                                },
+                                android: {
+                                    notification: {
+                                        ...(data.image ? { imageUrl: data.image } : {})
+                                    }
+                                },
+                                apns: {
+                                    payload: {
+                                        aps: {
+                                            'mutable-content': 1
+                                        }
+                                    },
+                                    ...(data.image ? { fcmOptions: { imageUrl: data.image } } : {})
                                 },
                                 data: {
                                     url: data.url || '/',
-                                    type: 'broadcast'
+                                    type: 'broadcast',
+                                    ...(data.image ? { image: data.image } : {})
                                 },
                                 tokens: batch
                             });
