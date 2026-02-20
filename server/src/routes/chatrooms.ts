@@ -175,7 +175,7 @@ router.post('/:id/leave', authenticate, async (req: AuthRequest, res) => {
 router.post('/:id/add-member', authenticate, requireAdmin, async (req: AuthRequest, res) => {
     try {
         const { userId } = req.body;
-        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id as string)) {
             res.status(400).json({ error: 'Invalid room ID' });
             return;
         }
@@ -232,7 +232,7 @@ router.post('/:id/add-member', authenticate, requireAdmin, async (req: AuthReque
 router.post('/:id/kick', authenticate, requireAdmin, async (req: AuthRequest, res) => {
     try {
         const { userId } = req.body;
-        if (!mongoose.Types.ObjectId.isValid(req.params.id) || !mongoose.Types.ObjectId.isValid(userId)) {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id as string) || !mongoose.Types.ObjectId.isValid(userId)) {
             res.status(400).json({ error: 'Invalid ID(s)' });
             return;
         }
@@ -259,7 +259,7 @@ router.post('/:id/kick', authenticate, requireAdmin, async (req: AuthRequest, re
 router.post('/:id/mute', authenticate, requireAdmin, async (req: AuthRequest, res) => {
     try {
         const { userId } = req.body;
-        if (!mongoose.Types.ObjectId.isValid(req.params.id) || !mongoose.Types.ObjectId.isValid(userId)) {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id as string) || !mongoose.Types.ObjectId.isValid(userId)) {
             res.status(400).json({ error: 'Invalid ID(s)' });
             return;
         }
@@ -284,7 +284,7 @@ router.post('/:id/mute', authenticate, requireAdmin, async (req: AuthRequest, re
 // ── GET /api/chatrooms/:id/messages ─────────────────────────
 router.get('/:id/messages', authenticate, async (req: AuthRequest, res) => {
     try {
-        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id as string)) {
             res.status(400).json({ error: 'Invalid room ID' });
             return;
         }
@@ -358,7 +358,7 @@ router.get('/:id/messages', authenticate, async (req: AuthRequest, res) => {
 // ── POST /api/chatrooms/:id/messages ────────────────────────
 router.post('/:id/messages', authenticate, validate(chatMessageSchema), async (req: AuthRequest, res) => {
     try {
-        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id as string)) {
             res.status(400).json({ error: 'Invalid room ID' });
             return;
         }
@@ -480,7 +480,7 @@ router.post('/:id/messages', authenticate, validate(chatMessageSchema), async (r
 router.delete('/:roomId/messages/:messageId', authenticate, async (req: AuthRequest, res) => {
     try {
         const { roomId, messageId } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(roomId) || !mongoose.Types.ObjectId.isValid(messageId)) {
+        if (!mongoose.Types.ObjectId.isValid(roomId as string) || !mongoose.Types.ObjectId.isValid(messageId as string)) {
             res.status(400).json({ error: 'Invalid ID(s)' });
             return;
         }
@@ -515,7 +515,7 @@ router.delete('/:roomId/messages/:messageId', authenticate, async (req: AuthRequ
 router.delete('/:roomId/users/:userId/messages', authenticate, requireAdmin, async (req: AuthRequest, res) => {
     try {
         const { roomId, userId } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(roomId) || !mongoose.Types.ObjectId.isValid(userId)) {
+        if (!mongoose.Types.ObjectId.isValid(roomId as string) || !mongoose.Types.ObjectId.isValid(userId as string)) {
             res.status(400).json({ error: 'Invalid ID(s)' });
             return;
         }

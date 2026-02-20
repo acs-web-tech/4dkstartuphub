@@ -162,7 +162,7 @@ router.get('/users', async (req: AuthRequest, res) => {
 router.put('/users/:id/role', validate(updateUserRoleSchema), async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (!mongoose.Types.ObjectId.isValid(id as string)) {
             res.status(400).json({ error: 'Invalid user ID' });
             return;
         }
@@ -204,7 +204,7 @@ router.put('/users/:id/role', validate(updateUserRoleSchema), async (req: AuthRe
 router.put('/users/:id/premium', async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (!mongoose.Types.ObjectId.isValid(id as string)) {
             res.status(400).json({ error: 'Invalid user ID' });
             return;
         }
@@ -243,7 +243,7 @@ router.put('/users/:id/premium', async (req: AuthRequest, res) => {
 router.put('/users/:id/toggle-active', async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (!mongoose.Types.ObjectId.isValid(id as string)) {
             res.status(400).json({ error: 'Invalid user ID' });
             return;
         }
@@ -274,7 +274,7 @@ router.put('/users/:id/toggle-active', async (req: AuthRequest, res) => {
 router.delete('/users/:id', async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (!mongoose.Types.ObjectId.isValid(id as string)) {
             res.status(400).json({ error: 'Invalid user ID' });
             return;
         }
@@ -296,7 +296,7 @@ router.delete('/users/:id', async (req: AuthRequest, res) => {
 router.post('/users/:id/reset-password', async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (!mongoose.Types.ObjectId.isValid(id as string)) {
             res.status(400).json({ error: 'Invalid user ID' });
             return;
         }
@@ -332,7 +332,7 @@ router.post('/users/:id/reset-password', async (req: AuthRequest, res) => {
 router.delete('/posts/:id', async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (!mongoose.Types.ObjectId.isValid(id as string)) {
             res.status(400).json({ error: 'Invalid post ID' });
             return;
         }
