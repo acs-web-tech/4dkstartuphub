@@ -18,14 +18,14 @@ import LinkPreview from '../components/Common/LinkPreview';
 export default function PostDetail() {
     const { id } = useParams<{ id: string }>();
     const { user } = useAuth();
-    const { socket } = useSocket();
+    const { socket, status } = useSocket();
     const navigate = useNavigate();
     const location = useLocation();
     const [post, setPost] = useState<Post | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
 
     useEffect(() => {
-        if (socket && id) {
+        if (socket && id && status === 'connected') {
             socket.emit('joinPost', id);
 
             // Handle post likes
@@ -64,7 +64,7 @@ export default function PostDetail() {
                 socket.off('commentCountUpdated');
             };
         }
-    }, [socket, id, navigate]);
+    }, [socket, id, status, navigate]);
 
 
     // State variables

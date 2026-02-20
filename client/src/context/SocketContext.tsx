@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { usersApi } from '../services/api';
 
 type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
@@ -23,7 +24,7 @@ const SocketContext = createContext<SocketContextType>({
 export const useSocket = () => useContext(SocketContext);
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { user } = useAuth();
+    const { user, refreshUser } = useAuth();
     const [socket, setSocket] = useState<Socket | null>(null);
     const [connected, setConnected] = useState(false);
     const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
@@ -35,19 +36,44 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const userId = user?.id;
         if (userId) {
             const backendUrl = window.location.origin;
-
             setStatus('connecting');
 
             const newSocket = io(backendUrl, {
-                // path: '/api/socket.io', // Reverted
+                auth: {
+                    token: localStorage.getItem('access_token')
+                },
                 withCredentials: true,
                 transports: ['websocket', 'polling'],
                 reconnection: true,
-                reconnectionAttempts: Infinity,          // Never give up
-                reconnectionDelay: 2000,                 // Start at 2s
-                reconnectionDelayMax: 30000,             // Cap at 30s
-                randomizationFactor: 0.3,                // Jitter to avoid thundering herd
-                timeout: 15000,                          // 15s connection timeout
+                reconnectionAttempts: Infinity,
+                reconnectionDelay: 2000,
+                reconnectionDelayMax: 10000, // Faster max delay for better recovery
+                randomizationFactor: 0.3,
+                timeout: 20000,
+            });
+
+            newSocket.on('connect_error', (err) => {
+                console.error('🔌 WebSocket Connect Error:', err.message);
+
+                // If it's an authentication error, try to refresh the session
+                if (err.message.includes('Authentication error') || err.message.includes('No token')) {
+                    console.log('🔄 Socket Auth failed, attempting session refresh...');
+                    refreshUser().then(() => {
+                        // After refreshUser, the localStorage and cookies should be updated
+                        const newToken = localStorage.getItem('access_token');
+                        if (newToken) {
+                            newSocket.auth = { token: newToken };
+                            // Socket.IO will automatically try to reconnect, 
+                            // but we can force it if it's currently disconnected
+                            if (!newSocket.connected) {
+                                setTimeout(() => newSocket.connect(), 1000);
+                            }
+                        }
+                    }).catch(() => {
+                        // Refresh failed, likely need to login again
+                        setStatus('disconnected');
+                    });
+                }
             });
 
             newSocket.on('connect', () => {
@@ -56,8 +82,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 setReconnectAttempt(0);
 
                 // Fetch initial online users
-                fetch('/api/users/online')
-                    .then(res => res.json())
+                usersApi.getOnline()
                     .then(data => setOnlineUsers(new Set(data.onlineUserIds || [])))
                     .catch(() => { });
             });

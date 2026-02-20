@@ -18,12 +18,41 @@ async function requirePremium(req: AuthRequest, res: Response, next: NextFunctio
         next();
         return;
     }
-    const user = await User.findById(req.user!.userId);
-    if (!user || user.payment_status?.toLowerCase() !== 'completed') {
-        res.status(402).json({ error: 'Premium access required. Only paid users can access pitch requests.', code: 'PREMIUM_REQUIRED' });
-        return;
+
+    try {
+        const Setting = (await import('../models/Setting')).default;
+
+        // Check platform settings first: if it's open or free, bypass premium check
+        const [lockSetting, regSetting] = await Promise.all([
+            Setting.findOne({ key: 'global_payment_lock' }),
+            Setting.findOne({ key: 'registration_payment_required' })
+        ]);
+
+        if (lockSetting?.value === 'false' || regSetting?.value === 'false') {
+            next();
+            return;
+        }
+
+        const user = await User.findById(req.user!.userId);
+
+        // Consider user premium if they have completed status OR a valid future expiry date
+        const isPremium = user && (
+            user.payment_status?.toLowerCase() === 'completed' ||
+            (user.premium_expiry && new Date(user.premium_expiry) > new Date())
+        );
+
+        if (!isPremium) {
+            res.status(402).json({
+                error: 'Premium access required. Only paid users can access pitch requests.',
+                code: 'PREMIUM_REQUIRED'
+            });
+            return;
+        }
+        next();
+    } catch (err) {
+        console.error('requirePremium middleware error:', err);
+        next(); // Allow on failure to avoid blocking users
     }
-    next();
 }
 
 // ── POST /api/pitch — Submit a new pitch request ──────────

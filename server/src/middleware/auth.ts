@@ -121,9 +121,15 @@ export async function requirePayment(req: AuthRequest, res: Response, next: Next
         // If both are enabled, we strictly enforce the payment status
         if (lockSetting?.value === 'true' && regSetting?.value === 'true') {
             const User = (await import('../models/User')).default;
-            const user = await User.findById(req.user?.userId).select('payment_status');
+            const user = await User.findById(req.user?.userId).select('payment_status premium_expiry');
 
-            if (!user || user.payment_status !== 'completed') {
+            // Check if user has active premium status OR a valid future expiry date
+            const isPremium = user && (
+                user.payment_status === 'completed' ||
+                (user.premium_expiry && new Date(user.premium_expiry) > new Date())
+            );
+
+            if (!isPremium) {
                 res.status(402).json({
                     error: 'Payment required to access the platform.',
                     code: 'PAYMENT_REQUIRED'

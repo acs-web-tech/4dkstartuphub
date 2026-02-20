@@ -421,7 +421,23 @@ export default function ChatRooms() {
         <div className="chatrooms-page">
             <div className="chat-sidebar">
                 <div className="chat-sidebar-header">
-                    <h2><MessageCircle className="inline-icon" size={24} /> Chat Rooms</h2>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <h2><MessageCircle className="inline-icon" size={24} /> Chat Rooms</h2>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', marginLeft: '4px' }}>
+                            <span
+                                className={status === 'reconnecting' ? 'animate-pulse' : ''}
+                                style={{
+                                    width: '8px',
+                                    height: '8px',
+                                    borderRadius: '50%',
+                                    backgroundColor: status === 'connected' ? 'var(--green)' : status === 'reconnecting' ? 'var(--yellow)' : 'var(--red)'
+                                }}
+                            />
+                            <span style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 'bold', color: 'var(--text-muted)' }}>
+                                {status === 'connected' ? 'Live' : status === 'reconnecting' ? 'Reconnecting' : 'Offline'}
+                            </span>
+                        </div>
+                    </div>
                     {isAdmin && (
                         <button className="btn btn-primary btn-sm" onClick={() => setShowCreateForm(!showCreateForm)} id="create-room-btn">
                             <Plus size={16} className="inline mr-1" /> New Room
@@ -655,28 +671,45 @@ export default function ChatRooms() {
 
             {/* Admin User Actions Modal */}
             {userActionsTarget && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setUserActionsTarget(null)}>
-                    <div className="bg-[var(--bg-primary)] p-6 rounded-lg shadow-xl w-full max-w-xs border border-[var(--border-color)]" onClick={e => e.stopPropagation()}>
-                        <div className="text-center mb-6">
-                            <div className="w-20 h-20 rounded-full mx-auto mb-3 overflow-hidden bg-[var(--bg-secondary)] flex items-center justify-center">
+                <div
+                    style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+                    onClick={() => setUserActionsTarget(null)}
+                >
+                    <div
+                        className="card"
+                        style={{ width: '100%', maxWidth: '340px', padding: '24px', textAlign: 'center' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className="mb-6">
+                            <div className="avatar avatar-xl mx-auto mb-3" style={{ margin: '0 auto 12px' }}>
                                 {userActionsTarget.avatarUrl
-                                    ? <img src={userActionsTarget.avatarUrl} className="w-full h-full object-cover" alt="" />
-                                    : <span className="text-2xl font-bold text-[var(--text-secondary)]">{getInitials(userActionsTarget.displayName)}</span>
+                                    ? <img src={userActionsTarget.avatarUrl} alt="" />
+                                    : <span>{getInitials(userActionsTarget.displayName)}</span>
                                 }
                             </div>
-                            <h3 className="font-bold text-lg">{userActionsTarget.displayName}</h3>
+                            <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)', fontSize: '1.2rem' }}>{userActionsTarget.displayName}</h3>
                         </div>
-                        <div className="flex flex-col gap-3">
-                            <button className="btn btn-secondary w-full py-2" onClick={() => { navigate(`/users/${userActionsTarget.userId}`); setUserActionsTarget(null); }}>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <button
+                                className="btn btn-secondary btn-full"
+                                onClick={() => { navigate(`/users/${userActionsTarget.userId}`); setUserActionsTarget(null); }}
+                            >
                                 View Profile
                             </button>
                             {isAdmin && (
-                                <button className="btn btn-danger w-full py-2 flex items-center justify-center gap-2" onClick={handleDeleteAllUserMessages}>
+                                <button
+                                    className="btn btn-full"
+                                    style={{ backgroundColor: 'var(--red)', color: 'white', border: 'none' }}
+                                    onClick={handleDeleteAllUserMessages}
+                                >
                                     <Trash2 size={16} /> Delete All Messages
                                 </button>
                             )}
+                            <button className="btn btn-ghost btn-full" onClick={() => setUserActionsTarget(null)}>
+                                Cancel
+                            </button>
                         </div>
-                        <button className="btn btn-ghost w-full mt-2" onClick={() => setUserActionsTarget(null)}>Cancel</button>
                     </div>
                 </div>
             )}

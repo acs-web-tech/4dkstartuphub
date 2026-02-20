@@ -71,6 +71,10 @@ export default function Login() {
         rzp.open();
     };
 
+    const [showVerification, setShowVerification] = useState(false);
+    const [otp, setOtp] = useState('');
+    const [resendLoading, setResendLoading] = useState(false);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
@@ -81,11 +85,42 @@ export default function Login() {
         } catch (err: any) {
             if (err.data && err.data.error === 'PAYMENT_REQUIRED') {
                 handlePaymentRetry(err.data);
+            } else if (err.data && err.data.error === 'EMAIL_VERIFICATION_REQUIRED') {
+                setShowVerification(true);
             } else {
                 setError(err.message || 'Login failed');
             }
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleVerifyOtp = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+        try {
+            await authApi.verifyEmailOtp(otp);
+            // After verification, we need to refresh the user state in AuthContext
+            // since the user is now verified but the local state doesn't know.
+            // A simple way is to re-login or just navigate as the next page 
+            // will call /me and get the updated status.
+            window.location.href = '/feed';
+        } catch (err: any) {
+            setError(err.message || 'Verification failed');
+            setLoading(false);
+        }
+    };
+
+    const handleResendOtp = async () => {
+        setResendLoading(true);
+        try {
+            await authApi.sendVerificationOtp();
+            alert('A new verification code has been sent to your email.');
+        } catch (err: any) {
+            setError(err.message || 'Failed to resend code');
+        } finally {
+            setResendLoading(false);
         }
     };
 
@@ -99,58 +134,107 @@ export default function Login() {
                 </div>
 
                 <div className="auth-card card">
-                    <h2>Welcome Back</h2>
-                    <p className="auth-subtitle">Log in to your account</p>
-
                     {verified && <div className="alert alert-success" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' }}>Email Verified! Please log in.</div>}
                     {error && <div className="alert alert-error">{error}</div>}
 
-                    <form onSubmit={handleSubmit}>
-                        <div className="form-group">
-                            <label htmlFor="login-email">Email</label>
-                            <input
-                                id="login-email"
-                                type="email"
-                                className="form-input"
-                                placeholder="you@example.com"
-                                value={email}
-                                onChange={e => setEmail(e.target.value)}
-                                required
-                                autoComplete="email"
-                            />
-                        </div>
+                    {showVerification ? (
+                        <>
+                            <h2>Verify Your Email</h2>
+                            <p className="auth-subtitle">We've sent a 6-digit code to <strong>{email}</strong></p>
 
-                        <div className="form-group">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <label htmlFor="login-password">Password</label>
-                                <Link to="/forgot-password" style={{ fontSize: '0.85rem', color: 'var(--primary-color)' }}>Forgot Password?</Link>
-                            </div>
-                            <div className="password-wrapper relative">
-                                <input
-                                    id="login-password"
-                                    type={showPassword ? 'text' : 'password'}
-                                    className="form-input"
-                                    placeholder="••••••••"
-                                    value={password}
-                                    onChange={e => setPassword(e.target.value)}
-                                    required
-                                    autoComplete="current-password"
-                                />
+                            <form onSubmit={handleVerifyOtp}>
+                                <div className="form-group">
+                                    <label htmlFor="otp">Verification Code</label>
+                                    <input
+                                        id="otp"
+                                        type="text"
+                                        className="form-input text-center text-2xl tracking-[1em]"
+                                        placeholder="000000"
+                                        maxLength={6}
+                                        value={otp}
+                                        onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
+                                        required
+                                    />
+                                </div>
+
+                                <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
+                                    {loading ? 'Verifying...' : 'Verify & Log In'}
+                                </button>
+                            </form>
+
+                            <div className="text-center mt-6">
+                                <p className="text-sm text-gray-500">Didn't receive the code?</p>
                                 <button
                                     type="button"
-                                    className="password-toggle absolute right-3 top-3 text-gray-400 hover:text-gray-600"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    tabIndex={-1}
+                                    className="text-primary-color font-medium hover:underline disabled:opacity-50"
+                                    onClick={handleResendOtp}
+                                    disabled={resendLoading}
                                 >
-                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                    {resendLoading ? 'Sending...' : 'Resend Code'}
                                 </button>
                             </div>
-                        </div>
 
-                        <button type="submit" className="btn btn-primary btn-full" disabled={loading} id="login-submit">
-                            {loading ? 'Logging in...' : 'Log In'}
-                        </button>
-                    </form>
+                            <button
+                                type="button"
+                                className="btn btn-ghost btn-full mt-4"
+                                onClick={() => setShowVerification(false)}
+                            >
+                                Back to Login
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <h2>Welcome Back</h2>
+                            <p className="auth-subtitle">Log in to your account</p>
+
+                            <form onSubmit={handleSubmit}>
+                                <div className="form-group">
+                                    <label htmlFor="login-email">Email</label>
+                                    <input
+                                        id="login-email"
+                                        type="email"
+                                        className="form-input"
+                                        placeholder="you@example.com"
+                                        value={email}
+                                        onChange={e => setEmail(e.target.value)}
+                                        required
+                                        autoComplete="email"
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <label htmlFor="login-password">Password</label>
+                                        <Link to="/forgot-password" style={{ fontSize: '0.85rem', color: 'var(--primary-color)' }}>Forgot Password?</Link>
+                                    </div>
+                                    <div className="password-wrapper relative">
+                                        <input
+                                            id="login-password"
+                                            type={showPassword ? 'text' : 'password'}
+                                            className="form-input"
+                                            placeholder="••••••••"
+                                            value={password}
+                                            onChange={e => setPassword(e.target.value)}
+                                            required
+                                            autoComplete="current-password"
+                                        />
+                                        <button
+                                            type="button"
+                                            className="password-toggle absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            tabIndex={-1}
+                                        >
+                                            {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <button type="submit" className="btn btn-primary btn-full" disabled={loading} id="login-submit">
+                                    {loading ? 'Logging in...' : 'Log In'}
+                                </button>
+                            </form>
+                        </>
+                    )}
 
                     <p className="auth-footer text-center mt-4">
                         Don't have an account? <Link to="/register">Sign up</Link>

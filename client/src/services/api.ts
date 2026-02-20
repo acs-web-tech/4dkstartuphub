@@ -7,6 +7,12 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
         (headers as Record<string, string>)['Content-Type'] = 'application/json';
     }
 
+    // Add Authorization header if token exists (for Mobile/Socket support)
+    const token = localStorage.getItem('access_token');
+    if (token) {
+        (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+    }
+
     const res = await fetch(`${BASE}${url}`, {
         credentials: 'include',
         cache: 'no-store', // Prevent caching of API responses (crucial for /me)
@@ -32,6 +38,18 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
                 credentials: 'include',
             });
             if (refreshRes.ok) {
+                try {
+                    const refreshData = await refreshRes.json();
+                    if (refreshData.accessToken) {
+                        localStorage.setItem('access_token', refreshData.accessToken);
+                        // Update header for retry
+                        (headers as Record<string, string>)['Authorization'] = `Bearer ${refreshData.accessToken}`;
+                    }
+                    if (refreshData.refreshToken) {
+                        localStorage.setItem('refresh_token', refreshData.refreshToken);
+                    }
+                } catch (e) { /* ignore parse error */ }
+
                 // Retry original request
                 const retryRes = await fetch(`${BASE}${url}`, {
                     credentials: 'include',
@@ -102,6 +120,8 @@ export const authApi = {
         request<{ available: boolean }>('/auth/check-availability', { method: 'POST', body: JSON.stringify(data) }),
     me: () => request<{ user: import('../types').User }>('/auth/me'),
     changePassword: (data: any) => request<{ message: string }>('/auth/change-password', { method: 'POST', body: JSON.stringify(data) }),
+    sendVerificationOtp: () => request<{ message: string }>('/auth/send-verification-otp', { method: 'POST' }),
+    verifyEmailOtp: (otp: string) => request<{ message: string }>('/auth/verify-email-otp', { method: 'POST', body: JSON.stringify({ otp }) }),
 };
 
 // ── Payment ─────────────────────────────────────────────────
@@ -161,6 +181,7 @@ export const usersApi = {
         request<{ notifications: import('../types').AppNotification[]; unreadCount: number }>('/users/me/notifications'),
     markNotificationsRead: () => request('/users/me/notifications/read', { method: 'PUT' }),
     markOneRead: (id: string) => request(`/users/me/notifications/${id}/read`, { method: 'PUT' }),
+    getOnline: () => request<{ onlineUserIds: string[] }>('/users/online'),
 };
 
 // ── Chat Rooms ──────────────────────────────────────────────

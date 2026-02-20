@@ -746,7 +746,13 @@ router.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
         // Check if email verification is enabled and user is verified
         const verifySetting = await Setting.findOne({ key: 'registration_email_verification_required' });
         if (verifySetting?.value === 'true' && !user.is_email_verified) {
-            res.status(403).json({ error: 'Please verify your email address before logging in.' });
+            const { accessToken, refreshToken } = generateTokens(user._id.toString(), user.role);
+            setTokenCookies(res, accessToken, refreshToken);
+            res.status(403).json({
+                error: 'EMAIL_VERIFICATION_REQUIRED',
+                message: 'Please verify your email address before logging in.',
+                email: user.email
+            });
             return;
         }
 

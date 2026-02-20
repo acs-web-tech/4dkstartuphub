@@ -111,6 +111,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const login = async (email: string, password: string) => {
         const data: any = await authApi.login({ email, password });
+        if (data.accessToken) localStorage.setItem('access_token', data.accessToken);
+        if (data.refreshToken) localStorage.setItem('refresh_token', data.refreshToken);
         setUser(data.user);
     };
 
@@ -120,6 +122,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         payment?: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
     }) => {
         const data: any = await authApi.register(regData);
+        if (data.accessToken) localStorage.setItem('access_token', data.accessToken);
+        if (data.refreshToken) localStorage.setItem('refresh_token', data.refreshToken);
         if (data.user) {
             setUser(data.user);
         }
@@ -127,8 +131,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const logout = async () => {
-        await authApi.logout();
-        setUser(null);
+        try {
+            await authApi.logout();
+        } finally {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            setUser(null);
+        }
     };
 
     return (
