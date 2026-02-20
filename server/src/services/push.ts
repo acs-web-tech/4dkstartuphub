@@ -120,9 +120,9 @@ class PushNotificationService {
                     response.responses.forEach((resp, idx) => {
                         if (!resp.success) {
                             const code = resp.error?.code || '';
-                            console.warn(`⚠️ FCM token failed [${code}]: ${user.fcm_tokens[idx]?.substring(0, 20)}...`);
+                            console.warn(`⚠️ FCM token failed [${code}]: ${userWithTokens.fcm_tokens[idx]?.substring(0, 20)}...`);
                             if (PERMANENT_ERRORS.some(e => code.includes(e.split('/')[1]))) {
-                                staleTokens.push(user.fcm_tokens[idx]);
+                                staleTokens.push(userWithTokens.fcm_tokens[idx]);
                             }
                         }
                     });
