@@ -56,6 +56,47 @@ function setTokenCookies(res: Response, accessToken: string, refreshToken: strin
     });
 }
 
+// ── Helper: Finalize user activation after payment sync ──────
+async function finalizeUserActivation(user: any, paymentId: string) {
+    const validitySetting = await Setting.findOne({ key: 'membership_validity_months' });
+    const validityMonths = parseInt(validitySetting?.value || '12', 10);
+    const expiryDate = new Date();
+    expiryDate.setMonth(expiryDate.getMonth() + validityMonths);
+
+    user.payment_status = 'completed';
+    user.razorpay_payment_id = paymentId;
+    user.premium_expiry = expiryDate;
+    user.is_active = true;
+    user.is_email_verified = true;
+    await user.save();
+
+    try {
+        await emailService.sendWelcomeEmail(user.email, user.display_name);
+
+        const welcomeTitle = await Setting.findOne({ key: 'welcome_notification_title' });
+        const welcomeContent = await Setting.findOne({ key: 'welcome_notification_content' });
+        const welcomeVideo = await Setting.findOne({ key: 'welcome_notification_video_url' });
+        const welcomeImage = await Setting.findOne({ key: 'welcome_notification_image_url' });
+
+        let finalContent = welcomeContent?.value || 'Complete your profile to get started.';
+        if (welcomeVideo?.value) {
+            finalContent += `<div class="broadcast-video"><a href="${welcomeVideo.value}" target="_blank" rel="noopener noreferrer">🎬 Watch Video</a></div>`;
+        }
+
+        await Notification.create({
+            user_id: user._id,
+            type: 'welcome',
+            title: welcomeTitle?.value || 'Welcome to StartupHub! 🚀',
+            content: finalContent,
+            image_url: welcomeImage?.value || '',
+            sender_id: null,
+            reference_id: 'welcome'
+        });
+    } catch (e) {
+        console.error('Welcome actions failed during sync activation', e);
+    }
+}
+
 // ── POST /api/auth/check-availability ────────────────────────
 router.post('/check-availability', async (req, res) => {
     try {
@@ -99,9 +140,41 @@ router.post('/register-init', authLimiter, validate(registerSchema), async (req,
             return;
         }
 
-        // Verify payment is required
         const paymentSetting = await Setting.findOne({ key: 'registration_payment_required' });
         const paymentRequired = paymentSetting?.value === 'true';
+
+        // Fix: Check if an existing user already paid using their current orderId (handles phone glitches)
+        if (user && user.razorpay_order_id && razorpay && user.payment_status !== 'completed' && paymentRequired) {
+            try {
+                const payments = await razorpay.orders.fetchPayments(user.razorpay_order_id) as any;
+                const items = payments.items || [];
+                const successfulPayment = items.find((p: any) => p.status === 'captured');
+
+                if (successfulPayment) {
+                    // Update user details before activation if they changed them in این form attempt
+                    const passwordHash = bcrypt.hashSync(password, config.bcryptRounds);
+                    user.username = username.toLowerCase();
+                    user.display_name = sanitizeHtml(displayName);
+                    user.user_type = userType || 'startup';
+                    user.password_hash = passwordHash;
+
+                    await finalizeUserActivation(user, successfulPayment.id);
+
+                    const { accessToken, refreshToken } = generateTokens(user._id.toString(), 'user');
+                    setTokenCookies(res, accessToken, refreshToken);
+
+                    res.json({
+                        message: 'Payment verified from previous attempt. Account activated.',
+                        user: user.toJSON(),
+                        accessToken, refreshToken,
+                        paymentRequired: false
+                    });
+                    return;
+                }
+            } catch (err) {
+                console.error('Sync check in register-init failed:', err);
+            }
+        }
 
         let orderId = '';
         let amount = 0;
@@ -133,7 +206,6 @@ router.post('/register-init', authLimiter, validate(registerSchema), async (req,
             user.user_type = userType || 'startup';
             user.razorpay_order_id = orderId;
             user.payment_status = paymentRequired ? 'pending' : 'completed';
-            user.is_active = !paymentRequired;
             user.is_active = !paymentRequired;
             await user.save();
         } else {
@@ -556,8 +628,39 @@ router.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
         }
 
         if (!user.is_active) {
-            res.status(403).json({ error: 'Account has been deactivated. Contact admin.' });
-            return;
+            // Check for pending payment activation glitch
+            const paymentSetting = await Setting.findOne({ key: 'registration_payment_required' });
+            const isPaymentRequired = paymentSetting?.value === 'true';
+
+            if (isPaymentRequired && user.payment_status !== 'completed' && user.razorpay_order_id && razorpay) {
+                try {
+                    const payments = await razorpay.orders.fetchPayments(user.razorpay_order_id) as any;
+                    const items = payments.items || [];
+                    const successfulPayment = items.find((p: any) => p.status === 'captured');
+
+                    if (successfulPayment) {
+                        await finalizeUserActivation(user, successfulPayment.id);
+                        console.log(`✅ Auto-activated user ${user.email} via Razorpay sync during login`);
+                        // Logic falls through to token generation below
+                    } else {
+                        res.status(403).json({
+                            error: 'account_pending_payment',
+                            message: 'Please complete your registration payment to activate your account.',
+                            orderId: user.razorpay_order_id,
+                            email: user.email,
+                            displayName: user.display_name
+                        });
+                        return;
+                    }
+                } catch (err) {
+                    console.error('Razorpay sync failed during login:', err);
+                    res.status(403).json({ error: 'Account has been deactivated. Contact admin.' });
+                    return;
+                }
+            } else {
+                res.status(403).json({ error: 'Account has been deactivated. Contact admin.' });
+                return;
+            }
         }
 
         // Check if email verification is enabled and user is verified
