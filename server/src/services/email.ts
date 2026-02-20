@@ -157,6 +157,10 @@ export const emailService = {
         return this.enqueueEmail(to, 'Action Required: Reset your StartupHub password', getHtmlTemplate(title, bodyContent, { text: 'Reset Password', url }));
     },
 
+    async sendNotificationEmail(to: string, name: string, type: 'like' | 'comment' | 'mention', details: any) {
+        return true; // Disabled per user request
+    },
+
     async sendPitchLimitReachedEmail(to: string, name: string, limit: number) {
         const title = 'You\'re on Fire! 🔥';
         const bodyContent = `
