@@ -1,7 +1,6 @@
 import webpush from 'web-push';
 import { config } from '../config/env';
 import PushSubscription from '../models/PushSubscription';
-import Notification from '../models/Notification';
 import { getFirebaseMessaging } from '../config/firebase';
 import User from '../models/User';
 
@@ -19,10 +18,28 @@ class PushNotificationService {
     }
 
     /**
+     * Helper to ensure URLs are absolute for push notification clients (FCM/iOS/Android)
+     */
+    private ensureAbsoluteUrl(url?: string): string | undefined {
+        if (!url) return undefined;
+        if (url.startsWith('http')) return url;
+
+        // Derived from config.apiUrl (e.g., https://domain.com/api)
+        // Split at /api to get the base domain
+        const baseDomain = config.apiUrl.split('/api')[0];
+        // Ensure relative URLs start with /
+        const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
+        return `${baseDomain}${normalizedUrl}`;
+    }
+
+    /**
      * Send a push notification to a specific user
      */
     async sendToUser(userId: string, data: { title: string; body: string; url?: string; icon?: string }) {
         try {
+            const absoluteUrl = this.ensureAbsoluteUrl(data.url) || '/';
+            const absoluteIcon = this.ensureAbsoluteUrl(data.icon || '/logo.png');
+
             // 1. Web Push
             const subscriptions = await PushSubscription.find({ user_id: userId });
 
@@ -30,8 +47,8 @@ class PushNotificationService {
                 const payload = JSON.stringify({
                     title: data.title,
                     body: data.body,
-                    url: data.url || '/',
-                    icon: data.icon || '/logo.png'
+                    url: absoluteUrl,
+                    icon: absoluteIcon
                 });
 
                 const sendPromises = subscriptions.map(sub => {
@@ -53,30 +70,25 @@ class PushNotificationService {
                     notification: {
                         title: data.title,
                         body: data.body,
-                        ...(data.icon ? { imageUrl: data.icon } : {})
+                        ...(absoluteIcon ? { imageUrl: absoluteIcon } : {})
                     },
                     android: {
                         priority: 'high',
                         notification: {
                             sound: 'default',
-                            ...(data.icon ? { image: data.icon } : {})
+                            ...(absoluteIcon ? { imageUrl: absoluteIcon } : {})
                         }
                     },
                     data: {
-                        url: data.url || '/',
-                        type: 'notification'
+                        url: absoluteUrl,
+                        type: 'notification',
+                        ...(absoluteIcon ? { image: absoluteIcon, picture: absoluteIcon } : {})
                     },
                     tokens: user.fcm_tokens
                 });
 
                 if (response.failureCount > 0) {
-                    // Only remove PERMANENTLY invalid tokens (not temporary errors)
-                    const PERMANENT_ERRORS = [
-                        'messaging/invalid-registration-token',
-                        'messaging/registration-token-not-registered',
-                        'messaging/invalid-argument',
-                        'messaging/invalid-payload',
-                    ];
+                    const PERMANENT_ERRORS = ['invalid-registration-token', 'registration-token-not-registered', 'invalid-argument', 'invalid-payload'];
                     const staleTokens: string[] = [];
                     response.responses.forEach((resp, idx) => {
                         if (!resp.success) {
@@ -88,10 +100,7 @@ class PushNotificationService {
                         }
                     });
                     if (staleTokens.length > 0) {
-                        console.log(`🗑️ Removing ${staleTokens.length} stale FCM token(s) for user ${userId}`);
-                        await User.findByIdAndUpdate(userId, {
-                            $pull: { fcm_tokens: { $in: staleTokens } }
-                        });
+                        await User.findByIdAndUpdate(userId, { $pull: { fcm_tokens: { $in: staleTokens } } });
                     }
                 }
             }
@@ -105,16 +114,19 @@ class PushNotificationService {
      */
     async broadcast(data: { title: string; body: string; url?: string; icon?: string; image?: string }) {
         try {
+            const absoluteUrl = this.ensureAbsoluteUrl(data.url) || '/';
+            const absoluteIcon = this.ensureAbsoluteUrl(data.icon || '/logo.png');
+            const absoluteImage = this.ensureAbsoluteUrl(data.image);
+
             // 1. Web Push
             const subscriptions = await PushSubscription.find({});
-
             if (subscriptions.length) {
                 const payload = JSON.stringify({
                     title: data.title,
                     body: data.body,
-                    url: data.url || '/',
-                    icon: data.icon || '/logo.png',
-                    image: data.image
+                    url: absoluteUrl,
+                    icon: absoluteIcon,
+                    image: absoluteImage
                 });
 
                 const sendPromises = subscriptions.map(sub => {
@@ -131,32 +143,21 @@ class PushNotificationService {
             // 2. Native Push (FCM)
             const messaging = getFirebaseMessaging();
             if (messaging) {
-                console.log('📢 Starting Native Push Broadcast...');
-                // Get all tokens from all users
                 const users = await User.find({ 'fcm_tokens.0': { $exists: true } }).select('fcm_tokens');
                 const tokens = users.reduce((acc, user) => [...acc, ...user.fcm_tokens], [] as string[]);
-                // Remove duplicates
                 const uniqueTokens = [...new Set(tokens)];
 
-                console.log(`📱 Found ${uniqueTokens.length} unique FCM tokens for broadcast.`);
-
                 if (uniqueTokens.length > 0) {
-                    const PERMANENT_ERRORS = [
-                        'invalid-registration-token',
-                        'registration-token-not-registered',
-                        'invalid-argument',
-                        'invalid-payload',
-                    ];
+                    const PERMANENT_ERRORS = ['invalid-registration-token', 'registration-token-not-registered', 'invalid-argument', 'invalid-payload'];
                     const batchSize = 500;
 
-                    // Build the FCM message payload defensively
                     const fcmPayload: any = {
                         notification: {
-                            title: String(data.title).substring(0, 100), // Safety truncation
-                            body: String(data.body).substring(0, 500),   // Safety truncation
+                            title: String(data.title).substring(0, 100),
+                            body: String(data.body).substring(0, 500),
                         },
                         data: {
-                            url: String(data.url || '/'),
+                            url: absoluteUrl,
                             type: 'broadcast',
                         },
                         android: {
@@ -167,50 +168,35 @@ class PushNotificationService {
                         }
                     };
 
-                    // Only add image fields if a valid image URL is provided
-                    if (data.image && typeof data.image === 'string' && data.image.startsWith('http')) {
-                        fcmPayload.notification.imageUrl = data.image; // Correct for top-level
-                        fcmPayload.android.notification.image = data.image; // Correct for android.notification
+                    if (absoluteImage) {
+                        fcmPayload.notification.imageUrl = absoluteImage;
+                        fcmPayload.android.notification.imageUrl = absoluteImage;
                         fcmPayload.apns = {
-                            payload: {
-                                aps: {
-                                    'mutable-content': 1
-                                }
-                            },
-                            fcmOptions: {
-                                imageUrl: data.image // Correct for APNs
-                            }
+                            payload: { aps: { 'mutable-content': 1 } },
+                            fcmOptions: { imageUrl: absoluteImage }
                         };
-                        fcmPayload.data.image = data.image;
+                        fcmPayload.data.image = absoluteImage;
+                        fcmPayload.data.picture = absoluteImage;
                     }
-
-                    console.log('📦 FCM Broadcast payload:', JSON.stringify(fcmPayload, null, 2));
 
                     for (let i = 0; i < uniqueTokens.length; i += batchSize) {
                         const batch = uniqueTokens.slice(i, i + batchSize);
                         try {
-                            console.log(`🚀 Sending batch ${Math.floor(i / batchSize) + 1} (${batch.length} tokens)...`);
                             const response = await messaging.sendEachForMulticast({
                                 ...fcmPayload,
                                 tokens: batch
                             });
-                            console.log(`✅ Batch sent: ${response.successCount} success, ${response.failureCount} failed.`);
-
                             if (response.failureCount > 0) {
                                 const staleTokens: string[] = [];
                                 response.responses.forEach((r, idx) => {
                                     if (!r.success) {
                                         const code = r.error?.code || '';
-                                        const errMsg = r.error?.message || 'unknown';
-                                        console.warn(`⚠️ Broadcast token failed [${code}]: ${batch[idx]?.substring(0, 20)}... | Error: ${errMsg}`);
                                         if (PERMANENT_ERRORS.some(e => code.includes(e))) {
                                             staleTokens.push(batch[idx]);
                                         }
                                     }
                                 });
-                                // Remove stale tokens from all users in bulk
                                 if (staleTokens.length > 0) {
-                                    console.log(`🗑️ Removing ${staleTokens.length} stale FCM tokens from broadcast batch`);
                                     await User.updateMany(
                                         { fcm_tokens: { $in: staleTokens } },
                                         { $pull: { fcm_tokens: { $in: staleTokens } } }
@@ -221,11 +207,7 @@ class PushNotificationService {
                             console.error('❌ FCM broadcast batch error:', e);
                         }
                     }
-                } else {
-                    console.log('⚠️ No mobile devices registered for push notifications.');
                 }
-            } else {
-                console.warn('⚠️ Firebase Admin not initialized. Skipping native broadcast.');
             }
         } catch (err) {
             console.error('❌ Push broadcast error:', err);
