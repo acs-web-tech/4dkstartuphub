@@ -37,6 +37,11 @@ export interface IUser extends Document {
         mentions: boolean;
         broadcasts: boolean;
     };
+    reset_record: {
+        last_request_date: string;
+        request_count: number;
+        reset_count: number;
+    };
 }
 
 const UserSchema: Schema = new Schema({
@@ -73,6 +78,11 @@ const UserSchema: Schema = new Schema({
         comments: { type: Boolean, default: true },
         mentions: { type: Boolean, default: true },
         broadcasts: { type: Boolean, default: true }
+    },
+    reset_record: {
+        last_request_date: { type: String, default: '' },
+        request_count: { type: Number, default: 0 },
+        reset_count: { type: Number, default: 0 }
     }
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },

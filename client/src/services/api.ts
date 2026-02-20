@@ -61,13 +61,23 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
     }
 
     if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Request failed' }));
-        // Include validation details if present
-        if (err.details && Array.isArray(err.details)) {
-            const detailMsg = err.details.map((d: { field: string; message: string }) => d.message).join(', ');
-            throw new Error(detailMsg || err.error || `HTTP ${res.status}`);
+        let err: any;
+        try {
+            err = await res.json();
+        } catch (e) {
+            err = { error: `HTTP ${res.status}` };
         }
-        throw new Error(err.error || `HTTP ${res.status}`);
+
+        // Include validation details if present
+        let message = err.error || `HTTP ${res.status}`;
+        if (err.details && Array.isArray(err.details)) {
+            message = err.details.map((d: { field: string; message: string }) => d.message).join(', ') || message;
+        }
+
+        const error: any = new Error(message);
+        error.data = err;
+        error.status = res.status;
+        throw error;
     }
 
     return res.json();

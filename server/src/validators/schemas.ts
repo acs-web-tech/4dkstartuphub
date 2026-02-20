@@ -1,6 +1,14 @@
 import { z } from 'zod';
 
 // ── Auth Schemas ──────────────────────────────────────────────
+export const passwordSchema = z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password too long')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character');
+
 export const registerSchema = z.object({
     username: z.string()
         .min(3, 'Username must be at least 3 characters')
@@ -9,13 +17,7 @@ export const registerSchema = z.object({
     email: z.string()
         .email('Invalid email address')
         .max(255, 'Email too long'),
-    password: z.string()
-        .min(8, 'Password must be at least 8 characters')
-        .max(128, 'Password too long')
-        .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-        .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-        .regex(/[0-9]/, 'Password must contain at least one number')
-        .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
+    password: passwordSchema,
     displayName: z.string()
         .min(2, 'Display name must be at least 2 characters')
         .max(50, 'Display name too long')
@@ -28,6 +30,12 @@ export const registerSchema = z.object({
         razorpay_payment_id: z.string().min(1, 'Payment ID required'),
         razorpay_signature: z.string().min(1, 'Signature required'),
     }).optional(),
+});
+
+export const resetPasswordSchema = z.object({
+    email: z.string().email('Invalid email address'),
+    otp: z.string().min(6, 'OTP must be 6 characters').max(6, 'OTP must be 6 characters'),
+    password: passwordSchema
 });
 
 export const loginSchema = z.object({

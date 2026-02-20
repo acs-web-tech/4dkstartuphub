@@ -1,8 +1,14 @@
-
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Rocket, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import { authApi } from '../services/api';
+
+declare global {
+    interface Window {
+        Razorpay: any;
+    }
+}
 
 export default function Login() {
     const { login, user, loading: authLoading } = useAuth();
@@ -24,6 +30,47 @@ export default function Login() {
 
     if (authLoading) return <div className="loading-container"><div className="spinner" /></div>;
 
+    const handlePaymentRetry = (data: any) => {
+        const options = {
+            key: data.keyId,
+            amount: data.amount,
+            currency: 'INR',
+            name: 'StartupHub',
+            description: `Registration Payment`,
+            order_id: data.orderId,
+            handler: async (response: any) => {
+                setLoading(true);
+                try {
+                    await authApi.finalizeRegistration({
+                        order_id: response.razorpay_order_id,
+                        payment_id: response.razorpay_payment_id,
+                        signature: response.razorpay_signature,
+                    });
+                    // Successfully finalized, now login automatically
+                    await login(email, password);
+                    navigate('/feed');
+                } catch (err: any) {
+                    setError(err.message || 'Payment success but activation failed');
+                    setLoading(false);
+                }
+            },
+            prefill: {
+                name: data.displayName || '',
+                email: data.email || '',
+            },
+            theme: { color: '#6366f1' },
+            modal: {
+                ondismiss: () => {
+                    setLoading(false);
+                    setError('Payment cancelled. Please complete payment to login.');
+                }
+            }
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
@@ -32,7 +79,11 @@ export default function Login() {
             await login(email, password);
             navigate('/feed');
         } catch (err: any) {
-            setError(err.message || 'Login failed');
+            if (err.data && err.data.error === 'PAYMENT_REQUIRED') {
+                handlePaymentRetry(err.data);
+            } else {
+                setError(err.message || 'Login failed');
+            }
         } finally {
             setLoading(false);
         }

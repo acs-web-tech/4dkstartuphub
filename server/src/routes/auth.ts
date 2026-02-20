@@ -5,7 +5,7 @@ import { config } from '../config/env';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { authLimiter } from '../middleware/rateLimiter';
-import { registerSchema, loginSchema } from '../validators/schemas';
+import { registerSchema, loginSchema, resetPasswordSchema } from '../validators/schemas';
 import { sanitizeHtml } from '../utils/sanitize';
 import User from '../models/User';
 import Setting from '../models/Setting';
@@ -94,6 +94,48 @@ async function finalizeUserActivation(user: any, paymentId: string) {
         });
     } catch (e) {
         console.error('Welcome actions failed during sync activation', e);
+    }
+}
+
+// ── Helper: Re-prompt payment if sync fails ──────────────────
+async function rePromptPayment(res: Response, user: any) {
+    if (!razorpay) {
+        return res.status(403).json({ error: 'Payment required but gateway not configured. Contact admin.' });
+    }
+
+    try {
+        const amountSetting = await Setting.findOne({ key: 'registration_payment_amount' });
+        const amountInRupees = parseInt(amountSetting?.value || '950', 10);
+        const amount = amountInRupees * 100;
+
+        const options = {
+            amount,
+            currency: 'INR',
+            receipt: `receipt_retry_${Date.now()}_${user.email.substring(0, 5)}`,
+            notes: { email: user.email, username: user.username }
+        };
+
+        const order = await razorpay.orders.create(options);
+
+        // Update user with new order ID for future syncs
+        user.razorpay_order_id = order.id;
+        user.payment_status = 'pending';
+        await user.save();
+
+        console.log(`🔄 Re-prompting payment for user ${user.email}. New Order: ${order.id}`);
+
+        return res.status(403).json({
+            error: 'PAYMENT_REQUIRED',
+            message: 'Please complete your registration payment to activate your account.',
+            orderId: order.id,
+            amount: amount,
+            keyId: config.razorpay.keyId,
+            email: user.email,
+            displayName: user.display_name
+        });
+    } catch (err) {
+        console.error('Failed to create re-prompt order:', err);
+        return res.status(403).json({ error: 'Account pending activation. Failed to generate new payment order. Contact admin.' });
     }
 }
 
@@ -632,34 +674,33 @@ router.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
             const paymentSetting = await Setting.findOne({ key: 'registration_payment_required' });
             const isPaymentRequired = paymentSetting?.value === 'true';
 
-            if (isPaymentRequired && user.payment_status !== 'completed' && user.razorpay_order_id && razorpay) {
-                try {
-                    const payments = await razorpay.orders.fetchPayments(user.razorpay_order_id) as any;
-                    const items = payments.items || [];
-                    const successfulPayment = items.find((p: any) => p.status === 'captured');
+            if (isPaymentRequired && user.payment_status !== 'completed') {
+                // Try Sync if order ID exists
+                if (user.razorpay_order_id && razorpay) {
+                    try {
+                        const payments = await razorpay.orders.fetchPayments(user.razorpay_order_id) as any;
+                        const items = payments.items || [];
+                        const successfulPayment = items.find((p: any) => p.status === 'captured');
 
-                    if (successfulPayment) {
-                        await finalizeUserActivation(user, successfulPayment.id);
-                        console.log(`✅ Auto-activated user ${user.email} via Razorpay sync during login`);
-                        // Logic falls through to token generation below
-                    } else {
-                        res.status(403).json({
-                            error: 'account_pending_payment',
-                            message: 'Please complete your registration payment to activate your account.',
-                            orderId: user.razorpay_order_id,
-                            email: user.email,
-                            displayName: user.display_name
-                        });
-                        return;
+                        if (successfulPayment) {
+                            await finalizeUserActivation(user, successfulPayment.id);
+                            console.log(`✅ Auto-activated user ${user.email} via Razorpay sync during login`);
+                            // Activation successful, proceed to token generation below
+                        } else {
+                            // Sync completed but no captured payment found
+                            return await rePromptPayment(res, user);
+                        }
+                    } catch (err) {
+                        console.error('Razorpay sync failed during login:', err);
+                        // Sync call itself failed (e.g. order expired or not found in RZP)
+                        return await rePromptPayment(res, user);
                     }
-                } catch (err) {
-                    console.error('Razorpay sync failed during login:', err);
-                    res.status(403).json({ error: 'Account has been deactivated. Contact admin.' });
-                    return;
+                } else {
+                    // No order ID or Razorpay not init - must re-prompt to generate order
+                    return await rePromptPayment(res, user);
                 }
             } else {
-                res.status(403).json({ error: 'Account has been deactivated. Contact admin.' });
-                return;
+                return res.status(403).json({ error: 'Account has been deactivated. Contact admin.' });
             }
         }
 
@@ -853,6 +894,23 @@ router.post('/forgot-password-otp', authLimiter, async (req, res) => {
         }
         const user = await User.findOne({ email: email.toLowerCase() });
         if (user) {
+            const today = new Date().toISOString().split('T')[0];
+
+            // Check daily request limit (10)
+            if (user.reset_record?.last_request_date === today) {
+                if (user.reset_record.request_count >= 10) {
+                    res.status(429).json({ error: 'Daily password reset request limit (10) reached. Try again tomorrow.' });
+                    return;
+                }
+                user.reset_record.request_count += 1;
+            } else {
+                user.reset_record = {
+                    last_request_date: today,
+                    request_count: 1,
+                    reset_count: 0
+                };
+            }
+
             const otp = crypto.randomInt(100000, 999999).toString();
             user.reset_password_otp = otp;
             user.reset_password_expires = new Date(Date.now() + 10 * 60 * 1000);
@@ -867,13 +925,9 @@ router.post('/forgot-password-otp', authLimiter, async (req, res) => {
 });
 
 // Reset Password OTP
-router.post('/reset-password-otp', authLimiter, async (req, res) => {
+router.post('/reset-password-otp', authLimiter, validate(resetPasswordSchema), async (req, res) => {
     try {
         const { email, otp, password } = req.body;
-        if (!email || !otp || !password) {
-            res.status(400).json({ error: 'Email, OTP, and new password required' });
-            return;
-        }
 
         const user = await User.findOne({
             email: email.toLowerCase(),
@@ -886,6 +940,16 @@ router.post('/reset-password-otp', authLimiter, async (req, res) => {
             return;
         }
 
+        const today = new Date().toISOString().split('T')[0];
+
+        // Check daily reset completion limit (10)
+        if (user.reset_record?.last_request_date === today) {
+            if (user.reset_record.reset_count >= 10) {
+                res.status(429).json({ error: 'Daily password reset completion limit (10) reached. Try again tomorrow.' });
+                return;
+            }
+        }
+
         if (bcrypt.compareSync(password, user.password_hash)) {
             res.status(400).json({ error: 'New password cannot be the same as your old password.' });
             return;
@@ -894,6 +958,18 @@ router.post('/reset-password-otp', authLimiter, async (req, res) => {
         user.password_hash = bcrypt.hashSync(password, config.bcryptRounds);
         user.reset_password_otp = undefined;
         user.reset_password_expires = undefined;
+
+        // Increment successful reset count
+        if (user.reset_record?.last_request_date === today) {
+            user.reset_record.reset_count += 1;
+        } else {
+            user.reset_record = {
+                last_request_date: today,
+                request_count: 0,
+                reset_count: 1
+            };
+        }
+
         await user.save({ validateModifiedOnly: true });
 
         res.json({ message: 'Password has been reset successfully. Please login.' });
