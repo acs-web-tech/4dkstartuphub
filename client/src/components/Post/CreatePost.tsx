@@ -22,10 +22,11 @@ export default function CreatePost() {
 
     // Validate preselected category against permissions
     const getInitialCategory = (): PostCategory => {
-        if (preselectedCategory === 'events') {
-            // Strictly block non-admins from starting with 'events'
+        const adminOnly = ['events', 'announcements'];
+        if (adminOnly.includes(preselectedCategory)) {
+            // Strictly block non-admins from starting with restricted categories
             if (user?.role !== 'admin') return 'general';
-            return 'events';
+            return preselectedCategory as PostCategory;
         }
         return (preselectedCategory && preselectedCategory in CATEGORY_CONFIG)
             ? preselectedCategory as PostCategory
@@ -37,9 +38,10 @@ export default function CreatePost() {
     const [videoUrl, setVideoUrl] = useState('');
     const [category, setCategory] = useState<PostCategory>(getInitialCategory());
 
-    // Safety check: if user role loads late or changes, boot them off 'events'
+    // Safety check: if user role loads late or changes, boot them off restricted categories
     useEffect(() => {
-        if (category === 'events' && user && user.role !== 'admin') {
+        const adminOnly = ['events', 'announcements'];
+        if (adminOnly.includes(category) && user && user.role !== 'admin') {
             setCategory('general');
         }
     }, [user, category]);
@@ -212,7 +214,7 @@ export default function CreatePost() {
                     <label htmlFor="post-category">Category</label>
                     <div className="category-selector">
                         {(Object.entries(CATEGORY_CONFIG) as [PostCategory, typeof CATEGORY_CONFIG[PostCategory]][])
-                            .filter(([key]) => key !== 'events' || user?.role === 'admin')
+                            .filter(([key]) => !['events', 'announcements'].includes(key) || user?.role === 'admin')
                             .map(
                                 ([key, cat]) => {
                                     const Icon = cat.icon;

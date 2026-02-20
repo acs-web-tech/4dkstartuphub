@@ -247,9 +247,9 @@ router.post('/', authenticate, validate(createPostSchema), async (req: AuthReque
             return;
         }
 
-        // Restrict 'events' category to admins
-        if (category === 'events' && req.user?.role !== 'admin') {
-            res.status(403).json({ error: 'Only administrators can create Event/Meetup posts.' });
+        // Restrict 'events' and 'announcements' category to admins
+        if (['events', 'announcements'].includes(category) && req.user?.role !== 'admin') {
+            res.status(403).json({ error: `Only administrators can create ${category} posts.` });
             return;
         }
 

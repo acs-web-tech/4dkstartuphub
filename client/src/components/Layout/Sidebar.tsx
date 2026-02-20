@@ -69,6 +69,7 @@ export default function Sidebar({ isOpen, onClose }: Props) {
                         <span>All</span>
                     </button>
                     {(Object.entries(CATEGORY_CONFIG) as [PostCategory, typeof CATEGORY_CONFIG[PostCategory]][])
+                        .filter(([key]) => key !== 'announcements')
                         .map(
                             ([key, cat]) => {
                                 const Icon = cat.icon;
@@ -94,7 +95,7 @@ export default function Sidebar({ isOpen, onClose }: Props) {
                     <span className="sidebar-icon"><MessageCircle size={18} /></span>
                     <span className="sidebar-label">Chat Rooms</span>
                 </NavLink>
-                <NavLink to="/feed?category=announcements" className="sidebar-link" id="nav-announcements" onClick={onClose}>
+                <NavLink to="/feed?category=announcements" className="sidebar-link status-glow" id="nav-announcements" onClick={onClose}>
                     <span className="sidebar-icon"><Megaphone size={18} /></span>
                     <span className="sidebar-label">Announcements</span>
                 </NavLink>

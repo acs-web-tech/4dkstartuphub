@@ -6,12 +6,38 @@ export default function Privacy() {
     const navigate = useNavigate();
 
     return (
-        <div className="page-container" style={{ maxWidth: '800px', margin: '0 auto', padding: '40px 20px' }}>
-            <button className="btn btn-ghost mb-8" onClick={() => navigate(-1)}>
-                <ArrowLeft size={18} /> Back
-            </button>
+        <div className="page-container" style={{ maxWidth: '900px', margin: '0 auto', padding: '40px 24px' }}>
+            <div style={{ marginBottom: '24px' }}>
+                <button
+                    className="btn btn-ghost"
+                    onClick={() => navigate(-1)}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 16px',
+                        borderRadius: '12px',
+                        backgroundColor: 'var(--bg-secondary)',
+                        border: '1px solid var(--border-color)',
+                        color: 'var(--text-secondary)',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        cursor: 'pointer'
+                    }}
+                >
+                    <ArrowLeft size={18} /> Back
+                </button>
+            </div>
 
-            <div className="card" style={{ padding: '48px' }}>
+            <div className="card" style={{ padding: '60px', borderRadius: '24px', position: 'relative', overflow: 'hidden' }}>
+                <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '4px',
+                    background: 'var(--accent-gradient)'
+                }} />
                 <div style={{ textAlign: 'center', marginBottom: '40px' }}>
                     <div style={{
                         width: '64px',
