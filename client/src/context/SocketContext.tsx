@@ -128,17 +128,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 setReconnectAttempt(0);
             });
 
-            newSocket.io.on('reconnect_failed', () => {
-                console.error('❌ WebSocket reconnection failed after all attempts');
-                setStatus('disconnected');
-            });
-
-            newSocket.on('connect_error', (err) => {
-                console.error('🔌 WebSocket Connect Error:', err.message);
-                // Don't call refreshUser — causes infinite loops.
-                // Socket.IO handles retry automatically.
-            });
-
             socketRef.current = newSocket;
             setSocket(newSocket);
 

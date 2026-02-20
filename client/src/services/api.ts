@@ -65,6 +65,9 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
         }
 
         // If we are here, refresh failed or we are on login/register page
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+
         if (!publicPages.includes(window.location.pathname)) {
             window.location.href = '/login';
         }
