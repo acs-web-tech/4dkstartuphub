@@ -24,12 +24,19 @@ class PushNotificationService {
         if (!url) return undefined;
         if (url.startsWith('http')) return url;
 
-        // Derived from config.apiUrl (e.g., https://domain.com/api)
-        // Split at /api to get the base domain
-        const baseDomain = config.apiUrl.split('/api')[0];
+        // Use API_URL if set, otherwise fall back to CORS_ORIGIN (the actual public domain)
+        let baseDomain: string;
+        if (config.apiUrl && !config.apiUrl.includes('localhost')) {
+            baseDomain = config.apiUrl.split('/api')[0];
+        } else {
+            // CORS_ORIGIN is always set to the real domain in production (e.g., https://startup.4dk.in)
+            baseDomain = config.corsOrigin || 'https://startup.4dk.in';
+        }
         // Ensure relative URLs start with /
         const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
-        return `${baseDomain}${normalizedUrl}`;
+        const result = `${baseDomain}${normalizedUrl}`;
+        console.log(`[Push] ensureAbsoluteUrl: "${url}" → "${result}"`);
+        return result;
     }
 
     /**
@@ -117,6 +124,8 @@ class PushNotificationService {
             const absoluteUrl = this.ensureAbsoluteUrl(data.url) || '/';
             const absoluteIcon = this.ensureAbsoluteUrl(data.icon || '/logo.png');
             const absoluteImage = this.ensureAbsoluteUrl(data.image);
+
+            console.log(`[Push Broadcast] image input: "${data.image}", resolved: "${absoluteImage}"`);
 
             // 1. Web Push
             const subscriptions = await PushSubscription.find({});

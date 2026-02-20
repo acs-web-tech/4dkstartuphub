@@ -43,6 +43,7 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - CORS_ORIGIN=https://startup.4dk.in
+      - API_URL=https://startup.4dk.in/api
       # Email Configuration (SMTP)
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}
