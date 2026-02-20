@@ -42,7 +42,7 @@ export default function Login() {
         <div className="auth-page">
             <div className="auth-container">
                 <div className="auth-brand">
-                    <Rocket size={64} className="logo-icon-lg text-primary" />
+                    <img src="/logo.png" alt="StartupHub" className="auth-logo-img" />
                     <h1>StartupHub</h1>
                     <p>Connect. Build. Grow.</p>
                 </div>

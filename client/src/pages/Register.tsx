@@ -264,7 +264,7 @@ export default function Register() {
         <div className="auth-page">
             <div className="auth-container">
                 <div className="auth-brand">
-                    <Rocket size={64} className="logo-icon-lg text-primary" />
+                    <img src="/logo.png" alt="StartupHub" className="auth-logo-img" />
                     <h1>StartupHub</h1>
                     <p>Join the startup community</p>
                 </div>
@@ -272,8 +272,6 @@ export default function Register() {
                 <div className="auth-card card">
                     <h2>Create Account</h2>
                     <p className="auth-subtitle">Start your entrepreneurial journey</p>
-
-                    {stepIndicator}
 
                     {stepIndicator}
 
