@@ -111,23 +111,21 @@ export async function requirePayment(req: AuthRequest, res: Response, next: Next
             Setting.findOne({ key: 'registration_payment_required' })
         ]);
 
-        // If 'global_payment_lock' is false, platform is wide open
-        // IF 'registration_payment_required' is false, it means platform is free to use right now
-        // In both cases, we allow expired users to continue using the app
-        if (lockSetting?.value === 'false' || regSetting?.value === 'false') {
+        // If 'global_payment_lock' is false, the platform is open for existing users.
+        // 'registration_payment_required' only affects new signups and specialized features like Pitches.
+        if (lockSetting?.value === 'false') {
             return next();
         }
 
-        // If both are enabled, we strictly enforce the payment status
-        if (lockSetting?.value === 'true' && regSetting?.value === 'true') {
+        // If global lock is enabled, strictly enforce the payment status and expiry
+        if (lockSetting?.value === 'true') {
             const User = (await import('../models/User')).default;
             const user = await User.findById(req.user?.userId).select('payment_status premium_expiry');
 
-            // Check if user has active premium status OR a valid future expiry date
-            const isPremium = user && (
-                user.payment_status === 'completed' ||
-                (user.premium_expiry && new Date(user.premium_expiry) > new Date())
-            );
+            // Strictly check for a valid future expiry date. 
+            // 'completed' status alone is not enough if the subscription has expired.
+            const isPremium = user &&
+                user.premium_expiry && new Date(user.premium_expiry) > new Date();
 
             if (!isPremium) {
                 res.status(402).json({

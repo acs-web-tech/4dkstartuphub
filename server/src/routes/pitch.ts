@@ -23,27 +23,31 @@ async function requirePremium(req: AuthRequest, res: Response, next: NextFunctio
         const Setting = (await import('../models/Setting')).default;
 
         // Check platform settings first: if it's open or free, bypass premium check
-        const [lockSetting, regSetting] = await Promise.all([
+        const [lockSetting, regSetting, pitchReqSetting] = await Promise.all([
             Setting.findOne({ key: 'global_payment_lock' }),
-            Setting.findOne({ key: 'registration_payment_required' })
+            Setting.findOne({ key: 'registration_payment_required' }),
+            Setting.findOne({ key: 'pitch_request_payment_required' })
         ]);
 
-        if (lockSetting?.value === 'false' || regSetting?.value === 'false') {
+        // Only bypass if ALL relevant locks are disabled. 
+        if (lockSetting?.value === 'false' &&
+            regSetting?.value === 'false' &&
+            pitchReqSetting?.value === 'false') {
             next();
             return;
         }
 
         const user = await User.findById(req.user!.userId);
 
-        // Consider user premium if they have completed status OR a valid future expiry date
-        const isPremium = user && (
-            user.payment_status?.toLowerCase() === 'completed' ||
-            (user.premium_expiry && new Date(user.premium_expiry) > new Date())
-        );
+        // Consider user premium only if they have a valid future expiry date.
+        // Even if they joined while it was free, if the current policy requires payment, 
+        // they must have an active subscription to raise pitch requests.
+        const isPremium = user &&
+            user.premium_expiry && new Date(user.premium_expiry) > new Date();
 
         if (!isPremium) {
             res.status(402).json({
-                error: 'Premium access required. Only paid users can access pitch requests.',
+                error: 'Premium access required. Only paid users with an active subscription can access pitch requests.',
                 code: 'PREMIUM_REQUIRED'
             });
             return;
@@ -87,8 +91,8 @@ router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => 
                 if (user) {
                     await emailService.sendPitchLimitReachedEmail(user.email, user.display_name, limit);
                 }
-                res.status(403).json({
-                    error: `You have reached the maximum limit of ${limit} pitch requests.`,
+                res.status(402).json({
+                    error: `You have reached the maximum limit of ${limit} pitch requests. Please upgrade your plan to increase your limit.`,
                     code: 'LIMIT_REACHED'
                 });
                 return;
@@ -123,6 +127,11 @@ router.get('/my', authenticate, requirePremium, async (req: AuthRequest, res) =>
             .populate('reviewed_by', 'display_name')
             .sort({ created_at: -1 });
 
+        const Setting = (await import('../models/Setting')).default;
+        const limitSetting = await Setting.findOne({ key: 'pitch_upload_limit' });
+        const limit = parseInt(limitSetting?.value || '0', 10);
+        const pitchCount = await PitchRequest.countDocuments({ user_id: req.user!.userId });
+
         res.json({
             pitches: pitches.map(p => {
                 const reviewer = p.reviewed_by as any;
@@ -138,6 +147,8 @@ router.get('/my', authenticate, requirePremium, async (req: AuthRequest, res) =>
                     updatedAt: p.updated_at,
                 };
             }),
+            count: pitchCount,
+            limit: limit
         });
     } catch (err) {
         console.error('Get my pitches error:', err);

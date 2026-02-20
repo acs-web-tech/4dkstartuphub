@@ -225,7 +225,7 @@ export const chatApi = {
 export const pitchApi = {
     submit: (data: { title: string; description: string; deckUrl?: string }) =>
         request<{ message: string; pitchId: string }>('/pitch', { method: 'POST', body: JSON.stringify(data) }),
-    getMyPitches: () => request<{ pitches: import('../types').PitchRequest[] }>('/pitch/my'),
+    getMyPitches: () => request<{ pitches: import('../types').PitchRequest[]; count: number; limit: number }>('/pitch/my'),
     getAllPitches: (status?: string) => {
         const qs = status ? `?status=${status}` : '';
         return request<{ pitches: import('../types').PitchRequest[] }>(`/pitch/all${qs}`);

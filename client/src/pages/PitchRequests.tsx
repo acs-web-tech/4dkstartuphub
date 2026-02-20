@@ -18,6 +18,8 @@ export default function PitchRequests() {
     const [premiumBlocked, setPremiumBlocked] = useState(false);
     const [upgrading, setUpgrading] = useState(false);
     const [upgradePrice, setUpgradePrice] = useState(950);
+    const [pitchCount, setPitchCount] = useState(0);
+    const [pitchLimit, setPitchLimit] = useState(0);
 
     // Form state
     const [title, setTitle] = useState('');
@@ -27,7 +29,11 @@ export default function PitchRequests() {
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
 
-    const isPremium = user?.paymentStatus?.toLowerCase() === 'completed' || user?.role === 'admin' || user?.role === 'moderator';
+    const isPremium = user?.role === 'admin' || user?.role === 'moderator' || (
+        user?.paymentStatus?.toLowerCase() === 'completed' &&
+        user?.premiumExpiry &&
+        new Date(user.premiumExpiry) > new Date()
+    );
 
     useEffect(() => {
         if (tab === 'my') {
@@ -43,9 +49,19 @@ export default function PitchRequests() {
         setLoading(true);
         setPremiumBlocked(false);
         pitchApi.getMyPitches()
-            .then(data => setPitches(data.pitches))
+            .then(data => {
+                setPitches(data.pitches);
+                setPitchCount(data.count || 0);
+                setPitchLimit(data.limit || 0);
+
+                // Proactive limit check: if limit > 0 and count >= limit, block submission
+                if (data.limit > 0 && data.count >= data.limit && user?.role === 'user') {
+                    setPremiumBlocked(true);
+                }
+            })
             .catch(err => {
-                if (err.message?.includes('Premium access required')) {
+                // Handle both text-based and status-based blocks
+                if (err.status === 402 || err.message?.includes('Premium access required')) {
                     setPremiumBlocked(true);
                 } else {
                     console.error(err);
@@ -167,60 +183,55 @@ export default function PitchRequests() {
             setTimeout(() => setUpgrading(false), 2000);
         }
     };
-    if (!isPremium || premiumBlocked) {
+    // Unified gate UI
+    const renderPremiumGate = (isLimitGate = false) => (
+        <div className="premium-gate">
+            <div className="premium-gate-card card">
+                <div className="premium-gate-icon">
+                    {isLimitGate ? <XCircle size={48} color="var(--accent)" /> : (user?.paymentStatus?.toLowerCase() === 'expired' ? <XCircle size={48} color="var(--red)" /> : <Lock size={48} />)}
+                </div>
+                <h2>
+                    {isLimitGate ? 'Pitch Limit Reached' : (user?.paymentStatus?.toLowerCase() === 'expired' ? 'Membership Expired' : 'Premium Feature')}
+                </h2>
+                <p className="premium-gate-desc">
+                    {isLimitGate
+                        ? `You have reached the limit of ${pitchLimit} pitch request${pitchLimit > 1 ? 's' : ''}. Upgrade or renew your plan to submit more.`
+                        : (user?.paymentStatus?.toLowerCase() === 'expired'
+                            ? 'Your premium membership has expired. Please renew your subscription to continue using pitch requests.'
+                            : 'Pitch Requests are exclusively available to premium members. Upgrade your account to submit and manage pitch requests.')
+                    }
+                </p>
+                <div className="premium-gate-features">
+                    <div className="premium-feature-item"><CheckCircle2 size={16} /> <span>Submit unlimited pitch requests</span></div>
+                    <div className="premium-feature-item"><CheckCircle2 size={16} /> <span>Get reviewed by community admins</span></div>
+                    <div className="premium-feature-item"><CheckCircle2 size={16} /> <span>Attach pitch decks & documents</span></div>
+                    <div className="premium-feature-item"><CheckCircle2 size={16} /> <span>Receive admin feedback & approval</span></div>
+                </div>
+                <button className="btn-premium w-full" onClick={handleUpgrade} disabled={upgrading}>
+                    {upgrading ? (
+                        <><Loader2 className="animate-spin inline mr-2" size={20} /> Processing...</>
+                    ) : (
+                        <><CreditCard className="inline mr-2" size={20} /> {user?.paymentStatus?.toLowerCase() === 'expired' ? 'Renew Premium' : 'Upgrade'} for ₹{upgradePrice}</>
+                    )}
+                </button>
+            </div>
+        </div>
+    );
+
+    // If generally not premium/expired, block whole page
+    if (!isPremium) {
         return (
             <div className="page-container">
                 <div className="page-header">
                     <h1><Lightbulb className="inline-icon" size={28} /> Pitch Requests</h1>
                     <p className="page-subtitle">Submit your startup ideas for review</p>
                 </div>
-
-                <div className="premium-gate">
-                    <div className="premium-gate-card card">
-                        <div className="premium-gate-icon">
-                            {user?.paymentStatus?.toLowerCase() === 'expired' ? <XCircle size={48} color="var(--red)" /> : <Lock size={48} />}
-                        </div>
-                        <h2>{user?.paymentStatus?.toLowerCase() === 'expired' ? 'Membership Expired' : 'Premium Feature'}</h2>
-                        <p className="premium-gate-desc">
-                            {user?.paymentStatus?.toLowerCase() === 'expired'
-                                ? 'Your premium membership has expired. Please renew your subscription to continue using pitch requests.'
-                                : 'Pitch Requests are exclusively available to premium members who registered with a paid account. Upgrade your account to submit and manage pitch requests.'
-                            }
-                        </p>
-                        <div className="premium-gate-features">
-                            <div className="premium-feature-item">
-                                <CheckCircle2 size={16} />
-                                <span>Submit unlimited pitch requests</span>
-                            </div>
-                            <div className="premium-feature-item">
-                                <CheckCircle2 size={16} />
-                                <span>Get reviewed by community admins</span>
-                            </div>
-                            <div className="premium-feature-item">
-                                <CheckCircle2 size={16} />
-                                <span>Attach pitch decks & documents</span>
-                            </div>
-                            <div className="premium-feature-item">
-                                <CheckCircle2 size={16} />
-                                <span>Receive admin feedback & approval</span>
-                            </div>
-                        </div>
-                        <button
-                            className="btn-premium w-full"
-                            onClick={handleUpgrade}
-                            disabled={upgrading}
-                        >
-                            {upgrading ? (
-                                <><Loader2 className="animate-spin inline mr-2" size={20} /> Processing...</>
-                            ) : (
-                                <><CreditCard className="inline mr-2" size={20} /> {user?.paymentStatus?.toLowerCase() === 'expired' ? 'Renew Premium' : 'Upgrade'} for ₹{upgradePrice}</>
-                            )}
-                        </button>
-                    </div>
-                </div>
+                {renderPremiumGate()}
             </div>
         );
     }
+
+    const limitReached = pitchLimit > 0 && pitchCount >= pitchLimit && user?.role === 'user';
 
     return (
         <div className="page-container">
@@ -253,9 +264,11 @@ export default function PitchRequests() {
                             <span className="empty-icon"><Lightbulb size={48} /></span>
                             <h2>No pitch requests yet</h2>
                             <p>Have a great idea? Submit a pitch request now!</p>
-                            <button className="btn btn-primary mt-4" onClick={() => setTab('submit')}>
-                                Create Pitch
-                            </button>
+                            {!limitReached && (
+                                <button className="btn btn-primary mt-4" onClick={() => setTab('submit')}>
+                                    Create Pitch
+                                </button>
+                            )}
                         </div>
                     ) : (
                         <div className="grid gap-4">
@@ -296,81 +309,84 @@ export default function PitchRequests() {
                     )}
                 </div>
             ) : (
-                <div className="max-w-2xl mx-auto">
-                    <div className="card p-6">
-                        <h2 className="text-xl font-semibold mb-4">Submit a Pitch Request</h2>
+                limitReached ? renderPremiumGate(true) : (
+                    <div className="max-w-2xl mx-auto">
+                        <div className="card p-6">
+                            <h2 className="text-xl font-semibold mb-4">Submit a Pitch Request</h2>
 
-                        {error && (
-                            <div className="alert alert-danger mb-4">
-                                <XCircle size={16} className="inline mr-2" /> {error}
-                            </div>
-                        )}
 
-                        {message && (
-                            <div className="alert alert-success mb-4">
-                                <CheckCircle2 size={16} className="inline mr-2" /> {message}
-                            </div>
-                        )}
+                            {error && (
+                                <div className="alert alert-danger mb-4">
+                                    <XCircle size={16} className="inline mr-2" /> {error}
+                                </div>
+                            )}
 
-                        <form onSubmit={handleSubmit}>
-                            <div className="form-group mb-4">
-                                <label className="block mb-2 font-medium">Pitch Title</label>
-                                <input
-                                    type="text"
-                                    className="form-input w-full"
-                                    value={title}
-                                    onChange={e => setTitle(e.target.value)}
-                                    placeholder="e.g., AI-Powered Logistics Platform"
-                                    maxLength={200}
-                                    required
-                                />
-                            </div>
+                            {message && (
+                                <div className="alert alert-success mb-4">
+                                    <CheckCircle2 size={16} className="inline mr-2" /> {message}
+                                </div>
+                            )}
 
-                            <div className="form-group mb-4">
-                                <label className="block mb-2 font-medium">Description</label>
-                                <textarea
-                                    className="form-input w-full min-h-[150px]"
-                                    value={description}
-                                    onChange={e => setDescription(e.target.value)}
-                                    placeholder="Describe your idea in detail..."
-                                    maxLength={5000}
-                                    required
-                                />
-                            </div>
-
-                            <div className="form-group mb-6">
-                                <label className="block mb-2 font-medium">Pitch Deck (Optional)</label>
-                                <div className="border-2 border-dashed border-gray-700 rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer relative">
+                            <form onSubmit={handleSubmit}>
+                                <div className="form-group mb-4">
+                                    <label className="block mb-2 font-medium">Pitch Title</label>
                                     <input
-                                        type="file"
-                                        onChange={handleFileChange}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                        accept=".pdf,.ppt,.pptx,.doc,.docx"
+                                        type="text"
+                                        className="form-input w-full"
+                                        value={title}
+                                        onChange={e => setTitle(e.target.value)}
+                                        placeholder="e.g., AI-Powered Logistics Platform"
+                                        maxLength={200}
+                                        required
                                     />
-                                    <div className="pointer-events-none">
-                                        <Upload size={32} className="mx-auto mb-2 text-gray-400" />
-                                        <p className="text-sm text-gray-300">
-                                            {file ? file.name : 'Click or drop file to upload (PDF, PPT, DOC)'}
-                                        </p>
+                                </div>
+
+                                <div className="form-group mb-4">
+                                    <label className="block mb-2 font-medium">Description</label>
+                                    <textarea
+                                        className="form-input w-full min-h-[150px]"
+                                        value={description}
+                                        onChange={e => setDescription(e.target.value)}
+                                        placeholder="Describe your idea in detail..."
+                                        maxLength={5000}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="form-group mb-6">
+                                    <label className="block mb-2 font-medium">Pitch Deck (Optional)</label>
+                                    <div className="border-2 border-dashed border-gray-700 rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer relative">
+                                        <input
+                                            type="file"
+                                            onChange={handleFileChange}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                            accept=".pdf,.ppt,.pptx,.doc,.docx"
+                                        />
+                                        <div className="pointer-events-none">
+                                            <Upload size={32} className="mx-auto mb-2 text-gray-400" />
+                                            <p className="text-sm text-gray-300">
+                                                {file ? file.name : 'Click or drop file to upload (PDF, PPT, DOC)'}
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <button
-                                type="submit"
-                                className="btn btn-primary w-full py-3 flex justify-center items-center"
-                                disabled={submitting}
-                            >
-                                {submitting ? (
-                                    <><Loader2 size={20} className="animate-spin mr-2" /> Submitting...</>
-                                ) : (
-                                    <><Plus size={20} className="mr-2" /> Submit Pitch Request</>
-                                )}
-                            </button>
-                        </form>
+                                <button
+                                    type="submit"
+                                    className="btn btn-primary w-full py-3 flex justify-center items-center"
+                                    disabled={submitting}
+                                >
+                                    {submitting ? (
+                                        <><Loader2 size={20} className="animate-spin mr-2" /> Submitting...</>
+                                    ) : (
+                                        <><Plus size={20} className="mr-2" /> Submit Pitch Request</>
+                                    )}
+                                </button>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            )}
+                ))}
+
         </div>
     );
 }
