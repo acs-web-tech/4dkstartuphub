@@ -1,7 +1,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { usersApi, uploadApi } from '../services/api';
+import { usersApi, uploadApi, authApi } from '../services/api';
 import {
     User, Camera, Pencil, Mail, MapPin, Globe, Briefcase, Twitter, Calendar, Save, CheckCircle, AlertCircle
 } from 'lucide-react';
@@ -21,6 +21,9 @@ export default function Profile() {
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState('');
     const [uploading, setUploading] = useState(false);
+    const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    const [passwordSaving, setPasswordSaving] = useState(false);
+    const [passwordMessage, setPasswordMessage] = useState({ text: '', type: '' });
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Sync form state with user prop changes
@@ -94,6 +97,30 @@ export default function Profile() {
             setMessage(err.message || 'Failed to update profile');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+            setPasswordMessage({ text: 'New passwords do not match', type: 'error' });
+            return;
+        }
+
+        setPasswordSaving(true);
+        setPasswordMessage({ text: '', type: '' });
+
+        try {
+            await authApi.changePassword({
+                currentPassword: passwordForm.currentPassword,
+                newPassword: passwordForm.newPassword
+            });
+            setPasswordMessage({ text: 'Password updated successfully!', type: 'success' });
+            setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        } catch (err: any) {
+            setPasswordMessage({ text: err.message || 'Failed to update password', type: 'error' });
+        } finally {
+            setPasswordSaving(false);
         }
     };
 
@@ -234,6 +261,62 @@ export default function Profile() {
                         </div>
                     </form>
                 )}
+            </div>
+
+            <div className="card" style={{ marginTop: '24px' }}>
+                <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Save size={20} /> Security Settings
+                </h3>
+                <form className="profile-edit-form" onSubmit={handleChangePassword}>
+                    {passwordMessage.text && (
+                        <div className={`alert ${passwordMessage.type === 'success' ? 'alert-success' : 'alert-error'} flex items-center gap-2`} style={{ marginBottom: '20px' }}>
+                            {passwordMessage.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+                            {passwordMessage.text}
+                        </div>
+                    )}
+                    <div className="form-group">
+                        <label htmlFor="current-password">Current Password</label>
+                        <input
+                            id="current-password"
+                            type="password"
+                            className="form-input"
+                            value={passwordForm.currentPassword}
+                            onChange={e => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                            required
+                        />
+                    </div>
+                    <div className="form-row">
+                        <div className="form-group">
+                            <label htmlFor="new-password">New Password</label>
+                            <input
+                                id="new-password"
+                                type="password"
+                                className="form-input"
+                                value={passwordForm.newPassword}
+                                onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                                minLength={8}
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="confirm-password">Confirm New Password</label>
+                            <input
+                                id="confirm-password"
+                                type="password"
+                                className="form-input"
+                                value={passwordForm.confirmPassword}
+                                onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                                minLength={8}
+                                required
+                            />
+                        </div>
+                    </div>
+                    <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
+                        <button type="submit" className="btn btn-primary" disabled={passwordSaving}>
+                            {passwordSaving ? 'Updating...' : 'Update Password'}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );

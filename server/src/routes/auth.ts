@@ -5,7 +5,7 @@ import { config } from '../config/env';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { authLimiter } from '../middleware/rateLimiter';
-import { registerSchema, loginSchema, resetPasswordSchema } from '../validators/schemas';
+import { registerSchema, loginSchema, resetPasswordSchema, passwordSchema } from '../validators/schemas';
 import { sanitizeHtml } from '../utils/sanitize';
 import User from '../models/User';
 import Setting from '../models/Setting';
@@ -67,33 +67,50 @@ async function finalizeUserActivation(user: any, paymentId: string) {
     user.razorpay_payment_id = paymentId;
     user.premium_expiry = expiryDate;
     user.is_active = true;
-    user.is_email_verified = true;
-    await user.save();
 
-    try {
-        await emailService.sendWelcomeEmail(user.email, user.display_name);
+    // Honor verification setting
+    const verifySetting = await Setting.findOne({ key: 'registration_email_verification_required' });
+    const isVerificationRequired = verifySetting?.value === 'true';
 
-        const welcomeTitle = await Setting.findOne({ key: 'welcome_notification_title' });
-        const welcomeContent = await Setting.findOne({ key: 'welcome_notification_content' });
-        const welcomeVideo = await Setting.findOne({ key: 'welcome_notification_video_url' });
-        const welcomeImage = await Setting.findOne({ key: 'welcome_notification_image_url' });
+    if (isVerificationRequired && !user.is_email_verified) {
+        const otp = crypto.randomInt(100000, 999999).toString();
+        user.email_verification_otp = otp;
+        user.email_verification_otp_expires = new Date(Date.now() + 10 * 60 * 1000);
+        await user.save();
+        try {
+            await emailService.sendOTP(user.email, user.display_name, 'verification', otp);
+        } catch (e) { console.error('Sync activation OTP failed', e); }
+        return { requireVerification: true };
+    } else {
+        user.is_email_verified = true;
+        await user.save();
+        try {
+            // Send welcome email only when NOT requiring verification (or if already verified)
+            await emailService.sendWelcomeEmail(user.email, user.display_name);
 
-        let finalContent = welcomeContent?.value || 'Complete your profile to get started.';
-        if (welcomeVideo?.value) {
-            finalContent += `<div class="broadcast-video"><a href="${welcomeVideo.value}" target="_blank" rel="noopener noreferrer">🎬 Watch Video</a></div>`;
+            const welcomeTitle = await Setting.findOne({ key: 'welcome_notification_title' });
+            const welcomeContent = await Setting.findOne({ key: 'welcome_notification_content' });
+            const welcomeVideo = await Setting.findOne({ key: 'welcome_notification_video_url' });
+            const welcomeImage = await Setting.findOne({ key: 'welcome_notification_image_url' });
+
+            let finalContent = welcomeContent?.value || 'Complete your profile to get started.';
+            if (welcomeVideo?.value) {
+                finalContent += `<div class="broadcast-video"><a href="${welcomeVideo.value}" target="_blank" rel="noopener noreferrer">🎬 Watch Video</a></div>`;
+            }
+
+            await Notification.create({
+                user_id: user._id,
+                type: 'welcome',
+                title: welcomeTitle?.value || 'Welcome to StartupHub! 🚀',
+                content: finalContent,
+                image_url: welcomeImage?.value || '',
+                sender_id: null,
+                reference_id: 'welcome'
+            });
+        } catch (e) {
+            console.error('Welcome actions failed during activation', e);
         }
-
-        await Notification.create({
-            user_id: user._id,
-            type: 'welcome',
-            title: welcomeTitle?.value || 'Welcome to StartupHub! 🚀',
-            content: finalContent,
-            image_url: welcomeImage?.value || '',
-            sender_id: null,
-            reference_id: 'welcome'
-        });
-    } catch (e) {
-        console.error('Welcome actions failed during sync activation', e);
+        return { requireVerification: false };
     }
 }
 
@@ -193,14 +210,23 @@ router.post('/register-init', authLimiter, validate(registerSchema), async (req,
                 const successfulPayment = items.find((p: any) => p.status === 'captured');
 
                 if (successfulPayment) {
-                    // Update user details before activation if they changed them in این form attempt
+                    // Update user details before activation if they changed them in this form attempt
                     const passwordHash = bcrypt.hashSync(password, config.bcryptRounds);
                     user.username = username.toLowerCase();
                     user.display_name = sanitizeHtml(displayName);
                     user.user_type = userType || 'startup';
                     user.password_hash = passwordHash;
 
-                    await finalizeUserActivation(user, successfulPayment.id);
+                    const result = await finalizeUserActivation(user, successfulPayment.id);
+
+                    if (result.requireVerification) {
+                        res.json({
+                            message: 'Payment verified! Please verify your email now.',
+                            requireVerification: true,
+                            userId: user._id
+                        });
+                        return;
+                    }
 
                     const { accessToken, refreshToken } = generateTokens(user._id.toString(), 'user');
                     setTokenCookies(res, accessToken, refreshToken);
@@ -239,6 +265,20 @@ router.post('/register-init', authLimiter, validate(registerSchema), async (req,
         const passwordHash = bcrypt.hashSync(password, config.bcryptRounds);
         const sanitizedName = sanitizeHtml(displayName);
 
+        const verifySetting = await Setting.findOne({ key: 'registration_email_verification_required' });
+        const isVerificationRequired = verifySetting?.value === 'true';
+
+        let emailVerified = false;
+        let verificationOtp = undefined;
+        let verificationOtpExpires = undefined;
+
+        if (isVerificationRequired) {
+            verificationOtp = crypto.randomInt(100000, 999999).toString();
+            verificationOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
+        } else {
+            emailVerified = true;
+        }
+
         if (user) {
             // Update existing pending user
             user.username = username.toLowerCase();
@@ -249,6 +289,9 @@ router.post('/register-init', authLimiter, validate(registerSchema), async (req,
             user.razorpay_order_id = orderId;
             user.payment_status = paymentRequired ? 'pending' : 'completed';
             user.is_active = !paymentRequired;
+            user.is_email_verified = emailVerified;
+            user.email_verification_otp = verificationOtp;
+            user.email_verification_otp_expires = verificationOtpExpires;
             await user.save();
         } else {
             // Create new pending user
@@ -261,17 +304,53 @@ router.post('/register-init', authLimiter, validate(registerSchema), async (req,
                 payment_status: paymentRequired ? 'pending' : 'completed',
                 razorpay_order_id: orderId,
                 is_active: !paymentRequired,
-                is_email_verified: false
+                is_email_verified: emailVerified,
+                email_verification_otp: verificationOtp,
+                email_verification_otp_expires: verificationOtpExpires
             });
         }
 
         if (!paymentRequired) {
+            if (isVerificationRequired) {
+                try {
+                    await emailService.sendOTP(user.email, user.display_name, 'verification', verificationOtp!);
+                } catch (e) { console.error('Verification OTP failed during register-init (no payment)', e); }
+
+                res.json({
+                    message: 'Registration successful. Please verify your email.',
+                    requireVerification: true,
+                    userId: user._id
+                });
+                return;
+            }
+
+            // No payment, no verification required
+            try {
+                await emailService.sendWelcomeEmail(user.email, user.display_name);
+                // Create in-app welcome notification
+                const welcomeTitle = await Setting.findOne({ key: 'welcome_notification_title' });
+                const welcomeContent = await Setting.findOne({ key: 'welcome_notification_content' });
+                const welcomeVideo = await Setting.findOne({ key: 'welcome_notification_video_url' });
+                const welcomeImage = await Setting.findOne({ key: 'welcome_notification_image_url' });
+
+                let finalContent = welcomeContent?.value || 'Complete your profile to get started.';
+                if (welcomeVideo?.value) {
+                    finalContent += `<div class="broadcast-video"><a href="${welcomeVideo.value}" target="_blank" rel="noopener noreferrer">🎬 Watch Video</a></div>`;
+                }
+
+                await Notification.create({
+                    user_id: user._id,
+                    type: 'welcome',
+                    title: welcomeTitle?.value || 'Welcome to StartupHub! 🚀',
+                    content: finalContent,
+                    image_url: welcomeImage?.value || '',
+                    sender_id: null,
+                    reference_id: 'welcome'
+                });
+            } catch (e) { console.error('Welcome actions failed during register-init (no payment)', e); }
+
             const { accessToken, refreshToken } = generateTokens(user._id.toString(), 'user');
             setTokenCookies(res, accessToken, refreshToken);
-
-            try {
-                // await emailService.sendWelcomeEmail(user.email, user.display_name);
-            } catch (e) { }
 
             res.json({
                 message: 'Registration successful',
@@ -322,61 +401,14 @@ router.post('/register-finalize', authLimiter, async (req, res) => {
             return;
         }
 
-        const validitySetting = await Setting.findOne({ key: 'membership_validity_months' });
-        const validityMonths = parseInt(validitySetting?.value || '12', 10);
-        const expiryDate = new Date();
-        expiryDate.setMonth(expiryDate.getMonth() + validityMonths);
+        const result = await finalizeUserActivation(user, payment_id);
 
-        user.payment_status = 'completed';
-        user.razorpay_payment_id = payment_id;
-        user.premium_expiry = expiryDate;
-        user.is_active = true;
-
-        const verifySetting = await Setting.findOne({ key: 'registration_email_verification_required' });
-        const isVerificationRequired = verifySetting?.value === 'true';
-
-        if (isVerificationRequired) {
-            const otp = crypto.randomInt(100000, 999999).toString();
-            user.email_verification_otp = otp;
-            user.email_verification_otp_expires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
-            await user.save();
-            try {
-                await emailService.sendOTP(user.email, user.display_name, 'verification', otp);
-            } catch (e) { console.error('Verification OTP failed', e); }
-
+        if (result.requireVerification) {
             res.status(201).json({
                 message: 'Payment successful! Verification OTP sent to email.',
                 requireVerification: true
             });
             return;
-        } else {
-            user.is_email_verified = true;
-            await user.save();
-            try {
-                // Send welcome email
-                await emailService.sendWelcomeEmail(user.email, user.display_name);
-
-                // Create in-app welcome notification using admin-configurable settings
-                const welcomeTitle = await Setting.findOne({ key: 'welcome_notification_title' });
-                const welcomeContent = await Setting.findOne({ key: 'welcome_notification_content' });
-                const welcomeVideo = await Setting.findOne({ key: 'welcome_notification_video_url' });
-                const welcomeImage = await Setting.findOne({ key: 'welcome_notification_image_url' });
-
-                let finalContent = welcomeContent?.value || 'Complete your profile to get started.';
-                if (welcomeVideo?.value) {
-                    finalContent += `<div class="broadcast-video"><a href="${welcomeVideo.value}" target="_blank" rel="noopener noreferrer">🎬 Watch Video</a></div>`;
-                }
-
-                await Notification.create({
-                    user_id: user._id,
-                    type: 'welcome',
-                    title: welcomeTitle?.value || 'Welcome to StartupHub! 🚀',
-                    content: finalContent,
-                    image_url: welcomeImage?.value || '',
-                    sender_id: null, // System notification
-                    reference_id: 'welcome'
-                });
-            } catch (e) { console.error('Welcome actions failed', e); }
         }
 
         const { accessToken, refreshToken } = generateTokens(user._id.toString(), 'user');
@@ -683,9 +715,16 @@ router.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
                         const successfulPayment = items.find((p: any) => p.status === 'captured');
 
                         if (successfulPayment) {
-                            await finalizeUserActivation(user, successfulPayment.id);
+                            const result = await finalizeUserActivation(user, successfulPayment.id);
+                            if (result.requireVerification) {
+                                res.status(403).json({
+                                    error: 'email_verification_required',
+                                    message: 'Payment verified! Please verify your email to log in.'
+                                });
+                                return;
+                            }
                             console.log(`✅ Auto-activated user ${user.email} via Razorpay sync during login`);
-                            // Activation successful, proceed to token generation below
+                            // Logic falls through to token generation below
                         } else {
                             // Sync completed but no captured payment found
                             return await rePromptPayment(res, user);
@@ -975,6 +1014,49 @@ router.post('/reset-password-otp', authLimiter, validate(resetPasswordSchema), a
         res.json({ message: 'Password has been reset successfully. Please login.' });
     } catch (err) {
         res.status(500).json({ error: 'Reset failed' });
+    }
+});
+
+// Change Password (while logged in)
+router.post('/change-password', authenticate, async (req: AuthRequest, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+
+        if (!currentPassword || !newPassword) {
+            res.status(400).json({ error: 'Current and new password required' });
+            return;
+        }
+
+        const user = await User.findById(req.user!.userId);
+        if (!user) {
+            res.status(404).json({ error: 'User not found' });
+            return;
+        }
+
+        if (!bcrypt.compareSync(currentPassword, user.password_hash)) {
+            res.status(401).json({ error: 'Incorrect current password' });
+            return;
+        }
+
+        // Use same validation as register
+        const validation = passwordSchema.safeParse(newPassword);
+        if (!validation.success) {
+            res.status(400).json({ error: validation.error.errors[0].message });
+            return;
+        }
+
+        if (currentPassword === newPassword) {
+            res.status(400).json({ error: 'New password must be different from current password' });
+            return;
+        }
+
+        user.password_hash = bcrypt.hashSync(newPassword, config.bcryptRounds);
+        await user.save();
+
+        res.json({ message: 'Password changed successfully!' });
+    } catch (err) {
+        console.error('Change password error:', err);
+        res.status(500).json({ error: 'Failed to change password' });
     }
 });
 

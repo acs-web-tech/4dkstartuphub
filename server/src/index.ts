@@ -282,6 +282,22 @@ async function start() {
             const monthEnd = new Date(todayEnd); monthEnd.setDate(monthEnd.getDate() + 30);
             await checkAndNotify(monthStart, monthEnd, 30);
 
+            // New: Handle Pending Payment Reminders (created between 24 and 48 hours ago)
+            const pendingStart = new Date(now); pendingStart.setHours(now.getHours() - 48);
+            const pendingEnd = new Date(now); pendingEnd.setHours(now.getHours() - 24);
+
+            const pendingUsers = await User.find({
+                payment_status: 'pending',
+                created_at: { $gte: pendingStart, $lte: pendingEnd }
+            });
+
+            for (const user of pendingUsers) {
+                // If they are not active and have an order ID, they are stuck in pending stage
+                if (!user.is_active && user.razorpay_order_id) {
+                    await emailService.sendPendingPaymentReminder(user.email, user.display_name);
+                }
+            }
+
         } catch (e) {
             console.error('Subscription monitor error:', e);
         }

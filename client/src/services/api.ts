@@ -101,6 +101,7 @@ export const authApi = {
     checkAvailability: (data: { username?: string; email?: string }) =>
         request<{ available: boolean }>('/auth/check-availability', { method: 'POST', body: JSON.stringify(data) }),
     me: () => request<{ user: import('../types').User }>('/auth/me'),
+    changePassword: (data: any) => request<{ message: string }>('/auth/change-password', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ── Payment ─────────────────────────────────────────────────
