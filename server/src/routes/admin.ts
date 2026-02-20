@@ -354,6 +354,37 @@ router.delete('/posts/:id', async (req: AuthRequest, res) => {
 
 
 
+// ── POST /api/admin/notifications/broadcast ─────────────────
+router.post('/notifications/broadcast', async (req: AuthRequest, res) => {
+    try {
+        const { title, content, videoUrl, referenceId, imageUrl } = req.body;
+
+        if (!title || !content) {
+            res.status(400).json({ error: 'Title and content are required' });
+            return;
+        }
+
+        // 1. Create a system notification record in DB for all active users?
+        // Actually, broadcast is mainly real-time. For persistent notifications, we'd need to loop or use a background job.
+        // For now, we follow the existing pattern: Real-time Socket + Native Push.
+
+        socketService.broadcast('broadcast', {
+            title,
+            content,
+            videoUrl,
+            referenceId,
+            imageUrl
+        });
+
+        console.log(`[AUDIT] Admin ${req.user!.userId} sent a platform-wide broadcast: ${title}`);
+        res.json({ message: 'Broadcast sent successfully to all online users and mobile devices.' });
+    } catch (err) {
+        console.error('Admin broadcast error:', err);
+        res.status(500).json({ error: 'Failed to send broadcast' });
+    }
+});
+
+
 // ── GET /api/admin/settings ─────────────────────────────────
 router.get('/settings', async (_req: AuthRequest, res) => {
     try {

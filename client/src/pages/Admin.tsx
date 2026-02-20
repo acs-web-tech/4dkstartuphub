@@ -12,7 +12,7 @@ import 'react-quill/dist/quill.snow.css';
 import { editorModules, editorFormats } from '../config/editor';
 
 export default function Admin() {
-    const [tab, setTab] = useState<'dashboard' | 'users' | 'rooms' | 'pitch' | 'settings'>('dashboard');
+    const [tab, setTab] = useState<'dashboard' | 'users' | 'rooms' | 'pitch' | 'broadcast' | 'settings'>('dashboard');
     const [stats, setStats] = useState<AdminStats | null>(null);
     const [postsByCategory, setPostsByCategory] = useState<any[]>([]);
     const [topPosters, setTopPosters] = useState<any[]>([]);
@@ -27,6 +27,11 @@ export default function Admin() {
     const [pitchFilter, setPitchFilter] = useState<'all' | 'pending' | 'approved' | 'disapproved'>('all');
     const [selectedPitch, setSelectedPitch] = useState<PitchRequest | null>(null);
     const [reviewMessage, setReviewMessage] = useState('');
+
+    // Broadcast State
+    const [broadcast, setBroadcast] = useState({ title: '', content: '', videoUrl: '', referenceId: '' });
+    const [isBroadcasting, setIsBroadcasting] = useState(false);
+    const broadcastQuillRef = useRef<ReactQuill>(null);
 
     // Chat Room Management State
     const [selectedRoom, setSelectedRoom] = useState<any | null>(null);
@@ -73,6 +78,8 @@ export default function Admin() {
             loadRooms();
         } else if (tab === 'pitch') {
             loadPitches();
+        } else if (tab === 'broadcast') {
+            setLoading(false);
         } else if (tab === 'settings') {
             loadSettings();
         }
@@ -235,6 +242,62 @@ export default function Admin() {
             setMessageType('error');
         }
     };
+
+    // Broadcast Helpers
+    const handleSendBroadcast = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            setIsBroadcasting(true);
+            await adminApi.broadcast(broadcast.title, broadcast.content, broadcast.videoUrl, broadcast.referenceId);
+            setMessage('Broadcast sent successfully!');
+            setMessageType('success');
+            setBroadcast({ title: '', content: '', videoUrl: '', referenceId: '' });
+        } catch (err: any) {
+            setMessage(err.message || 'Failed to send broadcast');
+            setMessageType('error');
+        } finally {
+            setIsBroadcasting(false);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
+    const broadcastImageHandler = () => {
+        const input = document.createElement('input');
+        input.setAttribute('type', 'file');
+        input.setAttribute('accept', 'image/*');
+        input.click();
+
+        input.onchange = async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+
+            try {
+                setIsImageUploading(true);
+                const { url } = await uploadApi.upload(file);
+                const quill = broadcastQuillRef.current?.getEditor();
+                if (quill) {
+                    const range = quill.getSelection();
+                    if (range) {
+                        quill.insertEmbed(range.index, 'image', url);
+                    }
+                }
+            } catch (err) {
+                console.error('Image upload failed:', err);
+            } finally {
+                setIsImageUploading(false);
+            }
+        };
+    };
+
+    const broadcastModules = useMemo(() => ({
+        ...editorModules,
+        toolbar: {
+            ...editorModules.toolbar,
+            handlers: {
+                image: broadcastImageHandler
+            }
+        }
+    }), []);
 
     // User management
     const loadUsers = () => {
@@ -529,6 +592,9 @@ export default function Admin() {
                 </button>
                 <button className={`admin-tab ${tab === 'pitch' ? 'active' : ''}`} onClick={() => setTab('pitch')}>
                     <Lightbulb size={16} className="inline mr-1" /> Pitch Requests
+                </button>
+                <button className={`admin-tab ${tab === 'broadcast' ? 'active' : ''}`} onClick={() => setTab('broadcast')}>
+                    <Megaphone size={16} className="inline mr-1" /> Broadcast
                 </button>
                 <button className={`admin-tab ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>
                     <CreditCard size={16} className="inline mr-1" /> Settings
@@ -893,6 +959,80 @@ export default function Admin() {
                                     </div>
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {/* Broadcast Tab */}
+                    {tab === 'broadcast' && (
+                        <div className="admin-broadcast">
+                            <div className="card p-6">
+                                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                    <Megaphone className="text-accent" /> Platform Broadcast
+                                </h2>
+                                <p className="text-gray-400 mb-6">
+                                    Send a real-time notification to <strong>all</strong> platform users via WebSockets and Push Notifications.
+                                </p>
+
+                                <form onSubmit={handleSendBroadcast}>
+                                    <div className="form-group">
+                                        <label htmlFor="broadcast-title">Title</label>
+                                        <input id="broadcast-title" type="text" className="form-input" placeholder="Notification title..."
+                                            value={broadcast.title} onChange={e => setBroadcast(prev => ({ ...prev, title: e.target.value }))} required maxLength={200} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="broadcast-content">Message</label>
+                                        <div className="rich-editor-container" style={{ minHeight: '300px' }}>
+                                            <ReactQuill
+                                                ref={broadcastQuillRef}
+                                                theme="snow"
+                                                value={broadcast.content}
+                                                onChange={val => setBroadcast(prev => ({ ...prev, content: val }))}
+                                                modules={broadcastModules}
+                                                formats={editorFormats}
+                                                className="rich-editor"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="form-group">
+                                            <label htmlFor="broadcast-video">Video URL (Optional)</label>
+                                            <input id="broadcast-video" type="url" className="form-input" placeholder="YouTube/Vimeo link..."
+                                                value={broadcast.videoUrl} onChange={e => setBroadcast(prev => ({ ...prev, videoUrl: e.target.value }))} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label htmlFor="broadcast-ref">Reference ID (Post ID, Optional)</label>
+                                            <input id="broadcast-ref" type="text" className="form-input" placeholder="Clicking will open this post..."
+                                                value={broadcast.referenceId} onChange={e => setBroadcast(prev => ({ ...prev, referenceId: e.target.value }))} />
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 flex justify-end">
+                                        <button type="submit" className="btn btn-primary" disabled={isBroadcasting || isImageUploading}>
+                                            {isBroadcasting ? 'Broadcasting...' : (
+                                                <>
+                                                    <Send size={18} className="mr-2" /> Send to All Users
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <div className="mt-8">
+                                <h3 className="text-lg font-bold mb-4">Live Preview</h3>
+                                <div className="card p-4 max-w-sm">
+                                    <div className="flex gap-4">
+                                        <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white">
+                                            <Megaphone size={18} />
+                                        </div>
+                                        <div>
+                                            <div className="font-bold">{broadcast.title || 'Notification Title'}</div>
+                                            <div className="text-sm text-gray-400 ql-editor-display" style={{ padding: 0 }}
+                                                dangerouslySetInnerHTML={{ __html: broadcast.content || 'Your message will appear here...' }} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
 
