@@ -53,7 +53,8 @@ export const startEmailWorker = () => {
 
 // LinkedIn-style HTML Template
 const getHtmlTemplate = (title: string, body: string, actionButton?: { text: string, url: string }, isWelcome?: boolean) => {
-    // 4DK Logo Placeholder
+    // Ensure all images in body are absolute
+    const absoluteBody = body.replace(/src="\/([^"]+)"/g, `src="${config.corsOrigin}/$1"`);
     const logoUrl = `${config.corsOrigin}/logo.png`;
 
     return `
@@ -72,7 +73,7 @@ const getHtmlTemplate = (title: string, body: string, actionButton?: { text: str
         body { margin: 0; padding: 0; background-color: #f3f2ef; font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Fira Sans", Ubuntu, Oxygen, "Oxygen Sans", Cantarell, "Droid Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Lucida Grande", Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
         .wrapper { width: 100%; table-layout: fixed; background-color: #f3f2ef; padding: 20px 0; }
         .container { max-width: 550px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.1); }
-        .header { background-color: #ffffff; padding: 24px 32px 16px; border-bottom: 1px solid #e5e7eb; }
+        .header { background-color: #ffffff; padding: 20px 32px; border-bottom: 1px solid #e5e7eb; text-align: left; }
         .logo-text { color: #1e293b; font-size: 20px; font-weight: 700; display: inline-block; text-decoration: none; }
         .content { padding: 32px; color: #1e293b; line-height: 1.5; font-size: 16px; }
         .button-wrapper { margin-top: 24px; margin-bottom: 24px; }
@@ -91,11 +92,12 @@ const getHtmlTemplate = (title: string, body: string, actionButton?: { text: str
     <div class="wrapper">
         <div class="container">
             <div class="header">
-                 <div style="font-weight: 900; font-size: 20px; color: #6366f1;">4DK <span style="color: #1e293b; font-weight: 600;">StartupHub</span></div>
+                 <img src="${logoUrl}" alt="4DK StartupHub" height="40" style="height: 40px; width: auto; display: block; margin-bottom: 4px;">
+                 <div style="font-weight: 900; font-size: 18px; color: #6366f1;">4DK <span style="color: #1e293b; font-weight: 600;">StartupHub</span></div>
             </div>
             <div class="content">
                 <h1>${title}</h1>
-                ${body}
+                ${absoluteBody}
                 ${actionButton ? `
                 <div class="button-wrapper">
                     <a href="${actionButton.url}" class="button">${actionButton.text}</a>

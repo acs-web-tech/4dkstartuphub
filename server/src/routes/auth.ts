@@ -513,6 +513,11 @@ router.post('/reset-password', authLimiter, async (req, res) => {
             return;
         }
 
+        if (bcrypt.compareSync(password, user.password_hash)) {
+            res.status(400).json({ error: 'New password cannot be the same as your old password.' });
+            return;
+        }
+
         user.password_hash = bcrypt.hashSync(password, config.bcryptRounds);
         user.reset_password_token = undefined;
         user.reset_password_expires = undefined;
@@ -762,6 +767,11 @@ router.post('/reset-password-otp', authLimiter, async (req, res) => {
 
         if (!user) {
             res.status(400).json({ error: 'Invalid or expired OTP' });
+            return;
+        }
+
+        if (bcrypt.compareSync(password, user.password_hash)) {
+            res.status(400).json({ error: 'New password cannot be the same as your old password.' });
             return;
         }
 
