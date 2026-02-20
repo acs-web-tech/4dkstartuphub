@@ -15,6 +15,7 @@ import Setting from '../models/Setting';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 import { escapeRegExp } from '../utils/regex';
+import { config } from '../config/env';
 
 const router = Router();
 
