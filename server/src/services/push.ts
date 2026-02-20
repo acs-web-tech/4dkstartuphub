@@ -53,6 +53,14 @@ class PushNotificationService {
                     notification: {
                         title: data.title,
                         body: data.body,
+                        ...(data.icon ? { imageUrl: data.icon } : {})
+                    },
+                    android: {
+                        priority: 'high',
+                        notification: {
+                            sound: 'default',
+                            ...(data.icon ? { image: data.icon } : {})
+                        }
                     },
                     data: {
                         url: data.url || '/',
@@ -140,37 +148,50 @@ class PushNotificationService {
                         'invalid-payload',
                     ];
                     const batchSize = 500;
+
+                    // Build the FCM message payload defensively
+                    const fcmPayload: any = {
+                        notification: {
+                            title: String(data.title).substring(0, 100), // Safety truncation
+                            body: String(data.body).substring(0, 500),   // Safety truncation
+                        },
+                        data: {
+                            url: String(data.url || '/'),
+                            type: 'broadcast',
+                        },
+                        android: {
+                            priority: 'high' as const,
+                            notification: {
+                                sound: 'default',
+                            }
+                        }
+                    };
+
+                    // Only add image fields if a valid image URL is provided
+                    if (data.image && typeof data.image === 'string' && data.image.startsWith('http')) {
+                        fcmPayload.notification.imageUrl = data.image; // Correct for top-level
+                        fcmPayload.android.notification.image = data.image; // Correct for android.notification
+                        fcmPayload.apns = {
+                            payload: {
+                                aps: {
+                                    'mutable-content': 1
+                                }
+                            },
+                            fcmOptions: {
+                                imageUrl: data.image // Correct for APNs
+                            }
+                        };
+                        fcmPayload.data.image = data.image;
+                    }
+
+                    console.log('📦 FCM Broadcast payload:', JSON.stringify(fcmPayload, null, 2));
+
                     for (let i = 0; i < uniqueTokens.length; i += batchSize) {
                         const batch = uniqueTokens.slice(i, i + batchSize);
                         try {
                             console.log(`🚀 Sending batch ${Math.floor(i / batchSize) + 1} (${batch.length} tokens)...`);
                             const response = await messaging.sendEachForMulticast({
-                                notification: {
-                                    title: data.title,
-                                    body: data.body,
-                                    ...(data.image ? { imageUrl: data.image } : {})
-                                },
-                                android: {
-                                    priority: 'high',
-                                    notification: {
-                                        defaultSound: true,
-                                        notificationCount: 1,
-                                        ...(data.image ? { imageUrl: data.image } : {})
-                                    }
-                                },
-                                apns: {
-                                    payload: {
-                                        aps: {
-                                            'mutable-content': 1
-                                        }
-                                    },
-                                    ...(data.image ? { fcmOptions: { imageUrl: data.image } } : {})
-                                },
-                                data: {
-                                    url: data.url || '/',
-                                    type: 'broadcast',
-                                    ...(data.image ? { image: data.image } : {})
-                                },
+                                ...fcmPayload,
                                 tokens: batch
                             });
                             console.log(`✅ Batch sent: ${response.successCount} success, ${response.failureCount} failed.`);
@@ -180,7 +201,8 @@ class PushNotificationService {
                                 response.responses.forEach((r, idx) => {
                                     if (!r.success) {
                                         const code = r.error?.code || '';
-                                        console.warn(`⚠️ Broadcast token failed [${code}]: ${batch[idx]?.substring(0, 20)}...`);
+                                        const errMsg = r.error?.message || 'unknown';
+                                        console.warn(`⚠️ Broadcast token failed [${code}]: ${batch[idx]?.substring(0, 20)}... | Error: ${errMsg}`);
                                         if (PERMANENT_ERRORS.some(e => code.includes(e))) {
                                             staleTokens.push(batch[idx]);
                                         }
