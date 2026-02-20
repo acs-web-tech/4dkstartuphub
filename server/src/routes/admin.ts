@@ -407,10 +407,32 @@ router.post('/notifications/broadcast', async (req: AuthRequest, res) => {
             is_pinned: true, // Announcements are pinned by default?
         });
 
-        // Populate author info for the socket event
-        const populatedPost = await Post.findById(announcementPost._id).populate('user_id', 'username display_name avatar_url role user_type');
-        if (populatedPost) {
-            socketService.broadcast('newPost', populatedPost.toJSON());
+        // Broadcast the announcement in real-time
+        const user = await User.findById(req.user!.userId);
+        if (user) {
+            socketService.broadcast('newPost', {
+                id: announcementPost._id.toString(),
+                userId: user._id.toString(),
+                title: announcementPost.title,
+                content: announcementPost.content,
+                category: announcementPost.category,
+                imageUrl: announcementPost.image_url,
+                videoUrl: announcementPost.video_url,
+                isPinned: announcementPost.is_pinned,
+                isLocked: announcementPost.is_locked,
+                viewCount: 0,
+                likeCount: 0,
+                commentCount: 0,
+                username: user.username,
+                displayName: user.display_name,
+                avatarUrl: user.avatar_url,
+                role: user.role || 'user',
+                userType: user.user_type || '',
+                userBio: user.bio || '',
+                userPostCount: user.post_count || 0,
+                createdAt: announcementPost.created_at,
+                updatedAt: announcementPost.updated_at,
+            });
         }
 
         // 2. Persist broadcast notifications for ALL active users
