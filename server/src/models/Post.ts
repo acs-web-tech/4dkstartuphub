@@ -4,7 +4,7 @@ export interface IPost extends Document {
     user_id: mongoose.Types.ObjectId;
     title: string;
     content: string;
-    category: 'hiring' | 'cofounder' | 'promote' | 'recommendation' | 'events' | 'general' | 'writeup';
+    category: 'hiring' | 'cofounder' | 'promote' | 'recommendation' | 'events' | 'general' | 'writeup' | 'announcements';
     image_url: string;
     video_url: string;
     event_date?: Date;
@@ -23,7 +23,7 @@ const PostSchema: Schema = new Schema({
     category: {
         type: String,
         required: true,
-        enum: ['hiring', 'cofounder', 'promote', 'recommendation', 'events', 'general', 'writeup']
+        enum: ['hiring', 'cofounder', 'promote', 'recommendation', 'events', 'general', 'writeup', 'announcements']
     },
     image_url: { type: String, default: '' },
     video_url: { type: String, default: '' },

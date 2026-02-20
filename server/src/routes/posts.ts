@@ -17,6 +17,7 @@ import mongoose from 'mongoose';
 import { escapeRegExp } from '../utils/regex';
 import { getLinkPreview } from '../services/metadata';
 import { emailService } from '../services/email';
+import { deleteFileByUrl } from '../utils/s3';
 
 const router = Router();
 
@@ -97,6 +98,7 @@ router.get('/', authenticate, async (req, res) => {
                     username: { $ifNull: ['$user.username', 'deleted'] },
                     displayName: { $ifNull: ['$user.display_name', 'Deleted User'] },
                     avatarUrl: { $ifNull: ['$user.avatar_url', ''] },
+                    role: { $ifNull: ['$user.role', 'user'] },
                     eventDate: '$event_date',
                     userType: { $ifNull: ['$user.user_type', ''] },
                     userPostCount: { $ifNull: ['$user.post_count', 0] },
@@ -132,7 +134,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
             return res.status(400).json({ error: 'Invalid post ID' });
         }
 
-        const post = await Post.findById(id).populate('user_id', 'username display_name avatar_url bio');
+        const post = await Post.findById(id).populate('user_id', 'username display_name avatar_url bio role');
 
         if (!post) {
             res.status(404).json({ error: 'Post not found' });
@@ -196,6 +198,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
                 username: (author as any)?.username || 'deleted',
                 displayName: (author as any)?.display_name || 'Deleted User',
                 avatarUrl: (author as any)?.avatar_url || '',
+                role: (author as any)?.role || 'user',
                 userBio: (author as any)?.bio,
                 eventDate: post.event_date,
                 userType: (author as any)?.user_type || '',
@@ -295,6 +298,7 @@ router.post('/', authenticate, validate(createPostSchema), async (req: AuthReque
                 username: user.username,
                 displayName: user.display_name,
                 avatarUrl: user.avatar_url,
+                role: user.role || 'user',
                 eventDate: newPost.event_date,
                 userType: user.user_type || '',
                 userPostCount: user.post_count + 1,
@@ -356,7 +360,7 @@ router.put('/:id', authenticate, validate(updatePostSchema), async (req: AuthReq
         await post.save();
 
         // Broadcast post update
-        const updatedPost = await Post.findById(id).populate('user_id', 'username display_name avatar_url');
+        const updatedPost = await Post.findById(id).populate('user_id', 'username display_name avatar_url role');
         if (updatedPost) {
             const author = updatedPost.user_id as any;
             const likeCount = await Like.countDocuments({ post_id: updatedPost._id });
@@ -378,6 +382,7 @@ router.put('/:id', authenticate, validate(updatePostSchema), async (req: AuthReq
                 username: author.username,
                 displayName: author.display_name,
                 avatarUrl: author.avatar_url,
+                role: author.role || 'user',
                 eventDate: updatedPost.event_date,
                 createdAt: updatedPost.created_at,
                 updatedAt: updatedPost.updated_at,
@@ -409,13 +414,17 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
         }
 
         await Post.deleteOne({ _id: id });
-        // Also cleanup related data
         await Promise.all([
             Like.deleteMany({ post_id: id }),
             Comment.deleteMany({ post_id: id }),
             Bookmark.deleteMany({ post_id: id }),
             PostView.deleteMany({ post_id: id })
         ]);
+
+        // Delete image from S3 if exists
+        if (post.image_url) {
+            await deleteFileByUrl(post.image_url);
+        }
 
         // Decrement user post count
         await User.findByIdAndUpdate(post.user_id, { $inc: { post_count: -1 } });

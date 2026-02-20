@@ -76,7 +76,7 @@ function getHtmlTemplate(title: string, bodyContent: string, actionButton?: { te
             </div>
             <p style="font-weight: 600; margin-bottom: 8px;">StartupHub &bull; India's Premier Startup Corridor</p>
             <p style="line-height: 1.5; font-size: 12px; opacity: 0.8;">
-                &copy; ${new Date().getFullYear()} 4DK Ventures. All rights reserved.<br>
+                &copy; ${new Date().getFullYear()} 4DK Software Solutions. All rights reserved.<br>
                 You are receiving this email because you are part of our exclusive community.
             </p>
         </div>

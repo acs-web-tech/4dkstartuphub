@@ -65,7 +65,7 @@ export default function Privacy() {
             </div>
 
             <div style={{ textAlign: 'center', marginTop: '40px', color: 'var(--text-secondary)', fontSize: '14px' }}>
-                &copy; 2026 4DK Ventures. All rights reserved.
+                &copy; 2026 4DK Software Solutions. All rights reserved.
             </div>
         </div>
     );

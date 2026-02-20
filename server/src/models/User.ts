@@ -14,7 +14,7 @@ export interface IUser extends Document {
     website: string;
     linkedin: string;
     twitter: string;
-    user_type: 'startup' | 'investor';
+    user_type: 'startup' | 'investor' | 'freelancer';
     payment_status: string;
     razorpay_payment_id: string;
     razorpay_order_id: string;
@@ -58,7 +58,7 @@ const UserSchema: Schema = new Schema({
     website: { type: String, default: '' },
     linkedin: { type: String, default: '' },
     twitter: { type: String, default: '' },
-    user_type: { type: String, enum: ['startup', 'investor'] },
+    user_type: { type: String, enum: ['startup', 'investor', 'freelancer'] },
     payment_status: { type: String, default: 'pending' },
     razorpay_payment_id: { type: String, default: '' },
     razorpay_order_id: { type: String, default: '' },

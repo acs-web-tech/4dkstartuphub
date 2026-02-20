@@ -172,7 +172,27 @@ export default function Profile() {
                     <div className="profile-info">
                         <h2>{user.displayName}</h2>
                         <span className="profile-username">@{user.username}</span>
-                        <span className={`role-badge role-${user.role}`}>{user.role}</span>
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                            <span className={`role-badge role-${user.role}`}>{user.role}</span>
+                            {user.userType && (
+                                <span className={`role-badge role-${user.userType}`} style={{
+                                    background: user.userType === 'investor' ? 'rgba(96, 165, 250, 0.1)' :
+                                        user.userType === 'startup' ? 'rgba(74, 222, 128, 0.1)' :
+                                            'rgba(167, 139, 250, 0.1)',
+                                    color: user.userType === 'investor' ? '#60a5fa' :
+                                        user.userType === 'startup' ? '#4ade80' :
+                                            '#a78bfa',
+                                    padding: '4px 10px',
+                                    borderRadius: '20px',
+                                    fontSize: '12px',
+                                    fontWeight: '600'
+                                }}>
+                                    {user.userType === 'startup' ? '🚀 Startup' :
+                                        user.userType === 'investor' ? '💰 Investor' :
+                                            user.userType === 'freelancer' ? '🛠 Freelancer' : user.userType}
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <button className="btn btn-ghost" onClick={() => setEditing(!editing)} id="edit-profile-btn">
                         {editing ? 'Cancel' : <><Pencil size={16} /> Edit Profile</>}

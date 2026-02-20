@@ -249,6 +249,7 @@ router.get('/me/bookmarks', authenticate, async (req: AuthRequest, res) => {
                     displayName: '$author.display_name',
                     username: '$author.username',
                     avatarUrl: '$author.avatar_url',
+                    role: '$author.role',
                     likeCount: { $size: '$likes' },
                     commentCount: { $size: '$comments' },
                     createdAt: '$post.created_at'

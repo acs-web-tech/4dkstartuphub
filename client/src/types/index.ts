@@ -11,7 +11,7 @@ export interface User {
     website: string;
     linkedin: string;
     twitter: string;
-    userType?: 'startup' | 'investor';
+    userType?: 'startup' | 'investor' | 'freelancer';
     paymentStatus?: 'free' | 'completed' | 'pending' | 'expired';
     paymentId?: string;
     orderId?: string;
@@ -37,15 +37,16 @@ export interface Post {
     displayName: string;
     avatarUrl: string;
     userBio?: string;
-    userType?: 'startup' | 'investor';
+    userType?: 'startup' | 'investor' | 'freelancer';
     userPostCount?: number;
     userIsOnline?: boolean;
+    role?: 'user' | 'admin' | 'moderator';
     linkPreview?: any;
     createdAt: string;
     updatedAt: string;
 }
 
-export type PostCategory = 'hiring' | 'cofounder' | 'promote' | 'recommendation' | 'events' | 'general' | 'writeup';
+export type PostCategory = 'hiring' | 'cofounder' | 'promote' | 'recommendation' | 'events' | 'general' | 'writeup' | 'announcements';
 
 export interface Comment {
     id: string;

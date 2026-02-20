@@ -128,7 +128,11 @@ export default function Members() {
                                             </h3>
                                         </div>
                                         <div className="member-row-meta">
-                                            <span className="member-row-role">Member</span>
+                                            <span className="member-row-role">
+                                                {user.userType === 'startup' ? '🚀 Startup' :
+                                                    user.userType === 'investor' ? '💰 Investor' :
+                                                        user.userType === 'freelancer' ? '🛠 Freelancer' : 'Member'}
+                                            </span>
                                         </div>
                                     </div>
 

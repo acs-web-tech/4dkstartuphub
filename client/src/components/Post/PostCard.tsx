@@ -99,6 +99,12 @@ function PostCard({ post, onImageClick }: Props) {
                                     💰 Investor
                                 </span>
                             )}
+                            {/* Freelancer Badge */}
+                            {post.userType === 'freelancer' && (
+                                <span className="freelancer-badge">
+                                    🛠 Freelancer
+                                </span>
+                            )}
                             {/* Regular Poster Badge */}
                             {(post.userPostCount || 0) > 5 && post.userType !== 'investor' && (
                                 <span className="regular-badge">

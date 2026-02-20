@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { PostCategory } from '../../types';
 import { CATEGORY_CONFIG } from '../../config';
 import {
-    Plus, Newspaper, Hash, Users, Globe, MessageCircle, Bookmark, Settings, Search, Lightbulb, X, Rocket, ArrowRight, Wifi
+    Plus, Newspaper, Hash, Users, Globe, MessageCircle, Bookmark, Settings, Search, Lightbulb, X, Rocket, ArrowRight, Wifi, Megaphone
 } from 'lucide-react';
 
 interface Props {
@@ -93,6 +93,10 @@ export default function Sidebar({ isOpen, onClose }: Props) {
                 <NavLink to="/chatrooms" className="sidebar-link" id="nav-chatrooms" onClick={onClose}>
                     <span className="sidebar-icon"><MessageCircle size={18} /></span>
                     <span className="sidebar-label">Chat Rooms</span>
+                </NavLink>
+                <NavLink to="/feed?category=announcements" className="sidebar-link" id="nav-announcements" onClick={onClose}>
+                    <span className="sidebar-icon"><Megaphone size={18} /></span>
+                    <span className="sidebar-label">Announcements</span>
                 </NavLink>
                 <NavLink to="/pitch-requests" className="sidebar-link" id="nav-pitch" onClick={onClose}>
                     <span className="sidebar-icon"><Lightbulb size={18} /></span>

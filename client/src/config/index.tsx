@@ -10,4 +10,5 @@ export const CATEGORY_CONFIG: Record<PostCategory, { label: string; icon: Lucide
     events: { label: 'Meetups & Happenings', icon: Calendar, color: '#a78bfa' },
     general: { label: 'Open Discussion', icon: MessageSquare, color: '#94a3b8' },
     writeup: { label: 'Insights & Stories', icon: FileText, color: '#fb923c' },
+    announcements: { label: 'Announcements', icon: Megaphone, color: '#f87171' },
 };

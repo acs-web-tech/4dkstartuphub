@@ -3,7 +3,8 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { s3Client as s3 } from '../utils/s3';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { config } from '../config/env';
 import NodeCache from 'node-cache';
@@ -31,15 +32,6 @@ const upload = multer({
             cb(new Error('Invalid file type. Allowed: Images, PDF, DOC, DOCX, PPT, PPTX'));
         }
     }
-});
-
-// Initialize S3 Client
-const s3 = new S3Client({
-    region: config.aws.region,
-    credentials: {
-        accessKeyId: config.aws.accessKeyId,
-        secretAccessKey: config.aws.secretAccessKey,
-    },
 });
 
 // Proxy download route for private S3 files

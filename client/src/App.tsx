@@ -70,7 +70,7 @@ export default function App() {
                             <Route path="/bookmarks" element={
                                 <ProtectedRoute><Bookmarks /></ProtectedRoute>
                             } />
-                            <Route path="/chatrooms" element={
+                            <Route path="/chatrooms/:roomId?" element={
                                 <ProtectedRoute><ChatRooms /></ProtectedRoute>
                             } />
                             <Route path="/pitch-requests" element={

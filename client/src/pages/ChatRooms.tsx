@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { chatApi } from '../services/api';
@@ -11,8 +11,10 @@ import LinkPreview from '../components/Common/LinkPreview';
 export default function ChatRooms() {
     const { user } = useAuth();
     const { socket, status } = useSocket();
+    const { roomId } = useParams<{ roomId: string }>();
+    const navigate = useNavigate();
+
     const [rooms, setRooms] = useState<ChatRoom[]>([]);
-    const [activeRoom, setActiveRoom] = useState<string | null>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [members, setMembers] = useState<any[]>([]);
     const [roomInfo, setRoomInfo] = useState<any>(null);
@@ -36,14 +38,14 @@ export default function ChatRooms() {
     // Track rooms the user has been kicked from to prevent UI glitches
     const [kickedRooms, setKickedRooms] = useState<Set<string>>(new Set());
 
-    // User Actions Modal State
+    // User Actions Modal State (mainly for admin actions)
     const [userActionsTarget, setUserActionsTarget] = useState<{ userId: string; displayName: string; avatarUrl: string } | null>(null);
 
     const handleDeleteMessage = async (messageId: string) => {
-        if (!activeRoom) return;
+        if (!roomId) return;
         if (!window.confirm('Delete this message?')) return;
         try {
-            await chatApi.deleteMessage(activeRoom, messageId);
+            await chatApi.deleteMessage(roomId, messageId);
             setMessages(prev => prev.filter(m => m.id !== messageId));
         } catch (err) {
             console.error('Failed to delete message:', err);
@@ -51,26 +53,34 @@ export default function ChatRooms() {
     };
 
     const handleDeleteAllUserMessages = async () => {
-        if (!activeRoom || !userActionsTarget) return;
+        if (!roomId || !userActionsTarget) return;
         if (!window.confirm(`Delete ALL messages from ${userActionsTarget.displayName}? This cannot be undone.`)) return;
         try {
-            await chatApi.deleteUserMessages(activeRoom, userActionsTarget.userId);
+            await chatApi.deleteUserMessages(roomId, userActionsTarget.userId);
             setUserActionsTarget(null);
         } catch (err) {
             console.error('Failed to delete user messages:', err);
         }
     };
 
-    useEffect(() => {
-        chatApi.getRooms()
-            .then(d => setRooms(d.rooms))
-            .catch(() => { })
-            .finally(() => setLoading(false));
+    const loadRooms = useCallback(async () => {
+        try {
+            const d = await chatApi.getRooms();
+            setRooms(d.rooms);
+        } catch (err) {
+            console.error('Failed to load rooms:', err);
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
-    const loadMessages = useCallback(async (roomId: string) => {
+    useEffect(() => {
+        loadRooms();
+    }, [loadRooms]);
+
+    const loadMessages = useCallback(async (rId: string) => {
         try {
-            const data = await chatApi.getMessages(roomId);
+            const data = await chatApi.getMessages(rId);
             setMessages(data.messages);
             setMembers(data.members);
             setRoomInfo(data.room);
@@ -79,61 +89,70 @@ export default function ChatRooms() {
         } catch (err: any) {
             // Attempt auto-join for open rooms on 403
             if (err.message?.includes('403')) {
-                const room = rooms.find(r => r.id === roomId);
+                const room = rooms.find(r => r.id === rId);
                 if (room && (room.accessType === 'open' || isAdmin)) {
                     try {
-                        await chatApi.joinRoom(roomId);
-                        const data = await chatApi.getMessages(roomId);
+                        await chatApi.joinRoom(rId);
+                        // Force socket to join room after DB join
+                        if (socket) socket.emit('joinChat', rId);
+                        const data = await chatApi.getMessages(rId);
                         setMessages(data.messages);
                         setMembers(data.members);
                         setRoomInfo(data.room);
-                        setRooms(prev => prev.map(r => r.id === roomId ? { ...r, isJoined: true, memberCount: r.memberCount + 1 } : r));
-                        return;
-                    } catch { }
+                        setRooms(prev => prev.map(r => r.id === rId ? { ...r, isJoined: true, memberCount: r.memberCount + 1 } : r));
+                        return; // Successfully joined and loaded
+                    } catch (joinErr) {
+                        console.error('Auto-join failed:', joinErr);
+                    }
                 }
             }
             setError(err.message || 'Failed to load messages');
         }
-    }, [rooms, isAdmin]);
+    }, [rooms, isAdmin, socket]);
 
-    const handleSelectRoom = async (room: ChatRoom) => {
-        // Block if user was kicked from this room
+    // Handle room selection and synchronization with roomId param
+    useEffect(() => {
+        if (roomId) {
+            const roomInList = rooms.find(r => r.id === roomId);
+            if (roomInList) {
+                // If the room is not joined and not open/admin, redirect away
+                if (!roomInList.isJoined && roomInList.accessType !== 'open' && !isAdmin) {
+                    navigate('/chatrooms');
+                    return;
+                }
+                loadMessages(roomId);
+            } else if (rooms.length > 0) {
+                // If we have rooms but current roomId isn't there, it might be an admin-opened room not in active list
+                // or just a stale id. We attempt to load it anyway as it might just be missing from the summary list.
+                loadMessages(roomId);
+            }
+        } else {
+            setRoomInfo(null);
+            setMessages([]);
+        }
+    }, [roomId, rooms, isAdmin, navigate, loadMessages]);
+
+    const handleSelectRoom = (room: ChatRoom) => {
         if (kickedRooms.has(room.id)) {
             setError('You have been kicked from this room. Only an admin can add you back.');
             setTimeout(() => setError(null), 4000);
             return;
         }
-        if (!room.isJoined) {
-            if (room.accessType === 'open' || isAdmin) {
-                try {
-                    await chatApi.joinRoom(room.id);
-                    setRooms(prev => prev.map(r => r.id === room.id ? { ...r, isJoined: true, memberCount: r.memberCount + 1 } : r));
-                } catch (err: any) {
-                    const msg = err?.message || '';
-                    if (msg.includes('kicked')) {
-                        setKickedRooms(prev => new Set(prev).add(room.id));
-                        setError('You have been kicked from this room. Only an admin can add you back.');
-                        setTimeout(() => setError(null), 4000);
-                    }
-                    return; // Don't open if join failed
-                }
-            } else {
-                return; // Cannot open invite-only if not joined
-            }
+
+        if (room.id !== roomId) {
+            navigate(`/chatrooms/${room.id}`);
         }
-        setActiveRoom(room.id);
-        setError(null);
-        await loadMessages(room.id);
     };
 
+    // Socket Events Effect
     useEffect(() => {
-        if (!socket || !activeRoom) return;
+        if (!socket || !roomId || status !== 'connected') return;
 
-        // Join the room
-        socket.emit('joinChat', activeRoom);
+        // Join the room via socket
+        socket.emit('joinChat', roomId);
 
-        const handleNewMessage = ({ roomId, message }: { roomId: string, message: ChatMessage }) => {
-            if (roomId === activeRoom) {
+        const handleNewMessage = ({ roomId: msgRoomId, message }: { roomId: string, message: ChatMessage }) => {
+            if (msgRoomId === roomId) {
                 setMessages(prev => {
                     if (prev.find(m => m.id === message.id)) return prev;
                     return [...prev, message];
@@ -142,21 +161,19 @@ export default function ChatRooms() {
             }
         };
 
-        const handleChatError = ({ roomId, error: errText }: { roomId: string, error: string }) => {
-            if (roomId === activeRoom) {
+        const handleChatError = ({ roomId: errRoomId, error: errText }: { roomId: string, error: string }) => {
+            if (errRoomId === roomId) {
                 setError(errText);
-                // If it's a kick-related error, force exit the room
                 if (errText.toLowerCase().includes('kicked') || errText.toLowerCase().includes('no longer a member')) {
-                    // Immediately leave the socket room
-                    socket.emit('leaveChat', roomId);
-                    setIsMuted(true); // Disable input immediately
-                    setKickedRooms(prev => new Set(prev).add(roomId));
+                    socket.emit('leaveChat', errRoomId);
+                    setIsMuted(true);
+                    setKickedRooms(prev => new Set(prev).add(errRoomId));
                     setTimeout(() => {
-                        setActiveRoom(null);
+                        navigate('/chatrooms');
                         setRoomInfo(null);
                         setMessages([]);
-                        setRooms(prev => prev.map(r => r.id === roomId ? { ...r, isJoined: false, memberCount: Math.max(0, r.memberCount - 1) } : r));
-                    }, 2000); // Show error for 2 seconds before clearing
+                        setRooms(prev => prev.map(r => r.id === errRoomId ? { ...r, isJoined: false, memberCount: Math.max(0, r.memberCount - 1) } : r));
+                    }, 2000);
                 } else {
                     setTimeout(() => setError(null), 5000);
                 }
@@ -165,90 +182,81 @@ export default function ChatRooms() {
 
         socket.on('newChatMessage', handleNewMessage);
         socket.on('chatError', handleChatError);
-        socket.on('messageDeleted', ({ roomId, messageId }: { roomId: string, messageId: string }) => {
-            if (activeRoom === roomId) {
+
+        socket.on('messageDeleted', ({ roomId: delRoomId, messageId }: { roomId: string, messageId: string }) => {
+            if (delRoomId === roomId) {
                 setMessages(prev => prev.filter(m => m.id !== messageId));
             }
         });
-        socket.on('userMessagesDeleted', ({ roomId, userId }: { roomId: string, userId: string }) => {
-            if (activeRoom === roomId) {
+
+        socket.on('userMessagesDeleted', ({ roomId: delRoomId, userId }: { roomId: string, userId: string }) => {
+            if (delRoomId === roomId) {
                 setMessages(prev => prev.filter(m => m.userId !== userId));
             }
         });
 
-        socket.on('memberKicked', ({ roomId }: { roomId: string }) => {
-            // ── FRONTEND LEVEL: Immediate forced eviction ──
-            // Step 1: Force-leave the socket room to stop receiving messages
-            socket.emit('leaveChat', roomId);
-
-            // Step 2: Track this room as kicked to prevent re-selection glitch
-            setKickedRooms(prev => new Set(prev).add(roomId));
-
-            if (roomId === activeRoom) {
-                // Step 3: Disable input immediately
+        socket.on('memberKicked', ({ roomId: kickedRoomId }: { roomId: string }) => {
+            socket.emit('leaveChat', kickedRoomId);
+            setKickedRooms(prev => new Set(prev).add(kickedRoomId));
+            if (kickedRoomId === roomId) {
                 setIsMuted(true);
                 setError('You have been kicked from this room by an admin.');
-
-                // Step 4: Clear room state after brief delay for user to see the message
                 setTimeout(() => {
-                    setActiveRoom(null);
-                    setRoomInfo(null);
-                    setMessages([]);
-                    setMembers([]);
+                    navigate('/chatrooms');
                 }, 2000);
             }
-
-            // Step 5: Update room list
-            setRooms(prev => prev.map(r => r.id === roomId ? { ...r, isJoined: false, memberCount: Math.max(0, r.memberCount - 1) } : r));
+            setRooms(prev => prev.map(r => r.id === kickedRoomId ? { ...r, isJoined: false, memberCount: Math.max(0, r.memberCount - 1) } : r));
         });
 
-        socket.on('roomAccessChanged', ({ roomId, accessType }: { roomId: string, accessType: 'open' | 'invite' }) => {
-            setRooms(prev => prev.map(r => r.id === roomId ? { ...r, accessType } : r));
+        socket.on('roomAccessChanged', ({ roomId: changeRoomId, accessType }: { roomId: string, accessType: 'open' | 'invite' }) => {
+            setRooms(prev => prev.map(r => r.id === changeRoomId ? { ...r, accessType } : r));
         });
 
-        socket.on('memberListUpdated', ({ roomId }: { roomId: string }) => {
-            if (roomId === activeRoom) {
+        socket.on('memberListUpdated', ({ roomId: updateRoomId }: { roomId: string }) => {
+            if (updateRoomId === roomId) {
                 loadMessages(roomId);
             }
         });
 
         return () => {
-            socket.emit('leaveChat', activeRoom);
+            socket.emit('leaveChat', roomId);
             socket.off('newChatMessage', handleNewMessage);
             socket.off('chatError', handleChatError);
+            socket.off('messageDeleted');
+            socket.off('userMessagesDeleted');
             socket.off('memberKicked');
             socket.off('roomAccessChanged');
             socket.off('memberListUpdated');
         };
-    }, [socket, activeRoom, status === 'connected']);
+    }, [socket, roomId, status, navigate, loadMessages]);
 
     const handleJoin = async (room: ChatRoom) => {
         try {
             await chatApi.joinRoom(room.id);
-            const joinedRoom = { ...room, isJoined: true, memberCount: room.memberCount + 1 };
-            setRooms(prev => prev.map(r => r.id === room.id ? joinedRoom : r));
-            await handleSelectRoom(joinedRoom);
-        } catch { }
+            setRooms(prev => prev.map(r => r.id === room.id ? { ...r, isJoined: true, memberCount: r.memberCount + 1 } : r));
+            navigate(`/chatrooms/${room.id}`);
+        } catch (err) {
+            console.error('Join failed:', err);
+        }
     };
 
-    const handleLeave = async (roomId: string) => {
+    const handleLeave = async (rId: string) => {
         try {
-            await chatApi.leaveRoom(roomId);
-            setRooms(prev => prev.map(r => r.id === roomId ? { ...r, isJoined: false, memberCount: r.memberCount - 1 } : r));
-            if (activeRoom === roomId) {
-                if (socket) socket.emit('leaveChat', roomId);
-                setActiveRoom(null);
-                setMessages([]);
+            await chatApi.leaveRoom(rId);
+            setRooms(prev => prev.map(r => r.id === rId ? { ...r, isJoined: false, memberCount: Math.max(0, r.memberCount - 1) } : r));
+            if (rId === roomId) {
+                navigate('/chatrooms');
             }
-        } catch { }
+        } catch (err) {
+            console.error('Leave failed:', err);
+        }
     };
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!activeRoom || !newMessage.trim() || !socket) return;
+        if (!roomId || !newMessage.trim() || !socket) return;
 
-        // Final guard: don't send if kicked
-        if (kickedRooms.has(activeRoom)) {
+        if (kickedRooms.has(roomId)) {
             setError('You have been kicked from this room.');
             setIsMuted(true);
             return;
@@ -257,7 +265,7 @@ export default function ChatRooms() {
         setSending(true);
         setError(null);
         try {
-            socket.emit('sendChatMessage', { roomId: activeRoom, content: newMessage.trim() });
+            socket.emit('sendChatMessage', { roomId, content: newMessage.trim() });
             setNewMessage('');
             setShowMentionDropdown(false);
         } catch (err: any) {
@@ -275,26 +283,28 @@ export default function ChatRooms() {
                 description: newRoom.description.trim(),
                 accessType: newRoom.accessType
             });
-            const data = await chatApi.getRooms();
-            setRooms(data.rooms);
+            loadRooms();
             setNewRoom({ name: '', description: '', accessType: 'open' });
             setShowCreateForm(false);
-        } catch { }
+        } catch (err) {
+            console.error('Create room failed:', err);
+        }
     };
 
-    const handleDeleteRoom = async (roomId: string) => {
+    const handleDeleteRoom = async (rId: string) => {
         if (!confirm('Are you sure you want to delete this chat room?')) return;
         try {
-            await chatApi.deleteRoom(roomId);
-            setRooms(prev => prev.filter(r => r.id !== roomId));
-            if (activeRoom === roomId) {
-                setActiveRoom(null);
-                setMessages([]);
+            await chatApi.deleteRoom(rId);
+            setRooms(prev => prev.filter(r => r.id !== rId));
+            if (roomId === rId) {
+                navigate('/chatrooms');
             }
-        } catch { }
+        } catch (err) {
+            console.error('Delete room failed:', err);
+        }
     };
 
-    const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    const getInitials = (name: string) => name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '??';
 
     // @mention helpers
     const filteredMentionMembers = members.filter(m =>
@@ -303,7 +313,7 @@ export default function ChatRooms() {
             m.displayName.toLowerCase().includes(mentionQuery.toLowerCase()))
     ).slice(0, 8);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const val = e.target.value;
         setNewMessage(val);
 
@@ -341,7 +351,13 @@ export default function ChatRooms() {
         }, 0);
     };
 
-    const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey && !showMentionDropdown) {
+            e.preventDefault();
+            handleSend(e as any);
+            return;
+        }
+
         if (!showMentionDropdown || filteredMentionMembers.length === 0) return;
 
         if (e.key === 'ArrowDown') {
@@ -358,13 +374,11 @@ export default function ChatRooms() {
         }
     };
 
-    // Extract first URL from a message for link preview
     const extractFirstUrl = (text: string): string | null => {
         const match = text.match(/https?:\/\/[^\s]+/);
         return match ? match[0] : null;
     };
 
-    // Render message content with highlighted @mentions
     const renderMessageContent = (content: string) => {
         const parts = content.split(/(@[a-zA-Z0-9_]+)/g);
         return parts.map((part, i) => {
@@ -381,7 +395,7 @@ export default function ChatRooms() {
         });
     };
 
-    if (loading) return <div className="loading-container"><div className="spinner" /><p>Loading...</p></div>;
+    if (loading) return <div className="loading-container"><div className="spinner" /><p>Loading Chat...</p></div>;
 
     return (
         <div className="chatrooms-page">
@@ -405,7 +419,6 @@ export default function ChatRooms() {
                             onChange={e => setNewRoom(prev => ({ ...prev, name: e.target.value }))}
                             maxLength={100}
                             required
-                            id="room-name-input"
                         />
                         <input
                             type="text"
@@ -425,7 +438,7 @@ export default function ChatRooms() {
                                 <option value="invite">Invite Only</option>
                             </select>
                         </div>
-                        <button type="submit" className="btn btn-primary btn-sm btn-full" id="create-room-submit">Create Room</button>
+                        <button type="submit" className="btn btn-primary btn-sm btn-full">Create Room</button>
                     </form>
                 )}
 
@@ -433,7 +446,7 @@ export default function ChatRooms() {
                     {rooms.map(room => (
                         <div
                             key={room.id}
-                            className={`room-item ${activeRoom === room.id ? 'active' : ''}`}
+                            className={`room-item ${roomId === room.id ? 'active' : ''}`}
                             onClick={() => (room.isJoined || room.accessType === 'open' || isAdmin) ? handleSelectRoom(room) : undefined}
                         >
                             <div className="room-item-info">
@@ -447,13 +460,13 @@ export default function ChatRooms() {
                                 {room.isJoined ? (
                                     <>
                                         <button className="btn btn-ghost btn-xs" onClick={(e) => { e.stopPropagation(); handleLeave(room.id); }}>Leave</button>
-                                        {activeRoom !== room.id && (
+                                        {roomId !== room.id && (
                                             <button className="btn btn-primary btn-xs" onClick={() => handleSelectRoom(room)}>Open</button>
                                         )}
                                     </>
                                 ) : (
                                     (room.accessType === 'open' || isAdmin) ? (
-                                        <button className="btn btn-primary btn-xs" onClick={() => handleJoin(room)} id={`join-${room.id}`}>Join</button>
+                                        <button className="btn btn-primary btn-xs" onClick={() => handleJoin(room)}>Join</button>
                                     ) : (
                                         <span className="text-xs text-gray-500 italic flex items-center" title="Only an admin can invite you to this room">
                                             <Shield size={10} className="mr-1" /> Invite Only
@@ -472,7 +485,7 @@ export default function ChatRooms() {
             </div>
 
             <div className="chat-main">
-                {activeRoom && roomInfo ? (
+                {roomId && roomInfo ? (
                     <>
                         <div className="chat-header">
                             <div>
@@ -486,7 +499,6 @@ export default function ChatRooms() {
                             {messages.map(msg => {
                                 const isOwn = msg.userId === user?.id;
                                 const msgUrl = extractFirstUrl(msg.content);
-                                // Remove URL from display text if it exists
                                 const cleanContent = msgUrl ? msg.content.replace(msgUrl, '').trim() : msg.content;
 
                                 return (
@@ -494,8 +506,8 @@ export default function ChatRooms() {
                                         {!isOwn && (
                                             <div
                                                 className="chat-msg-avatar cursor-pointer"
-                                                onClick={() => setUserActionsTarget({ userId: msg.userId, displayName: msg.displayName, avatarUrl: msg.avatarUrl })}
-                                                title="Click for options"
+                                                onClick={() => navigate(`/users/${msg.userId}`)}
+                                                title="View Profile"
                                             >
                                                 {msg.avatarUrl ? <img src={msg.avatarUrl} alt="" /> : <span>{getInitials(msg.displayName)}</span>}
                                             </div>
@@ -504,26 +516,23 @@ export default function ChatRooms() {
                                             {!isOwn && (
                                                 <span
                                                     className="chat-msg-author cursor-pointer hover:underline"
-                                                    onClick={() => setUserActionsTarget({ userId: msg.userId, displayName: msg.displayName, avatarUrl: msg.avatarUrl })}
+                                                    onClick={() => navigate(`/users/${msg.userId}`)}
                                                 >
                                                     {msg.displayName}
                                                 </span>
                                             )}
 
-                                            {/* Only show text bubble if there is non-URL text */}
                                             {cleanContent && (
                                                 <div className="chat-msg-content">
                                                     {renderMessageContent(cleanContent)}
                                                 </div>
                                             )}
 
-                                            {/* Show Link Preview if URL exists */}
                                             {msgUrl && (
                                                 <div className="chat-msg-link-preview">
                                                     <LinkPreview url={msgUrl} compact initialData={msg.linkPreview} />
                                                 </div>
                                             )}
-
 
                                             <div className="chat-msg-actions">
                                                 <span className="chat-msg-time">{formatTime(msg.createdAt)}</span>
@@ -534,6 +543,15 @@ export default function ChatRooms() {
                                                         title="Delete"
                                                     >
                                                         <Trash2 size={13} />
+                                                    </button>
+                                                )}
+                                                {isAdmin && !isOwn && (
+                                                    <button
+                                                        className="chat-msg-delete-btn"
+                                                        onClick={() => setUserActionsTarget({ userId: msg.userId, displayName: msg.displayName, avatarUrl: msg.avatarUrl })}
+                                                        title="Admin Options"
+                                                    >
+                                                        <Shield size={13} />
                                                     </button>
                                                 )}
                                             </div>
@@ -585,23 +603,14 @@ export default function ChatRooms() {
                                 className="form-input chat-input chat-textarea"
                                 placeholder="Type a message..."
                                 value={newMessage}
-                                onChange={(e) => {
-                                    handleInputChange(e as any);
-                                    e.target.style.height = 'auto'; // Reset height
-                                    e.target.style.height = Math.min(e.target.scrollHeight, 150) + 'px'; // Expand up to 150px
-                                }}
-                                onKeyDown={(e) => {
-                                    // Allow Enter to insert new line (default behavior)
-                                    // Handle mentions navigation if needed
-                                    handleInputKeyDown(e as any);
-                                }}
+                                onChange={handleInputChange}
+                                onKeyDown={handleInputKeyDown}
                                 maxLength={2000}
-                                id="chat-message-input"
                                 disabled={isMuted}
                                 rows={1}
                                 style={{ resize: 'none', overflowY: 'auto' }}
                             />
-                            <button type="submit" className="btn btn-primary" disabled={sending || !newMessage.trim() || isMuted} id="send-message-btn">
+                            <button type="submit" className="btn btn-primary" disabled={sending || !newMessage.trim() || isMuted}>
                                 {sending ? '...' : <Send size={20} />}
                             </button>
                         </form>
@@ -611,28 +620,27 @@ export default function ChatRooms() {
                         <span className="empty-icon"><MessageCircle size={48} /></span>
                         <h2>Select a Chat Room</h2>
                         <p>Join a room and start chatting with the community</p>
-                        {isAdmin && <p className="admin-hint">As an admin, you can create new chat rooms using the "+ New Room" button</p>}
                     </div>
                 )}
             </div>
 
-            {/* User Actions Modal */}
+            {/* Admin User Actions Modal */}
             {userActionsTarget && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setUserActionsTarget(null)}>
                     <div className="bg-[var(--bg-primary)] p-6 rounded-lg shadow-xl w-full max-w-xs border border-[var(--border-color)]" onClick={e => e.stopPropagation()}>
                         <div className="text-center mb-6">
                             <div className="w-20 h-20 rounded-full mx-auto mb-3 overflow-hidden bg-[var(--bg-secondary)] flex items-center justify-center">
                                 {userActionsTarget.avatarUrl
-                                    ? <img src={userActionsTarget.avatarUrl} className="w-full h-full object-cover" />
+                                    ? <img src={userActionsTarget.avatarUrl} className="w-full h-full object-cover" alt="" />
                                     : <span className="text-2xl font-bold text-[var(--text-secondary)]">{getInitials(userActionsTarget.displayName)}</span>
                                 }
                             </div>
                             <h3 className="font-bold text-lg">{userActionsTarget.displayName}</h3>
                         </div>
                         <div className="flex flex-col gap-3">
-                            <Link to={`/users/${userActionsTarget.userId}`} className="btn btn-secondary w-full text-center py-2" onClick={() => setUserActionsTarget(null)}>
+                            <button className="btn btn-secondary w-full py-2" onClick={() => { navigate(`/users/${userActionsTarget.userId}`); setUserActionsTarget(null); }}>
                                 View Profile
-                            </Link>
+                            </button>
                             {isAdmin && (
                                 <button className="btn btn-danger w-full py-2 flex items-center justify-center gap-2" onClick={handleDeleteAllUserMessages}>
                                     <Trash2 size={16} /> Delete All Messages
@@ -648,9 +656,10 @@ export default function ChatRooms() {
 }
 
 function formatTime(dateStr: string): string {
-    // Only append Z if it's missing (SQLite dates don't have it)
+    if (!dateStr) return '';
     const normalized = (dateStr.endsWith('Z') || dateStr.includes('+')) ? dateStr : dateStr + 'Z';
     const d = new Date(normalized);
+    if (isNaN(d.getTime())) return '';
     const now = Date.now();
     const diff = Math.floor((now - d.getTime()) / 1000);
     if (diff < 86400) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });

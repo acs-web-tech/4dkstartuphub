@@ -10,8 +10,14 @@ import Post from '../models/Post';
 import Comment from '../models/Comment';
 import ChatRoom from '../models/ChatRoom';
 import ChatMessage from '../models/ChatMessage';
+import ChatRoomMember from '../models/ChatRoomMember';
 import Notification from '../models/Notification';
 import Setting from '../models/Setting';
+import PitchRequest from '../models/PitchRequest';
+import Bookmark from '../models/Bookmark';
+import PostView from '../models/PostView';
+import Like from '../models/Like';
+import { deleteFileByUrl } from '../utils/s3';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 import { escapeRegExp } from '../utils/regex';
@@ -292,9 +298,17 @@ router.delete('/users/:id', async (req: AuthRequest, res) => {
             return;
         }
 
-        await User.deleteOne({ _id: id });
-        console.log(`[AUDIT] Admin ${req.user!.userId} deleted user ${id}`);
-        res.json({ message: 'User deleted successfully' });
+        const userToDelete = await User.findById(id);
+        if (!userToDelete) {
+            res.status(404).json({ error: 'User not found' });
+            return;
+        }
+
+        const { cleanupService } = await import('../services/cleanup');
+        await cleanupService.queueUserDeletion(id as string);
+
+        console.log(`[AUDIT] Admin ${req.user!.userId} queued deletion for user ${id}`);
+        res.json({ message: 'User deletion process started in background. Associated data and files will be cleaned up shortly.' });
     } catch (err) {
         console.error('Delete user error:', err);
         res.status(500).json({ error: 'Failed to delete user' });
@@ -345,8 +359,24 @@ router.delete('/posts/:id', async (req: AuthRequest, res) => {
             res.status(400).json({ error: 'Invalid post ID' });
             return;
         }
-        await Post.deleteOne({ _id: id });
-        console.log(`[AUDIT] Admin ${req.user!.userId} deleted post ${id}`);
+        const postToDelete = await Post.findById(id);
+        if (postToDelete) {
+            if (postToDelete.image_url) {
+                await deleteFileByUrl(postToDelete.image_url);
+            }
+            await Post.deleteOne({ _id: id });
+
+            // Cleanup related data
+            await Promise.all([
+                Like.deleteMany({ post_id: id }),
+                Comment.deleteMany({ post_id: id }),
+                Bookmark.deleteMany({ post_id: id }),
+                PostView.deleteMany({ post_id: id }),
+                Notification.deleteMany({ reference_id: id })
+            ]);
+
+            console.log(`[AUDIT] Admin ${req.user!.userId} deleted post ${id}`);
+        }
         res.json({ message: 'Post deleted by admin' });
     } catch (err) {
         console.error('Admin delete post error:', err);
@@ -366,7 +396,24 @@ router.post('/notifications/broadcast', async (req: AuthRequest, res) => {
             return;
         }
 
-        // 1. Persist broadcast notifications for ALL active users so they appear in notification list
+        // 1. Save as a Post in 'announcements' category for the community feed
+        const announcementPost = await Post.create({
+            user_id: req.user!.userId,
+            title,
+            content,
+            category: 'announcements',
+            image_url: imageUrl || '',
+            video_url: videoUrl || '',
+            is_pinned: true, // Announcements are pinned by default?
+        });
+
+        // Populate author info for the socket event
+        const populatedPost = await Post.findById(announcementPost._id).populate('user_id', 'username display_name avatar_url role user_type');
+        if (populatedPost) {
+            socketService.broadcast('newPost', populatedPost.toJSON());
+        }
+
+        // 2. Persist broadcast notifications for ALL active users
         const activeUsers = await User.find({ is_active: true }).select('_id').lean();
         const notifDocs = activeUsers.map(u => ({
             user_id: u._id,
@@ -387,14 +434,13 @@ router.post('/notifications/broadcast', async (req: AuthRequest, res) => {
             userNotifMap.set(doc.user_id.toString(), doc._id.toString());
         });
 
-        // 2. Real-time Socket + Native Push
+        // 3. Real-time Socket + Native Push
         socketService.broadcast('broadcast', {
             title,
             content,
             videoUrl,
             referenceId,
             imageUrl,
-            // Pass the map so the client knows the persisted notification id
             _notifMap: Object.fromEntries(userNotifMap),
         });
 

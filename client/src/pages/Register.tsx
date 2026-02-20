@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authApi, paymentApi, settingsApi, request } from '../services/api'; // user request imported
-import { Rocket, Eye, EyeOff, Check, Circle, Building2, TrendingUp, CreditCard, Shield, RefreshCw } from 'lucide-react';
+import { Rocket, Eye, EyeOff, Check, Circle, Building2, TrendingUp, CreditCard, Shield, RefreshCw, Wrench } from 'lucide-react';
 
 declare global {
     interface Window {
@@ -11,7 +11,7 @@ declare global {
     }
 }
 
-type UserType = 'startup' | 'investor';
+type UserType = 'startup' | 'investor' | 'freelancer';
 
 export default function Register() {
     const { register, user, loading: authLoading } = useAuth();
@@ -136,7 +136,7 @@ export default function Register() {
                 amount: savedOrder.amount,
                 currency: savedOrder.currency,
                 name: 'StartupHub',
-                description: `${userType === 'startup' ? 'Startup' : 'Investor'} Registration — ₹${paymentAmount}`,
+                description: `${userType === 'startup' ? 'Startup' : userType === 'investor' ? 'Investor' : 'Freelancer'} Registration — ₹${paymentAmount}`,
                 order_id: savedOrder.orderId,
                 handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
                     try {
@@ -343,6 +343,19 @@ export default function Register() {
                                             <p>I invest in startups, looking for the next big idea to fund.</p>
                                             <span className="role-card-badge">Backer</span>
                                         </button>
+
+                                        <button
+                                            className={`role-card ${userType === 'freelancer' ? 'selected' : ''}`}
+                                            onClick={() => handleRoleSelect('freelancer')}
+                                            id="role-freelancer"
+                                        >
+                                            <div className="role-card-icon freelancer-icon">
+                                                <Wrench size={32} />
+                                            </div>
+                                            <h3>Freelancer</h3>
+                                            <p>I offer specialized services to startups (Tech, Design, Marketing, etc).</p>
+                                            <span className="role-card-badge">Freelancer</span>
+                                        </button>
                                     </div>
                                 </div>
                             )}
@@ -413,8 +426,8 @@ export default function Register() {
                                             <div className="payment-line">
                                                 <span>Account Type</span>
                                                 <span className="payment-type-badge">
-                                                    {userType === 'startup' ? <Building2 size={14} /> : <TrendingUp size={14} />}
-                                                    {userType === 'startup' ? 'Startup' : 'Investor'}
+                                                    {userType === 'startup' ? <Building2 size={14} /> : userType === 'investor' ? <TrendingUp size={14} /> : <Wrench size={14} />}
+                                                    {userType === 'startup' ? 'Startup' : userType === 'investor' ? 'Investor' : 'Freelancer'}
                                                 </span>
                                             </div>
                                             <div className="payment-line">

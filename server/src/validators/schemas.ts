@@ -22,8 +22,8 @@ export const registerSchema = z.object({
         .min(2, 'Display name must be at least 2 characters')
         .max(50, 'Display name too long')
         .trim(),
-    userType: z.enum(['startup', 'investor'], {
-        errorMap: () => ({ message: 'User type must be either "startup" or "investor"' })
+    userType: z.enum(['startup', 'investor', 'freelancer'], {
+        errorMap: () => ({ message: 'User type must be either "startup", "investor", or "freelancer"' })
     }),
     payment: z.object({
         razorpay_order_id: z.string().min(1, 'Order ID required'),
@@ -53,7 +53,7 @@ export const createPostSchema = z.object({
         .min(10, 'Content must be at least 10 characters')
         .max(10000, 'Content too long')
         .trim(),
-    category: z.enum(['hiring', 'cofounder', 'promote', 'recommendation', 'events', 'general', 'writeup']),
+    category: z.enum(['hiring', 'cofounder', 'promote', 'recommendation', 'events', 'general', 'writeup', 'announcements']),
     videoUrl: z.string().url('Invalid URL').max(500).optional().or(z.literal('')),
     imageUrl: z.string().max(500).optional().or(z.literal('')),
     eventDate: z.string().optional().or(z.literal('')),
@@ -70,7 +70,7 @@ export const updatePostSchema = z.object({
         .max(10000, 'Content too long')
         .trim()
         .optional(),
-    category: z.enum(['hiring', 'cofounder', 'promote', 'recommendation', 'events', 'general', 'writeup'])
+    category: z.enum(['hiring', 'cofounder', 'promote', 'recommendation', 'events', 'general', 'writeup', 'announcements'])
         .optional(),
     videoUrl: z.string().url('Invalid URL').max(500).optional().or(z.literal('')),
     imageUrl: z.string().max(500).optional().or(z.literal('')),
