@@ -20,7 +20,7 @@ export const config = {
     cookieOptions: {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax' | 'strict',
+        sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
         path: '/',
     },
@@ -58,13 +58,12 @@ export const config = {
     }
 } as const;
 
-// Warn if using auto-generated secrets in production
+// Enforce secrets in production
 if (process.env.NODE_ENV === 'production') {
     if (!process.env.JWT_SECRET) {
-        console.warn('⚠️  WARNING: JWT_SECRET not set in environment. Using auto-generated secret.');
-        console.warn('   Set JWT_SECRET env variable for persistent sessions across restarts.');
+        throw new Error('❌ CRITICAL: JWT_SECRET must be set in production!');
     }
     if (!process.env.JWT_REFRESH_SECRET) {
-        console.warn('⚠️  WARNING: JWT_REFRESH_SECRET not set in environment.');
+        throw new Error('❌ CRITICAL: JWT_REFRESH_SECRET must be set in production!');
     }
 }

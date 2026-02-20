@@ -175,8 +175,12 @@ router.post('/:id/leave', authenticate, async (req: AuthRequest, res) => {
 router.post('/:id/add-member', authenticate, requireAdmin, async (req: AuthRequest, res) => {
     try {
         const { userId } = req.body;
-        if (!userId) {
-            res.status(400).json({ error: 'userId is required' });
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            res.status(400).json({ error: 'Invalid room ID' });
+            return;
+        }
+        if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+            res.status(400).json({ error: 'Invalid user ID' });
             return;
         }
 
@@ -228,6 +232,10 @@ router.post('/:id/add-member', authenticate, requireAdmin, async (req: AuthReque
 router.post('/:id/kick', authenticate, requireAdmin, async (req: AuthRequest, res) => {
     try {
         const { userId } = req.body;
+        if (!mongoose.Types.ObjectId.isValid(req.params.id) || !mongoose.Types.ObjectId.isValid(userId)) {
+            res.status(400).json({ error: 'Invalid ID(s)' });
+            return;
+        }
         const rObjectId = new mongoose.Types.ObjectId(req.params.id as string);
         const uObjectId = new mongoose.Types.ObjectId(userId);
 
@@ -251,6 +259,10 @@ router.post('/:id/kick', authenticate, requireAdmin, async (req: AuthRequest, re
 router.post('/:id/mute', authenticate, requireAdmin, async (req: AuthRequest, res) => {
     try {
         const { userId } = req.body;
+        if (!mongoose.Types.ObjectId.isValid(req.params.id) || !mongoose.Types.ObjectId.isValid(userId)) {
+            res.status(400).json({ error: 'Invalid ID(s)' });
+            return;
+        }
         const rObjectId = new mongoose.Types.ObjectId(req.params.id as string);
         const uObjectId = new mongoose.Types.ObjectId(userId);
 
@@ -272,6 +284,10 @@ router.post('/:id/mute', authenticate, requireAdmin, async (req: AuthRequest, re
 // ── GET /api/chatrooms/:id/messages ─────────────────────────
 router.get('/:id/messages', authenticate, async (req: AuthRequest, res) => {
     try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            res.status(400).json({ error: 'Invalid room ID' });
+            return;
+        }
         const rObjectId = new mongoose.Types.ObjectId(req.params.id as string);
         const isAdmin = req.user!.role === 'admin';
         const membership = await ChatRoomMember.findOne({ room_id: rObjectId, user_id: req.user!.userId });
@@ -342,6 +358,10 @@ router.get('/:id/messages', authenticate, async (req: AuthRequest, res) => {
 // ── POST /api/chatrooms/:id/messages ────────────────────────
 router.post('/:id/messages', authenticate, validate(chatMessageSchema), async (req: AuthRequest, res) => {
     try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            res.status(400).json({ error: 'Invalid room ID' });
+            return;
+        }
         const rObjectId = new mongoose.Types.ObjectId(req.params.id as string);
         const uObjectId = new mongoose.Types.ObjectId(req.user!.userId);
 
@@ -460,6 +480,10 @@ router.post('/:id/messages', authenticate, validate(chatMessageSchema), async (r
 router.delete('/:roomId/messages/:messageId', authenticate, async (req: AuthRequest, res) => {
     try {
         const { roomId, messageId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(roomId) || !mongoose.Types.ObjectId.isValid(messageId)) {
+            res.status(400).json({ error: 'Invalid ID(s)' });
+            return;
+        }
         const msg = await ChatMessage.findById(messageId);
 
         if (!msg) {
@@ -491,6 +515,10 @@ router.delete('/:roomId/messages/:messageId', authenticate, async (req: AuthRequ
 router.delete('/:roomId/users/:userId/messages', authenticate, requireAdmin, async (req: AuthRequest, res) => {
     try {
         const { roomId, userId } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(roomId) || !mongoose.Types.ObjectId.isValid(userId)) {
+            res.status(400).json({ error: 'Invalid ID(s)' });
+            return;
+        }
 
         const result = await ChatMessage.deleteMany({ room_id: roomId, user_id: userId });
 

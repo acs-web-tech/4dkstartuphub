@@ -113,8 +113,11 @@ app.use(cors({
         }
 
         if (isProd) {
-            // Allow all origins (reflect request origin) to fix mobile 'Failed to fetch'
-            return callback(null, true);
+            // Production: STRICT check against configured domain
+            if (origin === config.corsOrigin) {
+                return callback(null, true);
+            }
+            return callback(new Error('Not allowed by CORS'));
         }
 
         // Development: allow all

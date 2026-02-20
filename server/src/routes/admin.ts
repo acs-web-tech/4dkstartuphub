@@ -162,6 +162,10 @@ router.get('/users', async (req: AuthRequest, res) => {
 router.put('/users/:id/role', validate(updateUserRoleSchema), async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            res.status(400).json({ error: 'Invalid user ID' });
+            return;
+        }
         const { role } = req.body;
 
         if (id === req.user!.userId) {
@@ -176,7 +180,9 @@ router.put('/users/:id/role', validate(updateUserRoleSchema), async (req: AuthRe
         }
 
         user.role = role;
-        await user.save();
+        await user.save({ validateModifiedOnly: true });
+
+        console.log(`[AUDIT] Admin ${req.user!.userId} changed role of user ${user._id} to ${role}`);
 
         // Notify user
         await Notification.create({
@@ -198,6 +204,10 @@ router.put('/users/:id/role', validate(updateUserRoleSchema), async (req: AuthRe
 router.put('/users/:id/premium', async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            res.status(400).json({ error: 'Invalid user ID' });
+            return;
+        }
         const { paymentStatus, premiumExpiry } = req.body;
 
         const user = await User.findById(id);
@@ -209,7 +219,9 @@ router.put('/users/:id/premium', async (req: AuthRequest, res) => {
         if (paymentStatus) user.payment_status = paymentStatus;
         if (premiumExpiry !== undefined) user.premium_expiry = premiumExpiry;
 
-        await user.save();
+        await user.save({ validateModifiedOnly: true });
+
+        console.log(`[AUDIT] Admin ${req.user!.userId} updated premium status for user ${user._id}`);
 
         // Notify user
         await Notification.create({
@@ -231,6 +243,10 @@ router.put('/users/:id/premium', async (req: AuthRequest, res) => {
 router.put('/users/:id/toggle-active', async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            res.status(400).json({ error: 'Invalid user ID' });
+            return;
+        }
         if (id === req.user!.userId) {
             res.status(400).json({ error: 'Cannot deactivate your own account' });
             return;
@@ -243,7 +259,9 @@ router.put('/users/:id/toggle-active', async (req: AuthRequest, res) => {
         }
 
         user.is_active = !user.is_active;
-        await user.save();
+        await user.save({ validateModifiedOnly: true });
+
+        console.log(`[AUDIT] Admin ${req.user!.userId} toggled active status for user ${user._id} to ${user.is_active}`);
 
         res.json({ message: `User ${user.is_active ? 'activated' : 'deactivated'}` });
     } catch (err) {
@@ -256,12 +274,17 @@ router.put('/users/:id/toggle-active', async (req: AuthRequest, res) => {
 router.delete('/users/:id', async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            res.status(400).json({ error: 'Invalid user ID' });
+            return;
+        }
         if (id === req.user!.userId) {
             res.status(400).json({ error: 'Cannot delete your own account' });
             return;
         }
 
         await User.deleteOne({ _id: id });
+        console.log(`[AUDIT] Admin ${req.user!.userId} deleted user ${id}`);
         res.json({ message: 'User deleted successfully' });
     } catch (err) {
         console.error('Delete user error:', err);
@@ -273,6 +296,10 @@ router.delete('/users/:id', async (req: AuthRequest, res) => {
 router.post('/users/:id/reset-password', async (req: AuthRequest, res) => {
     try {
         const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            res.status(400).json({ error: 'Invalid user ID' });
+            return;
+        }
         const user = await User.findById(id);
 
         if (!user) {
@@ -286,7 +313,9 @@ router.post('/users/:id/reset-password', async (req: AuthRequest, res) => {
 
         user.reset_password_token = crypto.createHash('sha256').update(resetToken).digest('hex');
         user.reset_password_expires = new Date(Date.now() + 3600000); // 1 hour
-        await user.save();
+        await user.save({ validateModifiedOnly: true });
+
+        console.log(`[AUDIT] Admin ${req.user!.userId} triggered password reset for user ${user._id}`);
 
         // Send email
         const resetUrl = `https://startup.4dk.in/reset-password?token=${resetToken}`;
@@ -302,7 +331,13 @@ router.post('/users/:id/reset-password', async (req: AuthRequest, res) => {
 // ── DELETE /api/admin/posts/:id ─────────────────────────────
 router.delete('/posts/:id', async (req: AuthRequest, res) => {
     try {
-        await Post.deleteOne({ _id: req.params.id });
+        const { id } = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            res.status(400).json({ error: 'Invalid post ID' });
+            return;
+        }
+        await Post.deleteOne({ _id: id });
+        console.log(`[AUDIT] Admin ${req.user!.userId} deleted post ${id}`);
         res.json({ message: 'Post deleted by admin' });
     } catch (err) {
         console.error('Admin delete post error:', err);
@@ -369,7 +404,8 @@ router.get('/settings', async (_req: AuthRequest, res) => {
             'pitch_request_payment_required',
             'pitch_request_payment_amount',
             'android_app_url',
-            'ios_app_url'
+            'ios_app_url',
+            'registration_email_verification_required'
         ];
 
         const settings = await Setting.find({ key: { $in: allowedKeys } });
@@ -403,7 +439,8 @@ router.put('/settings', async (req: AuthRequest, res) => {
             'pitch_request_payment_required',
             'pitch_request_payment_amount',
             'android_app_url',
-            'ios_app_url'
+            'ios_app_url',
+            'registration_email_verification_required'
         ];
         if (!allowedKeys.includes(key)) {
             res.status(400).json({ error: 'Unknown setting key' });

@@ -238,8 +238,19 @@ router.post('/register-finalize', authLimiter, async (req, res) => {
             user.is_email_verified = true;
             await user.save();
             try {
+                // Send welcome email
                 await emailService.sendWelcomeEmail(user.email, user.display_name);
-            } catch (e) { console.error('Welcome email failed', e); }
+
+                // Create in-app welcome notification
+                await Notification.create({
+                    user_id: user._id,
+                    type: 'welcome',
+                    title: 'Welcome to StartupHub! 🚀',
+                    content: 'Thank you for joining our community. Complete your profile, explore pitch requests, and connect with fellow innovators.',
+                    sender_id: null, // System notification
+                    reference_id: 'welcome'
+                });
+            } catch (e) { console.error('Welcome actions failed', e); }
         }
 
         const { accessToken, refreshToken } = generateTokens(user._id.toString(), 'user');
