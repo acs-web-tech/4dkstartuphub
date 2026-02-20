@@ -44,11 +44,6 @@ class PushNotificationService {
      */
     async sendToUser(userId: string, data: { title: string; body: string; url?: string; icon?: string; image?: string }) {
         try {
-            const user = await User.findById(userId);
-            if (!user || (!user.push_subscription && (!user.fcm_tokens || user.fcm_tokens.length === 0))) {
-                return;
-            }
-
             const absoluteUrl = this.ensureAbsoluteUrl(data.url) || '/';
             const absoluteIcon = this.ensureAbsoluteUrl(data.icon || '/logo.png');
             const absoluteImage = this.ensureAbsoluteUrl(data.image);
