@@ -79,25 +79,32 @@ class PushNotificationService {
             const userWithTokens = await User.findById(userId).select('fcm_tokens');
             const messaging = getFirebaseMessaging();
             if (userWithTokens?.fcm_tokens?.length && messaging) {
+                const truncatedTitle = String(data.title).substring(0, 100);
+                const truncatedBody = String(data.body).substring(0, 500);
+
                 const fcmPayload: any = {
                     notification: {
-                        title: data.title,
-                        body: data.body,
-                        ...(absoluteImage ? { imageUrl: absoluteImage, image: absoluteImage } : {}),
-                        ...(absoluteIcon && !absoluteImage ? { imageUrl: absoluteIcon } : {})
+                        title: truncatedTitle,
+                        body: truncatedBody,
+                        ...(absoluteImage ? { imageUrl: absoluteImage } : {})
                     },
                     android: {
                         priority: 'high',
                         notification: {
                             sound: 'default',
-                            ...(absoluteImage ? { image: absoluteImage } : (absoluteIcon ? { icon: 'stock_ticker_update' } : {}))
+                            channelId: 'default',
+                            notificationPriority: 'PRIORITY_MAX',
+                            ...(absoluteImage ? { image: absoluteImage } : {})
                         }
                     },
                     data: {
+                        title: truncatedTitle,
+                        body: truncatedBody,
                         url: absoluteUrl,
                         type: 'notification',
-                        ...(absoluteImage ? { image: absoluteImage, picture: absoluteImage } : {}),
-                        ...(absoluteIcon ? { icon: absoluteIcon } : {}) // Add icon to data for some clients
+                        priority: 'high',
+                        importance: 'high',
+                        ...(absoluteImage ? { image: absoluteImage } : {})
                     }
                 };
 
@@ -189,28 +196,32 @@ class PushNotificationService {
                         data: {
                             url: absoluteUrl,
                             type: 'broadcast',
+                            priority: 'high',
+                            importance: 'high'
                         },
                         android: {
                             priority: 'high' as const,
                             notification: {
                                 sound: 'default',
+                                channelId: 'default',
+                                notificationPriority: 'PRIORITY_MAX',
+                                ...(absoluteImage ? { image: absoluteImage } : {})
                             }
                         }
                     };
 
                     if (absoluteImage) {
                         fcmPayload.notification.imageUrl = absoluteImage;
-                        fcmPayload.notification.image = absoluteImage; // Compatibility with some SDKs
-                        fcmPayload.image = absoluteImage; // Compatibility with some REST v1 maps
                         fcmPayload.android.notification.image = absoluteImage;
-                        fcmPayload.android.notification.channelId = 'default';
                         fcmPayload.apns = {
                             payload: { aps: { 'mutable-content': 1 } },
                             fcmOptions: { imageUrl: absoluteImage }
                         };
                         fcmPayload.data.image = absoluteImage;
-                        fcmPayload.data.picture = absoluteImage;
-                        fcmPayload.data.fcm_options = { image: absoluteImage };
+                        fcmPayload.data.title = String(data.title);
+                        fcmPayload.data.body = String(data.body);
+                        fcmPayload.data.priority = 'high';
+                        fcmPayload.data.importance = 'high';
                     }
 
                     for (let i = 0; i < uniqueTokens.length; i += batchSize) {
