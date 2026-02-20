@@ -662,26 +662,26 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
             {/* Contact Us Modal */}
             {showContactModal && (
                 <div className="notif-modal-overlay" onClick={() => setShowContactModal(false)}>
-                    <div className="notif-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center' }}>
+                    <div className="notif-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center', background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
                         <div className="notif-modal-header" style={{ borderBottom: 'none', justifyContent: 'flex-end' }}>
-                            <button className="notif-modal-close" onClick={() => setShowContactModal(false)}>
+                            <button className="notif-modal-close" onClick={() => setShowContactModal(false)} style={{ color: 'var(--text-secondary)' }}>
                                 <X size={20} />
                             </button>
                         </div>
                         <div style={{ padding: '0 20px 30px' }}>
-                            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#e0e7ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
                                 <Mail size={32} />
                             </div>
-                            <h2 style={{ fontSize: '24px', marginBottom: '10px', color: '#1e293b' }}>Contact Support</h2>
-                            <p style={{ color: '#64748b', marginBottom: '24px' }}>
+                            <h2 style={{ fontSize: '24px', marginBottom: '10px', color: 'var(--text-main)', fontWeight: '800' }}>Contact Support</h2>
+                            <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
                                 Need help? Reach out to our team directly.
                             </p>
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                <a href="mailto:support@4dk.in" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px' }}>
+                                <a href="mailto:support@4dk.in" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', borderRadius: '12px' }}>
                                     <Mail size={18} /> support@4dk.in
                                 </a>
-                                <a href="mailto:founder@4dk.in" className="btn btn-ghost" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', border: '1px solid #e2e8f0' }}>
+                                <a href="mailto:founder@4dk.in" className="btn btn-ghost" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', border: '1px solid var(--border-color)', borderRadius: '12px', color: 'var(--text-main)' }}>
                                     <User size={18} /> founder@4dk.in
                                 </a>
                             </div>

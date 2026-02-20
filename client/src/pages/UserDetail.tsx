@@ -75,7 +75,7 @@ export default function UserDetail() {
                         </div>
                         <div className="profile-meta-item">
                             <span className="meta-label"><Calendar size={14} className="inline mr-1" /> JOINED</span>
-                            <span style={{ fontWeight: 600 }}>{new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</span>
+                            <span style={{ fontWeight: 600 }}>{user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : 'N/A'}</span>
                         </div>
                     </div>
                 </div>

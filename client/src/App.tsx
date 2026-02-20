@@ -16,6 +16,7 @@ import UserDetail from './pages/UserDetail';
 import CreatePost from './components/Post/CreatePost';
 import PitchRequests from './pages/PitchRequests';
 import Pricing from './pages/Pricing';
+import Privacy from './pages/Privacy';
 
 import { SocketProvider } from './context/SocketContext';
 import ScrollRestoration from './components/Common/ScrollRestoration';
@@ -78,6 +79,7 @@ export default function App() {
                             <Route path="/pricing" element={
                                 <Pricing />
                             } />
+                            <Route path="/privacy" element={<Privacy />} />
 
                             {/* Admin only */}
                             <Route path="/admin" element={

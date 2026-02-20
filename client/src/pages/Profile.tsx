@@ -213,7 +213,7 @@ export default function Profile() {
                             )}
                             <div className="profile-meta-item">
                                 <span className="meta-label"><Calendar size={16} /> Joined</span>
-                                <span>{new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</span>
+                                <span>{user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : 'N/A'}</span>
                             </div>
                         </div>
                     </div>

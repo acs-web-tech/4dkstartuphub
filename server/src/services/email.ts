@@ -64,14 +64,15 @@ function getHtmlTemplate(title: string, bodyContent: string, actionButton?: { te
                 ` : ''}
                 <div style="margin-top: 48px; padding-top: 32px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 14px;">
                     Cheers,<br>
-                    <span style="color: #0f172a; font-weight: 700; font-size: 16px;">The StartupHub Team</span>
+                    <span style="color: #0f172a; font-weight: 700; font-size: 16px;">4DK StartupHub Team</span>
                 </div>
             </div>
         </div>
         <div class="footer">
-            <div class="footer-links">
-                <a href="${config.corsOrigin}/privacy">Privacy Policy</a> &bull;
-                <a href="${config.corsOrigin}/contact">Contact Support</a>
+            <div class="footer-links" style="margin-bottom: 24px;">
+                <a href="${config.corsOrigin}/privacy" style="color: #4f46e5; text-decoration: none; margin: 0 12px; font-weight: 600;">Privacy Policy</a> &bull;
+                <a href="mailto:support@4dk.in" style="color: #4f46e5; text-decoration: none; margin: 0 12px; font-weight: 600;">support@4dk.in</a> or 
+                <a href="mailto:founder@4dk.in" style="color: #4f46e5; text-decoration: none; margin: 0 12px; font-weight: 600;">founder@4dk.in</a>
             </div>
             <p style="font-weight: 600; margin-bottom: 8px;">StartupHub &bull; India's Premier Startup Corridor</p>
             <p style="line-height: 1.5; font-size: 12px; opacity: 0.8;">
@@ -208,7 +209,7 @@ export const emailService = {
                     ${status.toUpperCase()}
                 </span>
             </div>
-            <p>Check your admin panel for detailed feedback and required next steps from our reviewing team.</p>
+            <p>Check your dashboard for detailed feedback and required next steps from our reviewing team.</p>
         `;
         return this.enqueueEmail(to, `Update: Your Pitch Status is ${status}`, getHtmlTemplate(title, bodyContent, { text: 'Read Review', url: `${config.corsOrigin}/dashboard` }, isApproved ? 'success' : 'alert'));
     },
