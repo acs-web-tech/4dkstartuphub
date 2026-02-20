@@ -341,7 +341,7 @@ router.post('/register-init', authLimiter, validate(registerSchema), async (req,
                 await Notification.create({
                     user_id: user._id,
                     type: 'welcome',
-                    title: welcomeTitle?.value || 'Welcome to StartupHub! 🚀',
+                    title: welcomeTitle?.value || 'Welcome to StartupHub!',
                     content: finalContent,
                     image_url: welcomeImage?.value || '',
                     sender_id: null,
@@ -547,7 +547,7 @@ router.post('/register', authLimiter, validate(registerSchema), async (req, res)
         await Notification.create({
             user_id: newUser._id,
             type: 'welcome',
-            title: welcomeTitle?.value || 'Welcome to StartupHub! 🚀',
+            title: welcomeTitle?.value || 'Welcome to StartupHub!',
             content: finalContent,
             image_url: welcomeImage?.value || ''
         });

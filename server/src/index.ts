@@ -310,15 +310,15 @@ async function start() {
     httpServer.listen(config.port, () => {
         console.log(`
   ╔══════════════════════════════════════════╗
-  ║   🚀 StartupHub API Server Running      ║
-  ║   Version: v6 (PAYMENT FIX)                       ║
+  ║   StartupHub API Server Running          ║
+  ║   Version: v6 (PAYMENT FIX)               ║
   ║   Port: ${config.port}                            ║
   ║   Mode: ${process.env.NODE_ENV || 'development'}                    ║
   ║   CORS: ${config.corsOrigin || 'ALL'}                     ║
-  ║   S3 Bucket: ${config.aws.bucketName ? '✅ ' + config.aws.bucketName : '❌ MISSING'}            ║
-  ║   Razorpay: ${config.razorpay.keyId ? '✅ Configured' : '❌ MISSING'}            ║
-  ║   Email Worker: ✅ Running (Thread)               ║
-  ║   Web Push: ${config.vapid.publicKey ? '✅ Ready' : '❌ NOT CONFIGURED'}            ║
+  ║   S3 Bucket: ${config.aws.bucketName ? 'OK ' + config.aws.bucketName : 'MISSING'}            ║
+  ║   Razorpay: ${config.razorpay.keyId ? 'Configured' : 'MISSING'}            ║
+  ║   Email Worker: Running (Thread)                 ║
+  ║   Web Push: ${config.vapid.publicKey ? 'Ready' : 'NOT CONFIGURED'}            ║
   ╚══════════════════════════════════════════╝
     `);
     });

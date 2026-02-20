@@ -181,7 +181,7 @@ router.put('/:id/review', authenticate, requireAdmin, async (req: AuthRequest, r
         pitch.updated_at = new Date();
         await pitch.save();
 
-        const statusLabel = status === 'approved' ? '✅ Approved' : '❌ Disapproved';
+        const statusLabel = status === 'approved' ? 'Approved' : 'Disapproved';
         const notifContent = message || `Your pitch request "${pitch.title}" has been ${status}.`;
         const notifTitle = `Pitch ${statusLabel}: ${pitch.title}`;
         const newNotif = await Notification.create({

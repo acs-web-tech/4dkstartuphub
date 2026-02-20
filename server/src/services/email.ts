@@ -1,9 +1,21 @@
 import nodemailer from 'nodemailer';
 import { config } from '../config/env';
 
+// ── Lucide SVG Icons ──────────────────────────────────────────
+const ICONS: Record<string, string> = {
+    otp: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
+    welcome: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path><path d="M9 12H4s.5-1 1-4c1.5 0 3 0 3 0"></path><path d="M15 15v5c0 1.5 0 3 0 3l-4-1s.5-1.5.5-3"></path><line x1="11.5" y1="15.5" x2="15.5" y2="11.5"></line></svg>`,
+    reset: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.778-7.778z"></path><path d="M12 12l.663-.663a1.5 1.5 0 0 1 2.122 0l.585.586a1.5 1.5 0 0 0 2.122 0l.585-.586a1.5 1.5 0 0 1 2.122 0l.585.586a1.5 1.5 0 0 0 2.122 0l.585-.586A1.5 1.5 0 0 1 21 11.243"></path></svg>`,
+    pitch: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path></svg>`,
+    alert: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>`,
+    success: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><path d="m9 11 3 3L22 4"></path></svg>`,
+    info: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>`
+};
+
 // ── Stunning Email Template Helper ───────────────────────────
-function getHtmlTemplate(title: string, bodyContent: string, actionButton?: { text: string; url: string }) {
+function getHtmlTemplate(title: string, bodyContent: string, actionButton?: { text: string; url: string }, iconName?: string) {
     const logoUrl = `${config.corsOrigin}/logo.png`;
+    const iconSvg = iconName && ICONS[iconName] ? ICONS[iconName] : '';
 
     // Ensure body contains absolute URLs for links
     const absoluteBody = bodyContent.replace(/href="\//g, `href="${config.corsOrigin}/`);
@@ -27,11 +39,12 @@ function getHtmlTemplate(title: string, bodyContent: string, actionButton?: { te
         .footer { padding: 40px; text-align: center; color: #64748b; font-size: 13px; background-color: #f1f5f9; }
         .footer-links { margin-bottom: 24px; }
         .footer-links a { color: #4f46e5; text-decoration: none; margin: 0 12px; font-weight: 600; }
-        h1 { margin: 0 0 24px; color: #0f172a; font-size: 28px; font-weight: 900; letter-spacing: -0.5px; }
+        h1 { margin: 0 0 24px; color: #0f172a; font-size: 28px; font-weight: 900; letter-spacing: -0.5px; display: flex; align-items: center; justify-content: start; gap: 12px; }
         p { margin: 0 0 20px; color: #475569; }
         .highlight { color: #4f46e5; font-weight: 700; }
         .brand-name { font-weight: 900; font-size: 26px; color: #ffffff; letter-spacing: -1px; margin-top: 12px; }
         .status-badge { display: inline-block; padding: 8px 16px; border-radius: 9999px; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
+        .title-icon { color: #4f46e5; display: inline-block; vertical-align: middle; margin-right: 12px; }
     </style>
 </head>
 <body>
@@ -42,7 +55,7 @@ function getHtmlTemplate(title: string, bodyContent: string, actionButton?: { te
                  <div class="brand-name">STARTUP<span style="color: #6366f1;">HUB</span></div>
              </div>
             <div class="content">
-                <h1>${title}</h1>
+                <h1>${iconSvg ? `<span class="title-icon">${iconSvg}</span>` : ''}${title}</h1>
                 ${absoluteBody}
                 ${actionButton ? `
                 <div class="button-wrapper">
@@ -104,7 +117,7 @@ export const startEmailWorker = () => {
                 html: email.html,
             });
         } catch (err) {
-            console.error(`❌ Email failed to ${email.to}:`, err);
+            console.error(`Email failed to ${email.to}:`, err);
             if (email.retry < 3) {
                 email.retry++;
                 emailQueue.push(email);
@@ -120,18 +133,18 @@ export const emailService = {
     },
 
     async sendOTP(to: string, name: string, type: 'verification' | 'reset', otp: string) {
-        const title = type === 'verification' ? 'Security Verification 🔐' : 'Account Recovery 🔑';
+        const title = type === 'verification' ? 'Security Verification' : 'Account Recovery';
         const bodyContent = `
             <p>Hey <span class="highlight">${name}</span>,</p>
             <p>To keep your account secure and verified, please enter the <span class="highlight">one-time passcode</span> below on our platform:</p>
             <div class="otp-box">${otp}</div>
             <p style="text-align: center; font-size: 14px; color: #64748b;">This code will remain active for <span class="highlight">10 minutes</span>. If you didn't request this, simply ignore this email or contact support if you suspect unauthorized activity.</p>
         `;
-        return this.enqueueEmail(to, `${otp} is your StartupHub verification code`, getHtmlTemplate(title, bodyContent));
+        return this.enqueueEmail(to, `${otp} is your StartupHub verification code`, getHtmlTemplate(title, bodyContent, undefined, 'otp'));
     },
 
     async sendWelcomeEmail(to: string, name: string) {
-        const title = 'Welcome to the Future! 🚀';
+        const title = 'Welcome to the Future!';
         const bodyContent = `
             <p>Welcome, <span class="highlight">${name}</span>!</p>
             <p>We're absolutely thrilled to have you join <span class="highlight">StartupHub</span>. You've just stepped into India's most exclusive ecosystem for startups and investors.</p>
@@ -143,18 +156,18 @@ export const emailService = {
             </ul>
             <p>We can't wait to see what you build. Let's make history together!</p>
         `;
-        return this.enqueueEmail(to, `🚀 You're In! Welcome to StartupHub, ${name}`, getHtmlTemplate(title, bodyContent, { text: 'Start Your Journey', url: `${config.corsOrigin}/feed` }));
+        return this.enqueueEmail(to, `You're In! Welcome to StartupHub, ${name}`, getHtmlTemplate(title, bodyContent, { text: 'Start Your Journey', url: `${config.corsOrigin}/feed` }, 'welcome'));
     },
 
     async sendPasswordResetEmail(to: string, name: string, token: string) {
-        const title = 'Reset Your Password 🔒';
+        const title = 'Reset Your Password';
         const url = `${config.corsOrigin}/reset-password?token=${token}`;
         const bodyContent = `
             <p>Hi <span class="highlight">${name}</span>,</p>
             <p>We received a request to reset the password for your StartupHub account. No worries—it happens to the best of us!</p>
             <p>Click the button below to choose a <span class="highlight">new, strong password</span>. This link will be active for one hour.</p>
         `;
-        return this.enqueueEmail(to, 'Action Required: Reset your StartupHub password', getHtmlTemplate(title, bodyContent, { text: 'Reset Password', url }));
+        return this.enqueueEmail(to, 'Action Required: Reset your StartupHub password', getHtmlTemplate(title, bodyContent, { text: 'Reset Password', url }, 'reset'));
     },
 
     async sendNotificationEmail(to: string, name: string, type: 'like' | 'comment' | 'mention', details: any) {
@@ -162,27 +175,27 @@ export const emailService = {
     },
 
     async sendPitchLimitReachedEmail(to: string, name: string, limit: number) {
-        const title = 'You\'re on Fire! 🔥';
+        const title = "You're on Fire!";
         const bodyContent = `
             <p>Hi <span class="highlight">${name}</span>,</p>
             <p>Your activity level is impressive! You've reached your current limit of <span class="highlight">${limit} pitch requests</span>.</p>
             <p>To continue scaling your exposure and reaching more investors, consider upgrading your membership or reaching out to our success team for a limit increase.</p>
         `;
-        return this.enqueueEmail(to, 'Important: Pitch Request Limit Reached', getHtmlTemplate(title, bodyContent, { text: 'View Premium Plans', url: `${config.corsOrigin}/pricing` }));
+        return this.enqueueEmail(to, 'Important: Pitch Request Limit Reached', getHtmlTemplate(title, bodyContent, { text: 'View Premium Plans', url: `${config.corsOrigin}/pricing` }, 'alert'));
     },
 
     async sendPitchSubmissionEmail(to: string, name: string, pitchTitle: string) {
-        const title = 'Pitch Received! 📑';
+        const title = 'Pitch Received!';
         const bodyContent = `
             <p>Fantastic news, <span class="highlight">${name}</span>!</p>
             <p>Your pitch request <span class="highlight">"${pitchTitle}"</span> has been successfully submitted and is now being meticulously reviewed by our curators.</p>
             <p>We aim to maintain the highest standards for our investor network, so this check usually takes 24-48 hours. We'll notify you as soon as your status changes.</p>
         `;
-        return this.enqueueEmail(to, 'Confirmation: Your Pitch is in Review', getHtmlTemplate(title, bodyContent, { text: 'Track Progress', url: `${config.corsOrigin}/dashboard` }));
+        return this.enqueueEmail(to, 'Confirmation: Your Pitch is in Review', getHtmlTemplate(title, bodyContent, { text: 'Track Progress', url: `${config.corsOrigin}/dashboard` }, 'success'));
     },
 
     async sendPitchRequestStatus(to: string, name: string, status: string, pitchTitle: string) {
-        const title = 'Pitch Update Available ⚡';
+        const title = 'Pitch Update Available';
         const isApproved = status.toLowerCase() === 'approved';
         const badgeColor = isApproved ? '#10b981' : '#f43f5e';
         const badgeBg = isApproved ? '#ecfdf5' : '#fff1f2';
@@ -197,11 +210,11 @@ export const emailService = {
             </div>
             <p>Check your admin panel for detailed feedback and required next steps from our reviewing team.</p>
         `;
-        return this.enqueueEmail(to, `Update: Your Pitch Status is ${status}`, getHtmlTemplate(title, bodyContent, { text: 'Read Review', url: `${config.corsOrigin}/dashboard` }));
+        return this.enqueueEmail(to, `Update: Your Pitch Status is ${status}`, getHtmlTemplate(title, bodyContent, { text: 'Read Review', url: `${config.corsOrigin}/dashboard` }, isApproved ? 'success' : 'alert'));
     },
 
     async sendContactUsEmail(fromEmail: string, fromName: string, message: string) {
-        const title = 'New Support Inquiry 📬';
+        const title = 'New Support Inquiry';
         const bodyContent = `
             <div style="background-color: #f8fafc; border-left: 4px solid #4f46e5; padding: 24px; border-radius: 8px; margin: 24px 0;">
                 <p style="margin-bottom: 12px;"><strong>From:</strong> ${fromName} <br><small>${fromEmail}</small></p>
@@ -209,12 +222,12 @@ export const emailService = {
             </div>
             <p style="font-size: 14px; opacity: 0.8;">Action required: Please respond to this inquiry via the admin dashboard or direct email.</p>
         `;
-        return this.enqueueEmail('founder@4dk.in', `Support: New Message from ${fromName}`, getHtmlTemplate(title, bodyContent));
+        return this.enqueueEmail('founder@4dk.in', `Support: New Message from ${fromName}`, getHtmlTemplate(title, bodyContent, undefined, 'info'));
     },
 
     async sendSubscriptionExpiryWarning(to: string, name: string, daysLeft: number) {
         const isExpired = daysLeft < 0;
-        const title = isExpired ? 'Membership Expired ⚠️' : 'Membership Update ⏳';
+        const title = isExpired ? 'Membership Expired' : 'Membership Update';
         let bodyText = '';
 
         if (daysLeft === 30) {
@@ -227,21 +240,21 @@ export const emailService = {
             bodyText = `A courtesy notice that your Premium membership will conclude in <span class="highlight">${daysLeft} days</span>.`;
         }
 
-        return this.enqueueEmail(to, `Notice: ${title}`, getHtmlTemplate(title, `<p>Hi ${name},</p><p>${bodyText}</p>`, { text: isExpired ? 'Reactivate Now' : 'Keep my Premium Status', url: `${config.corsOrigin}/pricing` }));
+        return this.enqueueEmail(to, `Notice: ${title}`, getHtmlTemplate(title, `<p>Hi ${name},</p><p>${bodyText}</p>`, { text: isExpired ? 'Reactivate Now' : 'Keep my Premium Status', url: `${config.corsOrigin}/pricing` }, 'alert'));
     },
 
     async sendPaymentFailedEmail(to: string, name: string, orderId: string) {
-        const title = 'Payment Unsuccessful ❌';
+        const title = 'Payment Unsuccessful';
         const bodyContent = `
             <p>Hi <span class="highlight">${name}</span>,</p>
             <p>We were unable to process your transaction for order <span class="highlight">${orderId}</span>. No worries—your account is still safe, and no funds were debited if the bank rejected the charge.</p>
             <p>Please try a different payment method to secure your <span class="highlight">Premium Status</span> and continue your journey.</p>
         `;
-        return this.enqueueEmail(to, 'Action Required: Your payment could not be processed', getHtmlTemplate(title, bodyContent, { text: 'Fix Payment', url: `${config.corsOrigin}/pricing` }));
+        return this.enqueueEmail(to, 'Action Required: Your payment could not be processed', getHtmlTemplate(title, bodyContent, { text: 'Fix Payment', url: `${config.corsOrigin}/pricing` }, 'alert'));
     },
 
     async sendAccountStatusEmail(to: string, name: string, isActive: boolean) {
-        const statusText = isActive ? 'Restored ✅' : 'Suspended 🚫';
+        const statusText = isActive ? 'Restored' : 'Suspended';
         const title = `Account ${statusText}`;
         const bodyContent = `
             <p>Hello <span class="highlight">${name}</span>,</p>
@@ -250,16 +263,16 @@ export const emailService = {
                 ? '<p>Welcome back! All platform features are now available to you again. We look forward to your contributions.</p>'
                 : '<p>Your account access has been temporarily restricted. If you believe this is a misunderstanding, please reach out to our integrity team for a review.</p>'}
         `;
-        return this.enqueueEmail(to, `Security: Your Account has been ${statusText}`, getHtmlTemplate(title, bodyContent, isActive ? { text: 'Sign In Now', url: `${config.corsOrigin}/login` } : undefined));
+        return this.enqueueEmail(to, `Security: Your Account has been ${statusText}`, getHtmlTemplate(title, bodyContent, isActive ? { text: 'Sign In Now', url: `${config.corsOrigin}/login` } : undefined, isActive ? 'success' : 'alert'));
     },
 
     async sendPendingPaymentReminder(to: string, name: string) {
-        const title = 'One Final Step! 🏁';
+        const title = 'One Final Step!';
         const bodyContent = `
             <p>Hey <span class="highlight">${name}</span>, you're so close!</p>
             <p>We noticed you haven't quite finished your registration at <span class="highlight">StartupHub</span>. You're just one step away from connecting with the people who can change your startup's trajectory.</p>
             <p>Complete your membership payment today to instantly unlock India's most powerful network of innovators and funders.</p>
         `;
-        return this.enqueueEmail(to, 'Final Step: Your membership is waiting for you', getHtmlTemplate(title, bodyContent, { text: 'Complete Registration', url: `${config.corsOrigin}/login` }));
+        return this.enqueueEmail(to, 'Final Step: Your membership is waiting for you', getHtmlTemplate(title, bodyContent, { text: 'Complete Registration', url: `${config.corsOrigin}/login` }, 'welcome'));
     }
 };

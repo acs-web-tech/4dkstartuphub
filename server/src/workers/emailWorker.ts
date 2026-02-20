@@ -26,7 +26,7 @@ const transporter = nodemailer.createTransport({
 async function connectDB() {
     try {
         await mongoose.connect(config.mongodbUri);
-        console.log('📧 Email Worker connected to MongoDB');
+        console.log('Email Worker connected to MongoDB');
     } catch (err) {
         console.error('Email Worker DB connection error:', err);
         process.exit(1);
