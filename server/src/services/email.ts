@@ -181,9 +181,13 @@ export const emailService = {
         return true;
     },
 
-    async sendBroadcastEmail(to: string, name: string, subject: string, content: string, actionUrl?: string) {
-        const body = `<p>Hi ${name},</p><div style="font-size: 16px; color: #333; margin-top: 12px;">${content}</div>`;
-        const html = getHtmlTemplate(subject, body, actionUrl ? { text: 'View Details', url: actionUrl } : undefined);
+    async sendPitchLimitReachedEmail(to: string, name: string, limit: number) {
+        const subject = 'Pitch Request Limit Reached';
+        const body = `
+            <p>Hi ${name},</p>
+            <p>You have reached your limit of <strong>${limit}</strong> pitch requests. To submit more pitches and continue growing your startup, please contact support or check for premium upgrades.</p>
+        `;
+        const html = getHtmlTemplate('Limit Reached', body, { text: 'View Dashboard', url: `${config.corsOrigin}/dashboard` });
         return this.enqueueEmail(to, subject, html);
     },
 
@@ -204,14 +208,40 @@ export const emailService = {
     },
 
     async sendSubscriptionExpiryWarning(to: string, name: string, daysLeft: number) {
-        const title = daysLeft === 0 ? 'Subscription Expiring Today' : 'Subscription Ending Soon';
-        const subject = daysLeft === 0 ? 'Your Premium Membership Expires Today' : `Your Premium Membership expires in ${daysLeft} days`;
+        let title, subject, bodyText, btnText = 'Renew Now';
+        const expiryDate = new Date(Date.now() + daysLeft * 86400000).toLocaleDateString();
+
+        if (daysLeft === 30) {
+            title = 'Subscription Expiring in 1 Month';
+            subject = 'Your Premium Membership ends in 30 days';
+            bodyText = 'This is a friendly reminder that your Premium membership is set to expire in one month. To ensure uninterrupted access to investor networks and pitch features, consider renewing soon.';
+        } else if (daysLeft === 0) {
+            title = 'Subscription Expiring Today';
+            subject = 'Your Premium Membership Expires Today';
+            bodyText = 'Your Premium membership is set to expire today. Renew now to keep your premium status and access to all features.';
+        } else if (daysLeft === -1) {
+            title = 'Subscription Expired';
+            subject = 'Your Premium Membership has Expired';
+            bodyText = 'Your Premium membership expired yesterday. You no longer have access to premium features like pitch requests and exclusive chat rooms. Renew now to get back on track.';
+            btnText = 'Reactivate Now';
+        } else {
+            title = 'Subscription Ending Soon';
+            subject = `Your Premium Membership expires in ${daysLeft} days`;
+            bodyText = `This is a reminder that your Premium membership is set to expire on ${expiryDate}.`;
+        }
+
+        const html = getHtmlTemplate(title, `<p>Hi ${name},</p><p>${bodyText}</p>`, { text: btnText, url: `${config.corsOrigin}/pricing` });
+        return this.enqueueEmail(to, subject, html);
+    },
+
+    async sendPaymentFailedEmail(to: string, name: string, orderId: string) {
+        const subject = 'Payment Failed: Your subscription could not be processed';
         const body = `
             <p>Hi ${name},</p>
-            <p>This is a reminder that your Premium membership is set to expire ${daysLeft === 0 ? 'today' : `on ${new Date(Date.now() + daysLeft * 86400000).toLocaleDateString()}`}.</p>
-            <p>To continue enjoying exclusive investor access and premium features, please renew your subscription.</p>
+            <p>We're sorry, but your payment for order <strong>${orderId}</strong> could not be processed successfully.</p>
+            <p>If you'd like to try again and gain premium access, please return to the platform.</p>
         `;
-        const html = getHtmlTemplate(title, body, { text: 'Renew Now', url: `${config.corsOrigin}/pricing` });
+        const html = getHtmlTemplate('Payment Failed', body, { text: 'Retry Payment', url: `${config.corsOrigin}/pricing` });
         return this.enqueueEmail(to, subject, html);
     },
 

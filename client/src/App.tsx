@@ -15,6 +15,7 @@ import Bookmarks from './pages/Bookmarks';
 import UserDetail from './pages/UserDetail';
 import CreatePost from './components/Post/CreatePost';
 import PitchRequests from './pages/PitchRequests';
+import Pricing from './pages/Pricing';
 
 import { SocketProvider } from './context/SocketContext';
 import ScrollRestoration from './components/Common/ScrollRestoration';
@@ -73,6 +74,9 @@ export default function App() {
                             } />
                             <Route path="/pitch-requests" element={
                                 <ProtectedRoute><PitchRequests /></ProtectedRoute>
+                            } />
+                            <Route path="/pricing" element={
+                                <Pricing />
                             } />
 
                             {/* Admin only */}

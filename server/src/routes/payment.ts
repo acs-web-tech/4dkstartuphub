@@ -78,6 +78,16 @@ router.post('/webhook', async (req, res) => {
             }
         }
 
+        if (event === 'payment.failed') {
+            const payment = payload.payment.entity;
+            const orderId = payment.order_id;
+            const user = await User.findOne({ razorpay_order_id: orderId });
+            if (user) {
+                await emailService.sendPaymentFailedEmail(user.email, user.display_name, orderId);
+                console.log(`❌ Webhook: Payment failed for user ${user.email} (Order: ${orderId})`);
+            }
+        }
+
         res.json({ status: 'ok' });
     } catch (err) {
         console.error('Webhook error:', err);

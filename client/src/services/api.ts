@@ -53,6 +53,13 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
         throw new Error(errMessage);
     }
 
+    if (res.status === 402) {
+        if (window.location.pathname !== '/pricing') {
+            window.location.href = '/pricing';
+        }
+        throw new Error('Payment required to access the platform.');
+    }
+
     if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Request failed' }));
         // Include validation details if present

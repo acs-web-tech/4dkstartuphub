@@ -92,3 +92,35 @@ export function optionalAuth(req: AuthRequest, res: Response, next: NextFunction
 
     next();
 }
+
+/**
+ * Middleware to check if platform is locked (requires payment)
+ */
+export async function requirePayment(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    // Admins are always exempt
+    if (req.user?.role === 'admin') {
+        return next();
+    }
+
+    try {
+        const Setting = (await import('../models/Setting')).default;
+        const lockSetting = await Setting.findOne({ key: 'global_payment_lock' });
+
+        if (lockSetting?.value === 'true') {
+            const User = (await import('../models/User')).default;
+            const user = await User.findById(req.user?.userId).select('payment_status');
+
+            if (!user || user.payment_status !== 'completed') {
+                res.status(402).json({
+                    error: 'Payment required to access the platform.',
+                    code: 'PAYMENT_REQUIRED'
+                });
+                return;
+            }
+        }
+        next();
+    } catch (err) {
+        console.error('Payment check middleware error:', err);
+        next(); // Allow if check fails to avoid blocking everyone due to code error
+    }
+}

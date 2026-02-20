@@ -12,7 +12,7 @@ import 'react-quill/dist/quill.snow.css';
 import { editorModules, editorFormats } from '../config/editor';
 
 export default function Admin() {
-    const [tab, setTab] = useState<'dashboard' | 'users' | 'rooms' | 'pitch' | 'broadcast' | 'settings'>('dashboard');
+    const [tab, setTab] = useState<'dashboard' | 'users' | 'rooms' | 'pitch' | 'settings'>('dashboard');
     const [stats, setStats] = useState<AdminStats | null>(null);
     const [postsByCategory, setPostsByCategory] = useState<any[]>([]);
     const [topPosters, setTopPosters] = useState<any[]>([]);
@@ -34,13 +34,9 @@ export default function Admin() {
     const [newMemberSearch, setNewMemberSearch] = useState('');
     const [memberSearchResults, setMemberSearchResults] = useState<User[]>([]);
 
-    // Broadcast State
-    const [broadcast, setBroadcast] = useState<{ title: string; content: string; videoUrl: string; referenceId?: string; imageUrl?: string }>({ title: '', content: '', videoUrl: '', imageUrl: '' });
-    const broadcastQuillRef = useRef<ReactQuill>(null);
     // Welcome notification ref
     const welcomeQuillRef = useRef<ReactQuill>(null);
     const [loading, setLoading] = useState(true);
-    const [isBroadcasting, setIsBroadcasting] = useState(false);
     const [message, setMessage] = useState('');
     const [messageType, setMessageType] = useState<'success' | 'error'>('success');
 
@@ -55,6 +51,9 @@ export default function Admin() {
     const [androidUrl, setAndroidUrl] = useState('');
     const [iosUrl, setIosUrl] = useState('');
     const [emailVerificationRequired, setEmailVerificationRequired] = useState(false);
+    const [globalPaymentLock, setGlobalPaymentLock] = useState(false);
+    const [pitchUploadLimit, setPitchUploadLimit] = useState('0');
+    const [pitchRequestAmount, setPitchRequestAmount] = useState('950');
     const [settingsLoading, setSettingsLoading] = useState(false);
 
     useEffect(() => {
@@ -93,6 +92,9 @@ export default function Admin() {
                 setAndroidUrl(data.settings.android_app_url || '');
                 setIosUrl(data.settings.ios_app_url || '');
                 setEmailVerificationRequired(data.settings.registration_email_verification_required === 'true');
+                setGlobalPaymentLock(data.settings.global_payment_lock === 'true');
+                setPitchUploadLimit(data.settings.pitch_upload_limit || '0');
+                setPitchRequestAmount(data.settings.pitch_request_payment_amount || '950');
             })
             .catch(() => { })
             .finally(() => setSettingsLoading(false));
@@ -120,6 +122,55 @@ export default function Admin() {
             setMessageType('success');
         } catch (err: any) {
             setMessage(err.message || 'Failed to update setting');
+            setMessageType('error');
+        }
+    };
+
+    const handleToggleGlobalLock = async () => {
+        const newValue = !globalPaymentLock;
+        try {
+            await adminApi.updateSetting('global_payment_lock', String(newValue));
+            setGlobalPaymentLock(newValue);
+            setMessage(`Global platform lock ${newValue ? 'enabled' : 'disabled'}`);
+            setMessageType('success');
+        } catch (err: any) {
+            setMessage(err.message || 'Failed to update setting');
+            setMessageType('error');
+        }
+    };
+
+    const handleSavePitchLimit = async () => {
+        const num = parseInt(pitchUploadLimit, 10);
+        if (isNaN(num) || num < 0) {
+            setMessage('Please enter a valid limit (0 for unlimited)');
+            setMessageType('error');
+            return;
+        }
+        try {
+            await adminApi.updateSetting('pitch_upload_limit', String(num));
+            setPitchUploadLimit(String(num));
+            setMessage(`Pitch upload limit updated to ${num === 0 ? 'unlimited' : num}`);
+            setMessageType('success');
+        } catch (err: any) {
+            setMessage(err.message || 'Failed to update limit');
+            setMessageType('error');
+        }
+    };
+
+    const handleSavePitchAmount = async () => {
+        const num = parseInt(pitchRequestAmount, 10);
+        if (isNaN(num) || num < 0) {
+            setMessage('Please enter a valid amount');
+            setMessageType('error');
+            return;
+        }
+        try {
+            await adminApi.updateSetting('pitch_request_payment_amount', String(num));
+            setPitchRequestAmount(String(num));
+            setMessage(`Pitch request price updated to ₹${num}`);
+            setMessageType('success');
+        } catch (err: any) {
+            setMessage(err.message || 'Failed to update amount');
             setMessageType('error');
         }
     };
@@ -407,43 +458,6 @@ export default function Admin() {
         }
     };
 
-    // Broadcast
-    const broadcastImageHandler = () => {
-        const input = document.createElement('input');
-        input.setAttribute('type', 'file');
-        input.setAttribute('accept', 'image/*');
-        input.click();
-
-        input.onchange = async () => {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                try {
-                    setIsImageUploading(true);
-                    const data = await uploadApi.upload(file);
-                    const range = broadcastQuillRef.current?.getEditor().getSelection();
-                    if (range) {
-                        broadcastQuillRef.current?.getEditor().insertEmbed(range.index, 'image', data.url);
-                    }
-                } catch (err) {
-                    console.error('Image upload failed:', err);
-                    alert('Image upload failed');
-                } finally {
-                    setIsImageUploading(false);
-                }
-            }
-        };
-    };
-
-    const broadcastModules = useMemo(() => ({
-        ...editorModules,
-        toolbar: {
-            container: editorModules.toolbar.container,
-            handlers: {
-                image: broadcastImageHandler
-            }
-        }
-    }), []);
-
     // Welcome Notification Editor Helpers
     const welcomeImageHandler = () => {
         const input = document.createElement('input');
@@ -481,55 +495,6 @@ export default function Admin() {
         }
     }), []);
 
-    const broadcastNotificationImageHandler = () => {
-        const input = document.createElement('input');
-        input.setAttribute('type', 'file');
-        input.setAttribute('accept', 'image/*');
-        input.click();
-
-        input.onchange = async () => {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                try {
-                    setIsImageUploading(true);
-                    const data = await uploadApi.upload(file);
-                    // Ensure absolute URL for push notifications and browser validation
-                    const absoluteUrl = new URL(data.url, window.location.origin).href;
-                    setBroadcast(prev => ({ ...prev, imageUrl: absoluteUrl }));
-                } catch (err) {
-                    alert('Image upload failed');
-                } finally {
-                    setIsImageUploading(false);
-                }
-            }
-        }
-    };
-
-    const handleBroadcast = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!broadcast.title.trim() || !broadcast.content.trim()) return;
-        if (isBroadcasting) return;
-
-        setIsBroadcasting(true);
-        setMessage('');
-        try {
-            const data: any = await adminApi.broadcast(
-                broadcast.title.trim(),
-                broadcast.content.trim(),
-                broadcast.videoUrl.trim() || undefined,
-                broadcast.referenceId?.trim(),
-                broadcast.imageUrl
-            );
-            setMessage(data.message);
-            setMessageType('success');
-            setBroadcast({ title: '', content: '', videoUrl: '' });
-        } catch (err: any) {
-            setMessage(err.message);
-            setMessageType('error');
-        } finally {
-            setIsBroadcasting(false);
-        }
-    };
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -564,9 +529,6 @@ export default function Admin() {
                 </button>
                 <button className={`admin-tab ${tab === 'pitch' ? 'active' : ''}`} onClick={() => setTab('pitch')}>
                     <Lightbulb size={16} className="inline mr-1" /> Pitch Requests
-                </button>
-                <button className={`admin-tab ${tab === 'broadcast' ? 'active' : ''}`} onClick={() => setTab('broadcast')}>
-                    <Megaphone size={16} className="inline mr-1" /> Broadcast
                 </button>
                 <button className={`admin-tab ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>
                     <CreditCard size={16} className="inline mr-1" /> Settings
@@ -934,96 +896,10 @@ export default function Admin() {
                         </div>
                     )}
 
-                    {/* Broadcast Tab */}
-                    {tab === 'broadcast' && (
-                        <div className="admin-broadcast">
-                            <div className="card">
-                                <h3><Megaphone size={20} className="inline mr-1" /> Broadcast Notification</h3>
-                                <p className="text-muted">Send a notification to all active users</p>
-                                <form onSubmit={handleBroadcast}>
-                                    <div className="form-group">
-                                        <label htmlFor="broadcast-title">Title</label>
-                                        <input id="broadcast-title" type="text" className="form-input" placeholder="Notification title..."
-                                            value={broadcast.title} onChange={e => setBroadcast(prev => ({ ...prev, title: e.target.value }))} required maxLength={200} />
-                                    </div>
-                                    <div className="form-group">
-                                        <label htmlFor="broadcast-content">Message</label>
-                                        <div className="rich-editor-container">
-                                            <ReactQuill
-                                                ref={broadcastQuillRef}
-                                                theme="snow"
-                                                value={broadcast.content}
-                                                onChange={(val) => setBroadcast(prev => ({ ...prev, content: val }))}
-                                                modules={broadcastModules}
-                                                formats={editorFormats}
-                                                className="rich-editor"
-                                                placeholder="Notification content — add text, images, links..."
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="form-group">
-                                        <label htmlFor="broadcast-video">Video Link (Optional)</label>
-                                        <div className="relative" style={{ position: 'relative' }}>
-                                            <LinkIcon size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: '#9ca3af' }} />
-                                            <input
-                                                id="broadcast-video"
-                                                type="url"
-                                                className="form-input"
-                                                style={{ paddingLeft: '36px' }}
-                                                placeholder="https://youtube.com/..."
-                                                value={broadcast.videoUrl}
-                                                onChange={e => setBroadcast(prev => ({ ...prev, videoUrl: e.target.value }))}
-                                                maxLength={500}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="form-group">
-                                        <label htmlFor="broadcast-image">Notification Image (Optional)</label>
-                                        <div style={{ display: 'flex', gap: '8px' }}>
-                                            <input
-                                                id="broadcast-image"
-                                                type="url"
-                                                className="form-input"
-                                                placeholder="https://example.com/image.jpg"
-                                                value={broadcast.imageUrl || ''}
-                                                onChange={e => setBroadcast(prev => ({ ...prev, imageUrl: e.target.value }))}
-                                                style={{ flex: 1 }}
-                                            />
-                                            <button
-                                                type="button"
-                                                className="btn btn-secondary"
-                                                onClick={broadcastNotificationImageHandler}
-                                            >
-                                                Upload
-                                            </button>
-                                        </div>
-                                        {broadcast.imageUrl && (
-                                            <div style={{ marginTop: '10px' }}>
-                                                <p style={{ fontSize: '0.8rem', color: '#9ca3af', marginBottom: '4px' }}>Preview:</p>
-                                                <img
-                                                    src={broadcast.imageUrl}
-                                                    alt="Notification Preview"
-                                                    style={{ height: '100px', width: 'auto', borderRadius: '4px', border: '1px solid #374151' }}
-                                                    onError={(e) => (e.currentTarget.style.display = 'none')}
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-                                    <button type="submit" className="btn btn-primary" id="send-broadcast" disabled={isBroadcasting || isImageUploading}>
-                                        {isBroadcasting ? (
-                                            <>Sending...</>
-                                        ) : (
-                                            isImageUploading ? 'Uploading Image...' : <><Send size={16} className="inline mr-1" /> Send to All Users</>
-                                        )}
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    )}
-
                     {/* Settings Tab */}
                     {tab === 'settings' && (
                         <div className="admin-settings">
+                            {/* ... (rest of settings content) ... */}
                             <div className="card" style={{ padding: '24px' }}>
                                 <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <CreditCard size={20} /> Registration Payment
@@ -1031,6 +907,30 @@ export default function Admin() {
                                 <p className="text-muted" style={{ marginBottom: '24px', fontSize: '0.9rem' }}>
                                     Control whether users are required to pay during registration to access premium features like pitch requests.
                                 </p>
+
+                                {/* Global Platform Lock */}
+                                <div className="settings-toggle-row" style={{ marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '24px' }}>
+                                    <div className="settings-toggle-info">
+                                        <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '4px' }}>
+                                            {globalPaymentLock ? '🔒 Platform Locked' : '🔓 Platform Unlocked'}
+                                        </div>
+                                        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                                            {globalPaymentLock
+                                                ? 'Only users with completed payment status can access the platform features. Others will be blocked.'
+                                                : 'All registered users can access the platform (except specific premium features).'}
+                                        </div>
+                                    </div>
+                                    <button
+                                        className={`settings-toggle-btn ${globalPaymentLock ? 'active' : ''}`}
+                                        onClick={handleToggleGlobalLock}
+                                        disabled={settingsLoading}
+                                        id="toggle-global-lock"
+                                    >
+                                        {globalPaymentLock
+                                            ? <ToggleRight size={40} />
+                                            : <ToggleLeft size={40} />}
+                                    </button>
+                                </div>
 
                                 {/* Email Verification Toggle */}
                                 <div className="settings-toggle-row" style={{ marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '24px' }}>
@@ -1144,6 +1044,76 @@ export default function Admin() {
                                             disabled={settingsLoading}
                                             style={{ padding: '8px 16px', fontSize: '0.85rem' }}
                                             id="save-validity-months"
+                                        >
+                                            Save
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginTop: '40px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Lightbulb size={20} /> Pitch Request Settings
+                                </h3>
+                                <p className="text-muted" style={{ marginBottom: '24px', fontSize: '0.9rem' }}>
+                                    Control limits and pricing for startup pitch requests.
+                                </p>
+
+                                {/* Pitch Upload Limit */}
+                                <div className="settings-toggle-row">
+                                    <div className="settings-toggle-info">
+                                        <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '4px' }}>
+                                            🚀 Pitch Upload Limit
+                                        </div>
+                                        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                                            Maximum number of pitch requests a user can submit. Set to 0 for unlimited.
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <input
+                                            type="number"
+                                            className="form-input"
+                                            style={{ width: '80px', textAlign: 'center', fontWeight: 700 }}
+                                            value={pitchUploadLimit}
+                                            onChange={e => setPitchUploadLimit(e.target.value)}
+                                            min={0}
+                                        />
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={handleSavePitchLimit}
+                                            disabled={settingsLoading}
+                                            style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                                        >
+                                            Save
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Pitch Request Pricing */}
+                                <div className="settings-toggle-row" style={{ marginTop: '16px' }}>
+                                    <div className="settings-toggle-info">
+                                        <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '4px' }}>
+                                            🏷️ Pitch Request Price
+                                        </div>
+                                        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                                            Default price for individual pitch requests (if applicable).
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                            <span style={{ position: 'absolute', left: '12px', color: 'var(--text-muted)', fontWeight: 700 }}>₹</span>
+                                            <input
+                                                type="number"
+                                                className="form-input"
+                                                style={{ width: '120px', paddingLeft: '28px', textAlign: 'right', fontWeight: 700 }}
+                                                value={pitchRequestAmount}
+                                                onChange={e => setPitchRequestAmount(e.target.value)}
+                                                min={0}
+                                            />
+                                        </div>
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={handleSavePitchAmount}
+                                            disabled={settingsLoading}
+                                            style={{ padding: '8px 16px', fontSize: '0.85rem' }}
                                         >
                                             Save
                                         </button>

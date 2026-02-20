@@ -20,7 +20,7 @@ async function requirePremium(req: AuthRequest, res: Response, next: NextFunctio
     }
     const user = await User.findById(req.user!.userId);
     if (!user || user.payment_status?.toLowerCase() !== 'completed') {
-        res.status(403).json({ error: 'Premium access required. Only paid users can access pitch requests.', code: 'PREMIUM_REQUIRED' });
+        res.status(402).json({ error: 'Premium access required. Only paid users can access pitch requests.', code: 'PREMIUM_REQUIRED' });
         return;
     }
     next();
@@ -44,6 +44,26 @@ router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => 
         if (description.length > 5000) {
             res.status(400).json({ error: 'Description is too long (max 5000 chars)' });
             return;
+        }
+
+        // Check Pitch Limit
+        const Setting = (await import('../models/Setting')).default;
+        const limitSetting = await Setting.findOne({ key: 'pitch_upload_limit' });
+        const limit = parseInt(limitSetting?.value || '0', 10);
+
+        if (limit > 0 && req.user?.role !== 'admin') {
+            const pitchCount = await PitchRequest.countDocuments({ user_id: req.user!.userId });
+            if (pitchCount >= limit) {
+                const user = await User.findById(req.user!.userId);
+                if (user) {
+                    await emailService.sendPitchLimitReachedEmail(user.email, user.display_name, limit);
+                }
+                res.status(403).json({
+                    error: `You have reached the maximum limit of ${limit} pitch requests.`,
+                    code: 'LIMIT_REACHED'
+                });
+                return;
+            }
         }
 
         const newPitch = await PitchRequest.create({

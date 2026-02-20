@@ -352,76 +352,7 @@ router.delete('/posts/:id', async (req: AuthRequest, res) => {
     }
 });
 
-// ── POST /api/admin/notifications/broadcast ─────────────────
-router.post('/notifications/broadcast', async (req: AuthRequest, res) => {
-    try {
-        const { title, content, videoUrl, referenceId, imageUrl } = req.body;
 
-        if (!title || !content) {
-            res.status(400).json({ error: 'Title and content are required' });
-            return;
-        }
-
-        let fullContent = content;
-        if (videoUrl && videoUrl.trim()) {
-            fullContent += `<div class="broadcast-video"><a href="${videoUrl.trim()}" target="_blank" rel="noopener noreferrer">🎬 Watch Video</a></div>`;
-        }
-
-        // Use explicit imageUrl if provided, otherwise extract from content
-        const finalImageUrl = imageUrl || (content.match(/<img[^>]+src="([^">]+)"/)?.[1]);
-
-        const users = await User.find({ is_active: true }).select('_id');
-
-        const notifications = users.map(user => ({
-            user_id: user._id,
-            sender_id: req.user!.userId,
-            type: 'admin',
-            title,
-            content: fullContent,
-            reference_id: referenceId || ''
-        }));
-
-        await Notification.insertMany(notifications);
-
-        // Emit real-time broadcast event
-        socketService.broadcast('broadcast', {
-            title,
-            content: fullContent,
-            referenceId,
-            imageUrl: finalImageUrl
-        });
-
-        // Send Emails (Background)
-        // Fetch users who want broadcast emails
-        const emailUsers = await User.find({
-            is_active: true,
-            'email_preferences.broadcasts': { $ne: false }
-        }).select('email display_name');
-
-        // We don't await the loop to avoid blocking response
-        (async () => {
-            const actionUrl = referenceId ? `${config.corsOrigin}/posts/${referenceId}` : undefined;
-            for (const user of (emailUsers as any)) {
-                try {
-                    await emailService.sendBroadcastEmail(
-                        user.email,
-                        user.display_name,
-                        title,
-                        fullContent,
-                        actionUrl
-                    );
-                } catch (e) {
-                    console.error(`Failed to enqueue broadcast email for ${user.email}`, e);
-                }
-            }
-        })();
-
-        res.json({ message: `Notification sent to ${users.length} users` });
-    } catch (err: any) {
-        console.error('Broadcast error:', err);
-        res.status(500).json({ error: 'Failed to broadcast notification' });
-    }
-});
 
 // ── GET /api/admin/settings ─────────────────────────────────
 router.get('/settings', async (_req: AuthRequest, res) => {
@@ -437,7 +368,9 @@ router.get('/settings', async (_req: AuthRequest, res) => {
             'pitch_request_payment_amount',
             'android_app_url',
             'ios_app_url',
-            'registration_email_verification_required'
+            'registration_email_verification_required',
+            'global_payment_lock',
+            'pitch_upload_limit'
         ];
 
         const settings = await Setting.find({ key: { $in: allowedKeys } });
@@ -472,7 +405,9 @@ router.put('/settings', async (req: AuthRequest, res) => {
             'pitch_request_payment_amount',
             'android_app_url',
             'ios_app_url',
-            'registration_email_verification_required'
+            'registration_email_verification_required',
+            'global_payment_lock',
+            'pitch_upload_limit'
         ];
         if (!allowedKeys.includes(key)) {
             res.status(400).json({ error: 'Unknown setting key' });

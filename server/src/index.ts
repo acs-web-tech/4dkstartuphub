@@ -9,7 +9,7 @@ import fs from 'fs';
 import { config } from './config/env';
 import { initializeDatabase } from './config/database';
 import { apiLimiter } from './middleware/rateLimiter';
-import authRoutes from './routes/auth';
+import { authenticate, AuthRequest, requirePayment } from './middleware/auth';
 import postRoutes from './routes/posts';
 import userRoutes from './routes/users';
 import chatRoomRoutes from './routes/chatrooms';
@@ -146,16 +146,19 @@ app.use((req, res, next) => {
 });
 
 // ── API Routes ──────────────────────────────────────────────
+import authRoutes from './routes/auth';
 app.use('/api/auth', authRoutes);
-app.use('/api/posts', postRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/chatrooms', chatRoomRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/pitch', pitchRoutes);
-app.use('/api/notifications', notificationRoutes);
+
+// Apply Global Payment Lock check to all other functional routes
+app.use('/api/posts', authenticate, requirePayment, postRoutes);
+app.use('/api/users', authenticate, requirePayment, userRoutes);
+app.use('/api/chatrooms', authenticate, requirePayment, chatRoomRoutes);
+app.use('/api/admin', adminRoutes); // Admin routes handle their own auth/check
+app.use('/api/pitch', authenticate, requirePayment, pitchRoutes);
+app.use('/api/notifications', authenticate, requirePayment, notificationRoutes);
 app.use('/api/meta', metaRoutes);
-app.use('/api/upload', uploadRoutes);
-app.use('/api/payment', paymentRoutes);
+app.use('/api/upload', authenticate, requirePayment, uploadRoutes);
+app.use('/api/payment', paymentRoutes); // Payment routes must be public to allow paying!
 
 // ── Health Check ────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
@@ -255,20 +258,24 @@ async function start() {
             const checkAndNotify = async (start: Date, end: Date, days: number) => {
                 const users = await User.find({
                     premium_expiry: { $gte: start, $lte: end },
-                    payment_status: 'completed'
+                    payment_status: days === -1 ? { $ne: 'expired' } : 'completed'
                 });
                 for (const user of users) {
+                    if (days === -1) {
+                        user.payment_status = 'expired';
+                        await user.save();
+                    }
                     await emailService.sendSubscriptionExpiryWarning(user.email, user.display_name, days);
                 }
             };
 
+            // -1 Day (Expired Yesterday)
+            const yestStart = new Date(todayStart); yestStart.setDate(yestStart.getDate() - 1);
+            const yestEnd = new Date(todayEnd); yestEnd.setDate(yestEnd.getDate() - 1);
+            await checkAndNotify(yestStart, yestEnd, -1);
+
             // 0 Days (Today)
             await checkAndNotify(todayStart, todayEnd, 0);
-
-            // 1 Day Before
-            const tmrStart = new Date(todayStart); tmrStart.setDate(tmrStart.getDate() + 1);
-            const tmrEnd = new Date(todayEnd); tmrEnd.setDate(tmrEnd.getDate() + 1);
-            await checkAndNotify(tmrStart, tmrEnd, 1);
 
             // 30 Days Before
             const monthStart = new Date(todayStart); monthStart.setDate(monthStart.getDate() + 30);
