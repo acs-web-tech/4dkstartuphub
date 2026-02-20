@@ -458,7 +458,8 @@ router.put('/settings', async (req: AuthRequest, res) => {
             'ios_app_url',
             'registration_email_verification_required',
             'global_payment_lock',
-            'pitch_upload_limit'
+            'pitch_upload_limit',
+            'welcome_notification_image_url'
         ];
         if (!allowedKeys.includes(key)) {
             res.status(400).json({ error: 'Unknown setting key' });

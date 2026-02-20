@@ -218,9 +218,10 @@ class SocketService {
         const cleanBody = (notification.content || '').replace(/<[^>]*>?/gm, '').trim();
         pushService.sendToUser(userId, {
             title: notification.title,
-            body: cleanBody || 'New notification',
+            body: cleanBody || 'Tap to view',
             url: notification.referenceId ? `/posts/${notification.referenceId}` : '/',
-            icon: notification.senderAvatarUrl || '/logo.png'
+            icon: notification.senderAvatarUrl || '/logo.png',
+            image: notification.imageUrl
         });
     }
 

@@ -59,6 +59,7 @@ export default function Admin() {
     const [globalPaymentLock, setGlobalPaymentLock] = useState(false);
     const [pitchUploadLimit, setPitchUploadLimit] = useState('0');
     const [pitchRequestAmount, setPitchRequestAmount] = useState('950');
+    const [welcomeImageUrl, setWelcomeImageUrl] = useState('');
     const [settingsLoading, setSettingsLoading] = useState(false);
 
     useEffect(() => {
@@ -103,6 +104,7 @@ export default function Admin() {
                 setGlobalPaymentLock(data.settings.global_payment_lock === 'true');
                 setPitchUploadLimit(data.settings.pitch_upload_limit || '0');
                 setPitchRequestAmount(data.settings.pitch_request_payment_amount || '950');
+                setWelcomeImageUrl(data.settings.welcome_notification_image_url || '');
             })
             .catch(() => { })
             .finally(() => setSettingsLoading(false));
@@ -224,6 +226,7 @@ export default function Admin() {
             await adminApi.updateSetting('welcome_notification_title', welcomeTitle);
             await adminApi.updateSetting('welcome_notification_content', welcomeContent);
             await adminApi.updateSetting('welcome_notification_video_url', welcomeVideoUrl);
+            await adminApi.updateSetting('welcome_notification_image_url', welcomeImageUrl);
             setMessage('Welcome notification updated successfully');
             setMessageType('success');
         } catch (err: any) {
@@ -245,6 +248,28 @@ export default function Admin() {
     };
 
     // Broadcast Helpers
+    const welcomeNotifImageHandler = () => {
+        const input = document.createElement('input');
+        input.setAttribute('type', 'file');
+        input.setAttribute('accept', 'image/*');
+        input.click();
+
+        input.onchange = async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+
+            try {
+                setIsImageUploading(true);
+                const { url } = await uploadApi.upload(file);
+                setWelcomeImageUrl(url);
+            } catch (err) {
+                console.error('Welcome image upload failed:', err);
+            } finally {
+                setIsImageUploading(false);
+            }
+        };
+    };
+
     const handleSendBroadcast = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
@@ -1123,6 +1148,35 @@ export default function Admin() {
                                 </div>
 
                                 <div className="form-group" style={{ marginTop: '16px' }}>
+                                    <label style={{ fontWeight: 600, marginBottom: '6px', display: 'block' }}>Welcome Banner (Optional)</label>
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary flex-1"
+                                            onClick={welcomeNotifImageHandler}
+                                            disabled={isImageUploading}
+                                        >
+                                            {welcomeImageUrl ? 'Change Image' : 'Upload Banner Image'}
+                                        </button>
+                                        {welcomeImageUrl && (
+                                            <button
+                                                type="button"
+                                                className="btn btn-danger"
+                                                onClick={() => setWelcomeImageUrl('')}
+                                                style={{ padding: '8px 12px' }}
+                                            >
+                                                <X size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+                                    {welcomeImageUrl && (
+                                        <div style={{ marginTop: '8px' }}>
+                                            <img src={welcomeImageUrl} alt="Welcome Banner Preview" style={{ maxWidth: '100%', height: 'auto', borderRadius: '4px' }} />
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="form-group" style={{ marginTop: '16px' }}>
                                     <label htmlFor="welcome-video-broadcast" style={{ fontWeight: 600, marginBottom: '6px', display: 'block' }}>Video Link (Optional)</label>
                                     <div style={{ position: 'relative' }}>
                                         <LinkIcon size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: '#9ca3af' }} />
@@ -1161,6 +1215,11 @@ export default function Admin() {
                                                     style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}
                                                     dangerouslySetInnerHTML={{ __html: welcomeContent || '<p>Your welcome message will appear here...</p>' }}
                                                 />
+                                                {welcomeImageUrl && (
+                                                    <div style={{ marginTop: '8px' }}>
+                                                        <img src={welcomeImageUrl} alt="Banner" style={{ maxWidth: '100%', height: 'auto', borderRadius: '4px' }} />
+                                                    </div>
+                                                )}
                                                 {welcomeVideoUrl && (
                                                     <div style={{ marginTop: '8px', fontSize: '0.85rem' }}>
                                                         <a href={welcomeVideoUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>🎬 Watch Video</a>

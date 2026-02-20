@@ -42,10 +42,18 @@ class PushNotificationService {
     /**
      * Send a push notification to a specific user
      */
-    async sendToUser(userId: string, data: { title: string; body: string; url?: string; icon?: string }) {
+    async sendToUser(userId: string, data: { title: string; body: string; url?: string; icon?: string; image?: string }) {
         try {
+            const user = await User.findById(userId);
+            if (!user || (!user.push_subscription && (!user.fcm_tokens || user.fcm_tokens.length === 0))) {
+                return;
+            }
+
             const absoluteUrl = this.ensureAbsoluteUrl(data.url) || '/';
             const absoluteIcon = this.ensureAbsoluteUrl(data.icon || '/logo.png');
+            const absoluteImage = this.ensureAbsoluteUrl(data.image);
+
+            console.log(`[Push] Sending to user ${userId}. Image: ${absoluteImage}`);
 
             // 1. Web Push
             const subscriptions = await PushSubscription.find({ user_id: userId });
@@ -55,7 +63,9 @@ class PushNotificationService {
                     title: data.title,
                     body: data.body,
                     url: absoluteUrl,
-                    icon: absoluteIcon
+                    icon: absoluteIcon,
+                    badge: absoluteIcon, // For web push, badge is often the icon
+                    image: absoluteImage
                 });
 
                 const sendPromises = subscriptions.map(sub => {
@@ -70,28 +80,43 @@ class PushNotificationService {
             }
 
             // 2. Native Push (FCM)
-            const user = await User.findById(userId).select('fcm_tokens');
+            // Re-fetch user to ensure fcm_tokens are up-to-date if user was modified above
+            const userWithTokens = await User.findById(userId).select('fcm_tokens');
             const messaging = getFirebaseMessaging();
-            if (user?.fcm_tokens?.length && messaging) {
-                const response = await messaging.sendEachForMulticast({
+            if (userWithTokens?.fcm_tokens?.length && messaging) {
+                const fcmPayload: any = {
                     notification: {
                         title: data.title,
                         body: data.body,
-                        ...(absoluteIcon ? { imageUrl: absoluteIcon } : {})
+                        ...(absoluteImage ? { imageUrl: absoluteImage, image: absoluteImage } : {}),
+                        ...(absoluteIcon && !absoluteImage ? { imageUrl: absoluteIcon } : {})
                     },
                     android: {
                         priority: 'high',
                         notification: {
                             sound: 'default',
-                            ...(absoluteIcon ? { imageUrl: absoluteIcon } : {})
+                            ...(absoluteImage ? { image: absoluteImage } : (absoluteIcon ? { icon: 'stock_ticker_update' } : {}))
                         }
                     },
                     data: {
                         url: absoluteUrl,
                         type: 'notification',
-                        ...(absoluteIcon ? { image: absoluteIcon, picture: absoluteIcon } : {})
-                    },
-                    tokens: user.fcm_tokens
+                        ...(absoluteImage ? { image: absoluteImage, picture: absoluteImage } : {}),
+                        ...(absoluteIcon ? { icon: absoluteIcon } : {}) // Add icon to data for some clients
+                    }
+                };
+
+                // Add APNS specific options for iOS if an image is present
+                if (absoluteImage) {
+                    fcmPayload.apns = {
+                        payload: { aps: { 'mutable-content': 1 } },
+                        fcmOptions: { imageUrl: absoluteImage }
+                    };
+                }
+
+                const response = await messaging.sendEachForMulticast({
+                    ...fcmPayload,
+                    tokens: userWithTokens.fcm_tokens
                 });
 
                 if (response.failureCount > 0) {
@@ -135,6 +160,7 @@ class PushNotificationService {
                     body: data.body,
                     url: absoluteUrl,
                     icon: absoluteIcon,
+                    badge: absoluteIcon,
                     image: absoluteImage
                 });
 
@@ -179,13 +205,17 @@ class PushNotificationService {
 
                     if (absoluteImage) {
                         fcmPayload.notification.imageUrl = absoluteImage;
-                        fcmPayload.android.notification.imageUrl = absoluteImage;
+                        fcmPayload.notification.image = absoluteImage; // Compatibility with some SDKs
+                        fcmPayload.image = absoluteImage; // Compatibility with some REST v1 maps
+                        fcmPayload.android.notification.image = absoluteImage;
+                        fcmPayload.android.notification.channelId = 'default';
                         fcmPayload.apns = {
                             payload: { aps: { 'mutable-content': 1 } },
                             fcmOptions: { imageUrl: absoluteImage }
                         };
                         fcmPayload.data.image = absoluteImage;
                         fcmPayload.data.picture = absoluteImage;
+                        fcmPayload.data.fcm_options = { image: absoluteImage };
                     }
 
                     for (let i = 0; i < uniqueTokens.length; i += batchSize) {

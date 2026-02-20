@@ -246,6 +246,7 @@ router.post('/register-finalize', authLimiter, async (req, res) => {
                 const welcomeTitle = await Setting.findOne({ key: 'welcome_notification_title' });
                 const welcomeContent = await Setting.findOne({ key: 'welcome_notification_content' });
                 const welcomeVideo = await Setting.findOne({ key: 'welcome_notification_video_url' });
+                const welcomeImage = await Setting.findOne({ key: 'welcome_notification_image_url' });
 
                 let finalContent = welcomeContent?.value || 'Complete your profile to get started.';
                 if (welcomeVideo?.value) {
@@ -257,6 +258,7 @@ router.post('/register-finalize', authLimiter, async (req, res) => {
                     type: 'welcome',
                     title: welcomeTitle?.value || 'Welcome to StartupHub! 🚀',
                     content: finalContent,
+                    image_url: welcomeImage?.value || '',
                     sender_id: null, // System notification
                     reference_id: 'welcome'
                 });
@@ -389,6 +391,7 @@ router.post('/register', authLimiter, validate(registerSchema), async (req, res)
         const welcomeTitle = await Setting.findOne({ key: 'welcome_notification_title' });
         const welcomeContent = await Setting.findOne({ key: 'welcome_notification_content' });
         const welcomeVideo = await Setting.findOne({ key: 'welcome_notification_video_url' });
+        const welcomeImage = await Setting.findOne({ key: 'welcome_notification_image_url' });
 
         let finalContent = welcomeContent?.value || 'Complete your profile to get started.';
         if (welcomeVideo?.value) {
@@ -399,7 +402,8 @@ router.post('/register', authLimiter, validate(registerSchema), async (req, res)
             user_id: newUser._id,
             type: 'welcome',
             title: welcomeTitle?.value || 'Welcome to StartupHub! 🚀',
-            content: finalContent
+            content: finalContent,
+            image_url: welcomeImage?.value || ''
         });
 
         if (isVerificationRequired) {
