@@ -34,6 +34,9 @@ router.get('/', authenticate, async (req, res) => {
         const match: any = {};
         if (category && category !== 'all') {
             match.category = category;
+        } else {
+            // Exclude announcements from the main community feed
+            match.category = { $ne: 'announcements' };
         }
         if (search) {
             const escapedSearch = escapeRegExp(search);

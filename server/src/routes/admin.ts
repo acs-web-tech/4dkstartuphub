@@ -404,7 +404,7 @@ router.post('/notifications/broadcast', async (req: AuthRequest, res) => {
             category: 'announcements',
             image_url: imageUrl || '',
             video_url: videoUrl || '',
-            is_pinned: true, // Announcements are pinned by default?
+            is_pinned: false, // Admin can pin manually if needed
         });
 
         // Broadcast the announcement in real-time

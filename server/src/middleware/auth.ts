@@ -104,9 +104,22 @@ export async function requirePayment(req: AuthRequest, res: Response, next: Next
 
     try {
         const Setting = (await import('../models/Setting')).default;
-        const lockSetting = await Setting.findOne({ key: 'global_payment_lock' });
 
-        if (lockSetting?.value === 'true') {
+        // Fetch both settings to determine current platform policy
+        const [lockSetting, regSetting] = await Promise.all([
+            Setting.findOne({ key: 'global_payment_lock' }),
+            Setting.findOne({ key: 'registration_payment_required' })
+        ]);
+
+        // If 'global_payment_lock' is false, platform is wide open
+        // IF 'registration_payment_required' is false, it means platform is free to use right now
+        // In both cases, we allow expired users to continue using the app
+        if (lockSetting?.value === 'false' || regSetting?.value === 'false') {
+            return next();
+        }
+
+        // If both are enabled, we strictly enforce the payment status
+        if (lockSetting?.value === 'true' && regSetting?.value === 'true') {
             const User = (await import('../models/User')).default;
             const user = await User.findById(req.user?.userId).select('payment_status');
 
