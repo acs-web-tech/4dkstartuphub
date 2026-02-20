@@ -67,6 +67,7 @@ class PushNotificationService {
                         'messaging/invalid-registration-token',
                         'messaging/registration-token-not-registered',
                         'messaging/invalid-argument',
+                        'messaging/invalid-payload',
                     ];
                     const staleTokens: string[] = [];
                     response.responses.forEach((resp, idx) => {
@@ -136,6 +137,7 @@ class PushNotificationService {
                         'invalid-registration-token',
                         'registration-token-not-registered',
                         'invalid-argument',
+                        'invalid-payload',
                     ];
                     const batchSize = 500;
                     for (let i = 0; i < uniqueTokens.length; i += batchSize) {

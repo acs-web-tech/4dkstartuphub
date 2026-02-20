@@ -80,6 +80,7 @@ export default function Admin() {
             loadPitches();
         } else if (tab === 'broadcast') {
             setLoading(false);
+            loadSettings(); // Load welcome notification settings for the broadcast tab
         } else if (tab === 'settings') {
             loadSettings();
         }
@@ -1080,6 +1081,105 @@ export default function Admin() {
                                             )}
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* Welcome Notification for New Users */}
+                            <div className="card" style={{ marginTop: '32px', padding: '24px', borderLeft: '4px solid var(--accent)' }}>
+                                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    🎉 Welcome Notification for New Users
+                                </h3>
+                                <p className="text-muted" style={{ marginBottom: '20px', fontSize: '0.9rem' }}>
+                                    This notification is automatically sent to every new user upon registration. Edit the title, content and optional video link below.
+                                </p>
+
+                                <div className="form-group">
+                                    <label htmlFor="welcome-title-broadcast" style={{ fontWeight: 600, marginBottom: '6px', display: 'block' }}>Title</label>
+                                    <input
+                                        id="welcome-title-broadcast"
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Welcome to StartupHub! 🚀"
+                                        value={welcomeTitle}
+                                        onChange={e => setWelcomeTitle(e.target.value)}
+                                        maxLength={200}
+                                    />
+                                </div>
+
+                                <div className="form-group" style={{ marginTop: '16px' }}>
+                                    <label htmlFor="welcome-content-broadcast" style={{ fontWeight: 600, marginBottom: '6px', display: 'block' }}>Content</label>
+                                    <div className="rich-editor-container" style={{ minHeight: '180px' }}>
+                                        <ReactQuill
+                                            ref={welcomeQuillRef}
+                                            theme="snow"
+                                            value={welcomeContent}
+                                            onChange={setWelcomeContent}
+                                            modules={welcomeModules}
+                                            formats={editorFormats}
+                                            className="rich-editor"
+                                            placeholder="Write a welcome message for new users..."
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="form-group" style={{ marginTop: '16px' }}>
+                                    <label htmlFor="welcome-video-broadcast" style={{ fontWeight: 600, marginBottom: '6px', display: 'block' }}>Video Link (Optional)</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <LinkIcon size={16} style={{ position: 'absolute', left: '12px', top: '12px', color: '#9ca3af' }} />
+                                        <input
+                                            id="welcome-video-broadcast"
+                                            type="url"
+                                            className="form-input"
+                                            style={{ paddingLeft: '36px' }}
+                                            placeholder="https://youtube.com/..."
+                                            value={welcomeVideoUrl}
+                                            onChange={e => setWelcomeVideoUrl(e.target.value)}
+                                            maxLength={500}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Live Preview */}
+                                <div style={{ marginTop: '16px', padding: '16px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)' }}>
+                                    <div style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: '8px', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                        👁️ What new users will see
+                                    </div>
+                                    <div style={{
+                                        background: 'var(--bg-card)',
+                                        border: '1px solid var(--border-color)',
+                                        borderRadius: 'var(--radius)',
+                                        padding: '20px',
+                                        maxWidth: '400px'
+                                    }}>
+                                        <div style={{ display: 'flex', gap: '12px' }}>
+                                            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                <Megaphone size={20} color="white" />
+                                            </div>
+                                            <div>
+                                                <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '4px', lineHeight: 1.3 }}>{welcomeTitle || 'Welcome to StartupHub! 🚀'}</div>
+                                                <div
+                                                    style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}
+                                                    dangerouslySetInnerHTML={{ __html: welcomeContent || '<p>Your welcome message will appear here...</p>' }}
+                                                />
+                                                {welcomeVideoUrl && (
+                                                    <div style={{ marginTop: '8px', fontSize: '0.85rem' }}>
+                                                        <a href={welcomeVideoUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>🎬 Watch Video</a>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={handleSaveWelcomeNotif}
+                                        disabled={settingsLoading || isImageUploading}
+                                        id="save-welcome-notif-broadcast"
+                                    >
+                                        {isImageUploading ? 'Uploading Image...' : <><Send size={16} className="inline mr-1" /> Save Welcome Notification</>}
+                                    </button>
                                 </div>
                             </div>
                         </div>

@@ -242,12 +242,21 @@ router.post('/register-finalize', authLimiter, async (req, res) => {
                 // Send welcome email
                 await emailService.sendWelcomeEmail(user.email, user.display_name);
 
-                // Create in-app welcome notification
+                // Create in-app welcome notification using admin-configurable settings
+                const welcomeTitle = await Setting.findOne({ key: 'welcome_notification_title' });
+                const welcomeContent = await Setting.findOne({ key: 'welcome_notification_content' });
+                const welcomeVideo = await Setting.findOne({ key: 'welcome_notification_video_url' });
+
+                let finalContent = welcomeContent?.value || 'Complete your profile to get started.';
+                if (welcomeVideo?.value) {
+                    finalContent += `<div class="broadcast-video"><a href="${welcomeVideo.value}" target="_blank" rel="noopener noreferrer">🎬 Watch Video</a></div>`;
+                }
+
                 await Notification.create({
                     user_id: user._id,
                     type: 'welcome',
-                    title: 'Welcome to StartupHub! 🚀',
-                    content: 'Thank you for joining our community. Complete your profile, explore pitch requests, and connect with fellow innovators.',
+                    title: welcomeTitle?.value || 'Welcome to StartupHub! 🚀',
+                    content: finalContent,
                     sender_id: null, // System notification
                     reference_id: 'welcome'
                 });
