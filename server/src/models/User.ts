@@ -26,7 +26,10 @@ export interface IUser extends Document {
     fcm_tokens: string[];
     is_email_verified: boolean;
     email_verification_token?: string;
+    email_verification_otp?: string;
+    email_verification_otp_expires?: Date;
     reset_password_token?: string;
+    reset_password_otp?: string;
     reset_password_expires?: Date;
     email_preferences: {
         likes: boolean;
@@ -60,7 +63,10 @@ const UserSchema: Schema = new Schema({
     fcm_tokens: { type: [String], default: [] },
     is_email_verified: { type: Boolean, default: false },
     email_verification_token: { type: String },
+    email_verification_otp: { type: String },
+    email_verification_otp_expires: { type: Date },
     reset_password_token: { type: String },
+    reset_password_otp: { type: String },
     reset_password_expires: { type: Date },
     email_preferences: {
         likes: { type: Boolean, default: true },
@@ -104,6 +110,11 @@ const UserSchema: Schema = new Schema({
             delete ret.post_count;
             delete ret.created_at;
             delete ret.updated_at;
+            delete ret.email_verification_otp;
+            delete ret.email_verification_token;
+            delete ret.reset_password_otp;
+            delete ret.reset_password_token;
+            delete ret.fcm_tokens;
 
             return ret;
         }

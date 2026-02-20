@@ -6,7 +6,7 @@ import { usersApi, postsApi } from '../../services/api';
 import { AppNotification } from '../../types';
 import {
     Rocket, Search, Bell, Heart, MessageSquare, AtSign, Megaphone, MessageCircle, Sparkles,
-    User, Bookmark, Settings, LogOut, X, ExternalLink, Menu, Repeat, Wifi
+    User, Bookmark, Settings, LogOut, X, ExternalLink, Menu, Repeat, Wifi, Mail
 } from 'lucide-react';
 import { markImageAsLoaded, isImageInSession } from '../../utils/imageCache';
 import { SmartImage } from '../Common/SmartImage';
@@ -58,6 +58,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
     const [search, setSearch] = useState('');
     const [showDropdown, setShowDropdown] = useState(false);
     const [showNotif, setShowNotif] = useState(false);
+    const [showContactModal, setShowContactModal] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [selectedNotif, setSelectedNotif] = useState<AppNotification | null>(null);
@@ -500,6 +501,9 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                                 <Settings size={16} className="mr-2" /> Admin Panel
                                             </Link>
                                         )}
+                                        <button className="dropdown-item" onClick={() => { setShowDropdown(false); setShowContactModal(true); }}>
+                                            <Mail size={16} className="mr-2" /> Contact Us
+                                        </button>
                                         <hr />
                                         <button className="dropdown-item logout-btn" onClick={handleLogout}>
                                             <LogOut size={16} className="mr-2" /> Logout
@@ -628,6 +632,37 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                 </button>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Contact Us Modal */}
+            {showContactModal && (
+                <div className="notif-modal-overlay" onClick={() => setShowContactModal(false)}>
+                    <div className="notif-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', textAlign: 'center' }}>
+                        <div className="notif-modal-header" style={{ borderBottom: 'none', justifyContent: 'flex-end' }}>
+                            <button className="notif-modal-close" onClick={() => setShowContactModal(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div style={{ padding: '0 20px 30px' }}>
+                            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#e0e7ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+                                <Mail size={32} />
+                            </div>
+                            <h2 style={{ fontSize: '24px', marginBottom: '10px', color: '#1e293b' }}>Contact Support</h2>
+                            <p style={{ color: '#64748b', marginBottom: '24px' }}>
+                                Need help? Reach out to our team directly.
+                            </p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                <a href="mailto:support@4dk.in" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px' }}>
+                                    <Mail size={18} /> support@4dk.in
+                                </a>
+                                <a href="mailto:founder@4dk.in" className="btn btn-ghost" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', border: '1px solid #e2e8f0' }}>
+                                    <User size={18} /> founder@4dk.in
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

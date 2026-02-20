@@ -1,0 +1,113 @@
+﻿git : remote: error: GH013: 
+Repository rule violations 
+found for refs/heads/product
+ion-fix-v7.        
+At line:1 char:1
++ git push origin 
+production-fix-v7 2>&1 | 
+Out-File push_output.txt 
+-En ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: (remot  
+  e: error: ...fix-v7.      
+      :String) [], Remot    
+eException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+remote: 
+remote: - GITHUB PUSH 
+PROTECTION        
+remote:   ΓÇöΓÇöΓÇöΓÇöΓÇöΓÇö
+ΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓ
+ÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇ
+öΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇö
+ΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇö       
+ 
+remote:     Resolve the 
+following violations before 
+pushing again        
+remote: 
+remote:     - Push cannot 
+contain secrets        
+remote: 
+remote:             
+remote:      (?) Learn how 
+to resolve a blocked push   
+     
+remote:      https://docs.gi
+thub.com/code-security/secre
+t-scanning/working-with-secr
+et-scanning-and-push-protect
+ion/working-with-push-protec
+tion-from-the-command-line#r
+esolving-a-blocked-push     
+   
+remote:             
+remote:             
+remote:       ΓÇöΓÇö Amazon 
+AWS Access Key ID ΓÇöΓÇöΓÇöΓ
+ÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇ
+öΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇö
+ΓÇöΓÇöΓÇöΓÇö        
+remote:        locations:   
+     
+remote:          - commit: f
+0b3c7cbdb5b479bbb8d745a7d919
+354ff30be72        
+remote:            path: 
+docker-compose.yml:32       
+ 
+remote:             
+remote:        (?) To push, 
+remove secret from 
+commit(s) or follow this 
+URL to allow the secret.    
+    
+remote:        https://githu
+b.com/acs-web-tech/4dkstartu
+phub/security/secret-scannin
+g/unblock-secret/39tvOKy00tp
+22YamQQkxElpIoIU        
+remote:             
+remote:             
+remote:       ΓÇöΓÇö Amazon 
+AWS Secret Access Key ΓÇöΓÇö
+ΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓ
+ÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇ
+öΓÇö        
+remote:        locations:   
+     
+remote:          - commit: f
+0b3c7cbdb5b479bbb8d745a7d919
+354ff30be72        
+remote:            path: 
+docker-compose.yml:33       
+ 
+remote:             
+remote:        (?) To push, 
+remove secret from 
+commit(s) or follow this 
+URL to allow the secret.    
+    
+remote:        https://githu
+b.com/acs-web-tech/4dkstartu
+phub/security/secret-scannin
+g/unblock-secret/39tvOJnsDT1
+xIiqAnSodg7ekFHv        
+remote:             
+remote: 
+remote: 
+To https://github.com/acs-we
+b-tech/4dkstartuphub.git
+ ! [remote rejected] 
+production-fix-v7 -> 
+production-fix-v7 (push 
+declined due to repository 
+rule violations)
+error: failed to push some 
+refs to 'https://github.com/
+acs-web-tech/4dkstartuphub.g
+it'

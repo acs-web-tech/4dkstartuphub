@@ -250,24 +250,7 @@ class SocketService {
                 image: data.imageUrl
             });
 
-            // Email Broadcast
-            // Execute asynchronously to not block the socket response
-            (async () => {
-                try {
-                    // Find users who opted in for broadcasts (default true)
-                    // Explicitly check for false updates, or assume true if field invalid
-                    const users = await User.find({ 'email_preferences.broadcasts': { $ne: false }, is_active: true }).select('email display_name');
-
-                    console.log(`📧 Preparing to broadcast email to ${users.length} users...`);
-
-                    for (const user of users) {
-                        // Sequential sending to avoid rate limits
-                        await emailService.sendBroadcastEmail(user.email, data.title, data.content, data.imageUrl);
-                    }
-                } catch (err) {
-                    console.error('Email broadcast error:', err);
-                }
-            })();
+            // Email Broadcast handled in admin controller to avoid duplication and ensure correct context
         }
     }
 

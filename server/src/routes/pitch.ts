@@ -3,6 +3,7 @@ import { authenticate, AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/admin';
 import { sanitizeHtml } from '../utils/sanitize';
 import { socketService } from '../services/socket';
+import { emailService } from '../services/email';
 import PitchRequest from '../models/PitchRequest';
 import User from '../models/User';
 import Notification from '../models/Notification';
@@ -52,6 +53,17 @@ router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => 
             deck_url: deckUrl || '',
             status: 'pending'
         });
+
+        // Email confirmation
+        const user = await User.findById(req.user!.userId);
+        if (user) {
+            const html = `
+                <p>Hi ${user.display_name},</p>
+                <p>Your pitch request <strong>"${title}"</strong> has been successfully submitted and is pending review.</p>
+                <p>We will notify you once an admin reviews it.</p>
+            `;
+            await emailService.enqueueEmail(user.email, 'Pitch Request Submitted', html);
+        }
 
         res.status(201).json({ message: 'Pitch request submitted successfully', pitchId: newPitch._id.toString() });
     } catch (err) {
@@ -184,6 +196,12 @@ router.put('/:id/review', authenticate, requireAdmin, async (req: AuthRequest, r
                 senderAvatarUrl: admin?.avatar_url || '',
                 referenceId: id as string
             });
+
+            // Send Email
+            const targetUser = await User.findById(pitch.user_id);
+            if (targetUser) {
+                await emailService.sendPitchRequestStatus(targetUser.email, targetUser.display_name, status, pitch.title);
+            }
         }
 
         res.json({ message: `Pitch request ${status}` });

@@ -241,6 +241,49 @@ async function start() {
     // Initialize WebSockets
     socketService.initialize(httpServer);
 
+    // Start Subscription Monitor (Daily Check)
+    const runSubscriptionCheck = async () => {
+        try {
+            const User = (await import('./models/User')).default;
+            const { emailService } = await import('./services/email');
+
+            const now = new Date();
+            const todayStart = new Date(now.setHours(0, 0, 0, 0));
+            const todayEnd = new Date(now.setHours(23, 59, 59, 999));
+
+            // Helper to check range
+            const checkAndNotify = async (start: Date, end: Date, days: number) => {
+                const users = await User.find({
+                    premium_expiry: { $gte: start, $lte: end },
+                    payment_status: 'completed'
+                });
+                for (const user of users) {
+                    await emailService.sendSubscriptionExpiryWarning(user.email, user.display_name, days);
+                }
+            };
+
+            // 0 Days (Today)
+            await checkAndNotify(todayStart, todayEnd, 0);
+
+            // 1 Day Before
+            const tmrStart = new Date(todayStart); tmrStart.setDate(tmrStart.getDate() + 1);
+            const tmrEnd = new Date(todayEnd); tmrEnd.setDate(tmrEnd.getDate() + 1);
+            await checkAndNotify(tmrStart, tmrEnd, 1);
+
+            // 30 Days Before
+            const monthStart = new Date(todayStart); monthStart.setDate(monthStart.getDate() + 30);
+            const monthEnd = new Date(todayEnd); monthEnd.setDate(monthEnd.getDate() + 30);
+            await checkAndNotify(monthStart, monthEnd, 30);
+
+        } catch (e) {
+            console.error('Subscription monitor error:', e);
+        }
+    };
+
+    // Run once on startup (with delay to let DB connect) then every 24h
+    setTimeout(runSubscriptionCheck, 10000);
+    setInterval(runSubscriptionCheck, 24 * 60 * 60 * 1000);
+
     httpServer.listen(config.port, () => {
         console.log(`
   ╔══════════════════════════════════════════╗

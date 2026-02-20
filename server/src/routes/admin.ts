@@ -261,9 +261,15 @@ router.put('/users/:id/toggle-active', async (req: AuthRequest, res) => {
         user.is_active = !user.is_active;
         await user.save({ validateModifiedOnly: true });
 
+        const action = user.is_active ? 'activated' : 'deactivated';
         console.log(`[AUDIT] Admin ${req.user!.userId} toggled active status for user ${user._id} to ${user.is_active}`);
 
-        res.json({ message: `User ${user.is_active ? 'activated' : 'deactivated'}` });
+        // Notify via email
+        if (user.email) {
+            await emailService.sendAccountStatusEmail(user.email, user.display_name, user.is_active);
+        }
+
+        res.json({ message: `User ${action}` });
     } catch (err) {
         console.error('Toggle active error:', err);
         res.status(500).json({ error: 'Failed to toggle user status' });
@@ -383,6 +389,31 @@ router.post('/notifications/broadcast', async (req: AuthRequest, res) => {
             referenceId,
             imageUrl: finalImageUrl
         });
+
+        // Send Emails (Background)
+        // Fetch users who want broadcast emails
+        const emailUsers = await User.find({
+            is_active: true,
+            'email_preferences.broadcasts': { $ne: false }
+        }).select('email display_name');
+
+        // We don't await the loop to avoid blocking response
+        (async () => {
+            const actionUrl = referenceId ? `${config.corsOrigin}/posts/${referenceId}` : undefined;
+            for (const user of (emailUsers as any)) {
+                try {
+                    await emailService.sendBroadcastEmail(
+                        user.email,
+                        user.display_name,
+                        title,
+                        fullContent,
+                        actionUrl
+                    );
+                } catch (e) {
+                    console.error(`Failed to enqueue broadcast email for ${user.email}`, e);
+                }
+            }
+        })();
 
         res.json({ message: `Notification sent to ${users.length} users` });
     } catch (err: any) {

@@ -222,15 +222,16 @@ router.post('/register-finalize', authLimiter, async (req, res) => {
         const isVerificationRequired = verifySetting?.value === 'true';
 
         if (isVerificationRequired) {
-            const token = crypto.randomBytes(32).toString('hex');
-            user.email_verification_token = token;
+            const otp = crypto.randomInt(100000, 999999).toString();
+            user.email_verification_otp = otp;
+            user.email_verification_otp_expires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
             await user.save();
             try {
-                await emailService.sendVerificationEmail(user.email, user.display_name, token);
-            } catch (e) { console.error('Verification email failed', e); }
+                await emailService.sendOTP(user.email, user.display_name, 'verification', otp);
+            } catch (e) { console.error('Verification OTP failed', e); }
 
             res.status(201).json({
-                message: 'Payment successful! Verification email sent.',
+                message: 'Payment successful! Verification OTP sent to email.',
                 requireVerification: true
             });
             return;
@@ -335,9 +336,10 @@ router.post('/register', authLimiter, validate(registerSchema), async (req, res)
 
         let emailVerified = false;
         let verificationToken = undefined;
+        let verificationOtp = undefined;
 
         if (isVerificationRequired) {
-            verificationToken = crypto.randomBytes(32).toString('hex');
+            verificationOtp = crypto.randomInt(100000, 999999).toString();
             // Send email immediately
         } else {
             emailVerified = true; // Auto-verify if not required
@@ -354,15 +356,16 @@ router.post('/register', authLimiter, validate(registerSchema), async (req, res)
             razorpay_order_id: razorpayOrderId,
             premium_expiry: expiryDate,
             is_email_verified: emailVerified,
-            email_verification_token: verificationToken
+            email_verification_otp: verificationOtp,
+            email_verification_otp_expires: verificationOtp ? new Date(Date.now() + 10 * 60 * 1000) : undefined
         });
 
         // Send notifications/emails async
-        if (isVerificationRequired && verificationToken) {
+        if (isVerificationRequired && verificationOtp) {
             try {
-                await emailService.sendVerificationEmail(newUser.email, newUser.display_name, verificationToken);
+                await emailService.sendOTP(newUser.email, newUser.display_name, 'verification', verificationOtp);
             } catch (e) {
-                console.error("Failed to send verification email", e);
+                console.error("Failed to send verification OTP", e);
             }
         } else {
             try {
@@ -392,7 +395,7 @@ router.post('/register', authLimiter, validate(registerSchema), async (req, res)
 
         if (isVerificationRequired) {
             res.status(201).json({
-                message: 'Registration successful. A verification email has been sent to your inbox. Please verify to login.',
+                message: 'Registration successful. A verification code has been sent to your email.',
                 requireVerification: true
             });
             return;
@@ -653,6 +656,123 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
     } catch (err) {
         console.error('Get me error:', err);
         res.status(500).json({ error: 'Failed to get user data' });
+    }
+});
+
+// ── NEW: OTP Routes ──────────────────────────────────────────
+
+// Resend Verification OTP
+router.post('/send-verification-otp', authenticate, async (req: AuthRequest, res) => {
+    try {
+        const user = await User.findById(req.user!.userId);
+        if (!user) return;
+        if (user.is_email_verified) {
+            res.status(400).json({ error: 'Email already verified' });
+            return;
+        }
+
+        const otp = crypto.randomInt(100000, 999999).toString();
+        user.email_verification_otp = otp;
+        user.email_verification_otp_expires = new Date(Date.now() + 10 * 60 * 1000);
+        await user.save();
+
+        await emailService.sendOTP(user.email, user.display_name, 'verification', otp);
+        res.json({ message: 'Verification code sent' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to send OTP' });
+    }
+});
+
+// Verify Email OTP
+router.post('/verify-email-otp', authenticate, async (req: AuthRequest, res) => {
+    try {
+        const { otp } = req.body;
+        const user = await User.findById(req.user!.userId);
+
+        if (!user || !user.email_verification_otp || !user.email_verification_otp_expires) {
+            res.status(400).json({ error: 'Invalid request' });
+            return;
+        }
+
+        if (user.is_email_verified) {
+            res.json({ message: 'Already verified' });
+            return;
+        }
+
+        if (new Date() > user.email_verification_otp_expires) {
+            res.status(400).json({ error: 'OTP expired' });
+            return;
+        }
+
+        if (user.email_verification_otp !== otp) {
+            res.status(400).json({ error: 'Invalid OTP' });
+            return;
+        }
+
+        user.is_email_verified = true;
+        user.email_verification_otp = undefined;
+        user.email_verification_otp_expires = undefined;
+        await user.save();
+
+        await emailService.sendWelcomeEmail(user.email, user.display_name);
+
+        res.json({ message: 'Email verified successfully' });
+    } catch (err) {
+        res.status(500).json({ error: 'Verification failed' });
+    }
+});
+
+// Forgot Password OTP
+router.post('/forgot-password-otp', authLimiter, async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            res.status(400).json({ error: 'Email required' });
+            return;
+        }
+        const user = await User.findOne({ email: email.toLowerCase() });
+        if (user) {
+            const otp = crypto.randomInt(100000, 999999).toString();
+            user.reset_password_otp = otp;
+            user.reset_password_expires = new Date(Date.now() + 10 * 60 * 1000);
+            await user.save({ validateModifiedOnly: true });
+
+            await emailService.sendOTP(user.email, user.display_name, 'reset', otp);
+        }
+        res.json({ message: 'If an account exists, a reset code has been sent.' });
+    } catch (err) {
+        res.status(500).json({ error: 'Request failed' });
+    }
+});
+
+// Reset Password OTP
+router.post('/reset-password-otp', authLimiter, async (req, res) => {
+    try {
+        const { email, otp, password } = req.body;
+        if (!email || !otp || !password) {
+            res.status(400).json({ error: 'Email, OTP, and new password required' });
+            return;
+        }
+
+        const user = await User.findOne({
+            email: email.toLowerCase(),
+            reset_password_otp: otp,
+            reset_password_expires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            res.status(400).json({ error: 'Invalid or expired OTP' });
+            return;
+        }
+
+        user.password_hash = bcrypt.hashSync(password, config.bcryptRounds);
+        user.reset_password_otp = undefined;
+        user.reset_password_expires = undefined;
+        await user.save({ validateModifiedOnly: true });
+
+        res.json({ message: 'Password has been reset successfully. Please login.' });
+    } catch (err) {
+        res.status(500).json({ error: 'Reset failed' });
     }
 });
 

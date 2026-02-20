@@ -2,8 +2,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { authApi, paymentApi, settingsApi } from '../services/api';
-import { Rocket, Eye, EyeOff, Check, Circle, Building2, TrendingUp, CreditCard, Shield } from 'lucide-react';
+import { authApi, paymentApi, settingsApi, request } from '../services/api'; // user request imported
+import { Rocket, Eye, EyeOff, Check, Circle, Building2, TrendingUp, CreditCard, Shield, RefreshCw } from 'lucide-react';
 
 declare global {
     interface Window {
@@ -34,6 +34,7 @@ export default function Register() {
     const [paymentRequired, setPaymentRequired] = useState<boolean | null>(null); // null = loading
     const [paymentAmount, setPaymentAmount] = useState(950);
     const [verificationSent, setVerificationSent] = useState(false);
+    const [otp, setOtp] = useState('');
 
     // Fetch public settings on mount
     useEffect(() => {
@@ -98,11 +99,13 @@ export default function Register() {
             // My initiateRegistration logic returns `user` and `accessToken` if !paymentRequired
             // But types might need adjustment. Let's rely on `paymentRequired` state here or check existing res properties.
             if ((res as any).accessToken) {
-                // Determine verification requirement
-                // Note: The backend for no-payment doesn't return requireVerification flag in my last edit, 
-                // but usually free tier might not need it or handles it differently.
-                // Assuming standard login for free tier.
                 navigate('/feed');
+                return;
+            }
+
+            if ((res as any).requireVerification) {
+                setVerificationSent(true);
+                setLoading(false);
                 return;
             }
 
@@ -188,6 +191,33 @@ export default function Register() {
         }
     };
 
+    // ── Resend & Verify OTP ─────────────────────────────────────
+    const handleVerifyOtp = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            await request('/auth/verify-email-otp', {
+                method: 'POST',
+                body: JSON.stringify({ otp })
+            });
+            window.location.href = '/feed';
+        } catch (err: any) {
+            if (err.message && err.message.includes('Already verified')) {
+                window.location.href = '/feed';
+            } else {
+                setError(err.message || 'Verification failed');
+                setLoading(false);
+            }
+        }
+    };
+
+    const handleResendOtp = async () => {
+        try {
+            await request('/auth/send-verification-otp', { method: 'POST' });
+            alert('Code resent successfully');
+        } catch (err) { }
+    };
+
     // ── Step Indicator ──────────────────────────────────────────
     const totalSteps = paymentRequired ? 3 : 2;
 
@@ -256,10 +286,31 @@ export default function Register() {
                             </div>
                             <h3 style={{ marginBottom: '16px' }}>Verify your email</h3>
                             <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>
-                                We've sent a verification link to <strong>{form.email}</strong>.<br />
-                                Please check your inbox (and spam folder) to complete your registration.
+                                We've sent a verification code to <strong>{form.email}</strong>.<br />
+                                Please enter the code below to complete registration.
                             </p>
-                            <Link to="/login" className="btn btn-primary">Go to Login</Link>
+
+                            <div className="form-group" style={{ maxWidth: '300px', margin: '0 auto 24px' }}>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    placeholder="Enter 6-digit OTP"
+                                    value={otp}
+                                    onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                    style={{ textAlign: 'center', letterSpacing: '4px', fontSize: '20px' }}
+                                    maxLength={6}
+                                />
+                            </div>
+
+                            <button onClick={handleVerifyOtp} className="btn btn-primary" disabled={loading || otp.length < 6}>
+                                {loading ? 'Verifying...' : 'Verify Email'}
+                            </button>
+
+                            <p style={{ marginTop: '20px', fontSize: '14px' }}>
+                                <button className="btn btn-ghost" onClick={handleResendOtp} style={{ fontSize: '14px' }}>
+                                    Resend Code
+                                </button>
+                            </p>
                         </div>
                     ) : (
                         <>

@@ -7,8 +7,10 @@ import { request } from '../services/api';
 const ResetPassword = () => {
     const [searchParams] = useSearchParams();
     const token = searchParams.get('token');
+    const email = searchParams.get('email');
     const navigate = useNavigate();
 
+    const [otp, setOtp] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -31,36 +33,46 @@ const ResetPassword = () => {
             return;
         }
 
-        if (!token) {
-            setError("Invalid or missing reset token.");
+        if (!token && !otp) {
+            setError("Invalid request. Missing token or OTP.");
             return;
         }
 
         setLoading(true);
 
         try {
-            await request('/auth/reset-password', {
-                method: 'POST',
-                body: JSON.stringify({ token, password }),
-            });
+            if (token) {
+                // Legacy Link Flow
+                await request('/auth/reset-password', {
+                    method: 'POST',
+                    body: JSON.stringify({ token, password }),
+                });
+            } else {
+                // OTP Flow
+                await request('/auth/reset-password-otp', {
+                    method: 'POST',
+                    body: JSON.stringify({ email, otp, password }),
+                });
+            }
+
             setMessage('Password reset successful! Redirecting to login...');
             setTimeout(() => {
                 navigate('/login');
             }, 3000);
         } catch (err: any) {
-            setError(err.message || 'Failed to reset password. Link may be expired.');
+            setError(err.message || 'Failed to reset password.');
         } finally {
             setLoading(false);
         }
     };
 
-    if (!token) {
+    if (!token && !email) {
         return (
             <div className="auth-page">
                 <div className="auth-container">
                     <div className="auth-card card" style={{ textAlign: 'center' }}>
-                        <div className="alert alert-error" style={{ marginBottom: '16px' }}>Invalid or missing reset token. Please use the link sent to your email.</div>
-                        <Link to="/forgot-password" className="btn btn-primary btn-full">Request New Link</Link>
+                        <div className="alert alert-error" style={{ marginBottom: '16px' }}>Invalid access. Please request a reset code first.</div>
+                        <Link to="/forgot-password" className="btn btn-primary btn-full">Request Code</Link>
                     </div>
                 </div>
             </div>
@@ -87,6 +99,22 @@ const ResetPassword = () => {
                     )}
 
                     <form onSubmit={handleSubmit}>
+                        {email && !token && (
+                            <div className="form-group" style={{ marginBottom: '16px' }}>
+                                <label htmlFor="otp">Verification Code (OTP)</label>
+                                <input
+                                    id="otp"
+                                    type="text"
+                                    className="form-input"
+                                    placeholder="Enter 6-digit code"
+                                    value={otp}
+                                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                    required
+                                    maxLength={6}
+                                    style={{ letterSpacing: '2px', fontSize: '18px', textAlign: 'center' }}
+                                />
+                            </div>
+                        )}
                         <div className="form-group">
                             <label htmlFor="password">New Password</label>
                             <div className="password-wrapper relative">

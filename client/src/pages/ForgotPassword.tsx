@@ -17,11 +17,17 @@ const ForgotPassword = () => {
         setMessage('');
 
         try {
-            await request('/auth/forgot-password', {
+            await request('/auth/forgot-password-otp', {
                 method: 'POST',
                 body: JSON.stringify({ email }),
             });
-            setMessage('If an account exists with this email, a password reset link has been sent.');
+            setMessage('If an account exists, a reset code has been sent.');
+
+            // Redirect to reset password page after short delay to enter OTP
+            setTimeout(() => {
+                window.location.href = `/reset-password?email=${encodeURIComponent(email)}`;
+            }, 1000);
+            return;
         } catch (err: any) {
             setError(err.message || 'Failed to send reset email.');
         } finally {
