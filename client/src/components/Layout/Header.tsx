@@ -77,7 +77,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
     const fetchNotifs = useCallback(() => {
         if (!user) return;
         usersApi.getNotifications().then(d => {
-            const newNotifications = d.notifications.slice(0, 20);
+            const newNotifications = d.notifications;
             const newUnread = d.unreadCount;
 
             setUnreadCount(newUnread);
@@ -141,12 +141,16 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
 
             socket.on('broadcast', (data: any) => {
 
+                // Use the persisted notification id from the server if available
+                const notifId = (data._notifMap && user?.id && data._notifMap[user.id]) || `bc-${Date.now()}`;
 
                 const notif: AppNotification = {
-                    id: `bc-${Date.now()}`,
-                    type: 'admin',
+                    id: notifId,
+                    type: 'broadcast',
                     title: data.title || 'Broadcast',
                     content: data.content,
+                    imageUrl: data.imageUrl || '',
+                    videoUrl: data.videoUrl || '',
                     isRead: 0,
                     createdAt: new Date().toISOString(),
                     senderDisplayName: 'Admin Team',
@@ -156,19 +160,26 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                     referenceId: data.referenceId || ''
                 };
 
-                setNotifications(prev => [notif, ...prev].slice(0, 20));
+                setNotifications(prev => {
+                    if (prev.some(n => n.id === notifId)) return prev;
+                    return [notif, ...prev];
+                });
                 setUnreadCount(prev => prev + 1);
                 playNotificationSound();
                 setBellRing(true);
                 setTimeout(() => setBellRing(false), 700);
 
-                // Browser Native Notification for Broadcast
+                // Browser Native Notification for Broadcast (with banner image)
                 if ('Notification' in window && Notification.permission === 'granted') {
                     const cleanContent = (data.content || '').replace(/<[^>]*>?/gm, '');
-                    new Notification(data.title || 'Broadcast Alert', {
+                    const notifOptions: any = {
                         body: cleanContent,
                         icon: '/logo.png',
-                    });
+                    };
+                    if (data.imageUrl) {
+                        notifOptions.image = data.imageUrl;
+                    }
+                    new Notification(data.title || 'Broadcast Alert', notifOptions);
                 }
             });
 
@@ -273,6 +284,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
             case 'comment': return <MessageSquare size={14} />;
             case 'mention': return <AtSign size={14} />;
             case 'admin': return <Megaphone size={14} />;
+            case 'broadcast': return <Megaphone size={14} />;
             case 'chat': return <MessageCircle size={14} />;
             case 'welcome': return <Sparkles size={14} />;
             case 'comment_reply': return <Repeat size={14} />;
@@ -287,7 +299,8 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                 if (n.title === 'New reply') return 'also commented on a post you follow';
                 return 'commented on your post';
             case 'mention': return 'mentioned you';
-            case 'admin': return 'sent a broadcast';
+            case 'admin': return 'sent a notification';
+            case 'broadcast': return 'sent a broadcast';
             case 'chat': return 'sent you a message';
             case 'welcome': return 'Welcome!';
             case 'comment_reply': return 'also commented on a post you follow';
@@ -301,6 +314,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
             case 'comment': return '#58a6ff';
             case 'mention': return '#db6d28';
             case 'admin': return '#a371f7';
+            case 'broadcast': return '#a371f7';
             case 'chat': return '#3fb950';
             case 'welcome': return '#d29922';
             case 'comment_reply': return '#58a6ff';
@@ -591,6 +605,15 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                             return (
                                 <>
                                     <div className="notif-modal-content ql-editor-display" dangerouslySetInnerHTML={{ __html: content }} />
+                                    {selectedNotif.imageUrl && (
+                                        <div style={{ margin: '12px 0', borderRadius: '8px', overflow: 'hidden' }}>
+                                            <img
+                                                src={selectedNotif.imageUrl}
+                                                alt="Notification Banner"
+                                                style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '8px' }}
+                                            />
+                                        </div>
+                                    )}
                                     {embedUrl && (
                                         <div className="notif-modal-video">
                                             <iframe
@@ -674,11 +697,17 @@ export default memo(Header);
 
 function timeAgo(dateStr: string): string {
     const now = Date.now();
-    const date = new Date(dateStr + 'Z').getTime();
+    const date = new Date(dateStr).getTime();
     const diff = Math.floor((now - date) / 1000);
     if (diff < 60) return 'Just now';
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
     if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
-    return new Date(dateStr).toLocaleDateString();
+    return new Date(dateStr).toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
 }

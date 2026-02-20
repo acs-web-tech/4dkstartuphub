@@ -364,20 +364,40 @@ router.post('/notifications/broadcast', async (req: AuthRequest, res) => {
             return;
         }
 
-        // 1. Create a system notification record in DB for all active users?
-        // Actually, broadcast is mainly real-time. For persistent notifications, we'd need to loop or use a background job.
-        // For now, we follow the existing pattern: Real-time Socket + Native Push.
+        // 1. Persist broadcast notifications for ALL active users so they appear in notification list
+        const activeUsers = await User.find({ is_active: true }).select('_id').lean();
+        const notifDocs = activeUsers.map(u => ({
+            user_id: u._id,
+            sender_id: req.user!.userId,
+            type: 'broadcast' as const,
+            title,
+            content,
+            reference_id: referenceId || '',
+            image_url: imageUrl || '',
+            video_url: videoUrl || '',
+            is_read: false,
+        }));
+        const inserted = await Notification.insertMany(notifDocs, { ordered: false });
 
+        // Build a map of userId -> notificationId for the real-time payload
+        const userNotifMap = new Map<string, string>();
+        inserted.forEach((doc: any) => {
+            userNotifMap.set(doc.user_id.toString(), doc._id.toString());
+        });
+
+        // 2. Real-time Socket + Native Push
         socketService.broadcast('broadcast', {
             title,
             content,
             videoUrl,
             referenceId,
-            imageUrl
+            imageUrl,
+            // Pass the map so the client knows the persisted notification id
+            _notifMap: Object.fromEntries(userNotifMap),
         });
 
-        console.log(`[AUDIT] Admin ${req.user!.userId} sent a platform-wide broadcast: ${title}`);
-        res.json({ message: 'Broadcast sent successfully to all online users and mobile devices.' });
+        console.log(`[AUDIT] Admin ${req.user!.userId} sent a platform-wide broadcast to ${activeUsers.length} users: ${title}`);
+        res.json({ message: `Broadcast sent successfully to ${activeUsers.length} users.` });
     } catch (err) {
         console.error('Admin broadcast error:', err);
         res.status(500).json({ error: 'Failed to send broadcast' });

@@ -107,10 +107,12 @@ export interface ChatMessage {
 
 export interface AppNotification {
     id: string;
-    type: 'like' | 'comment' | 'mention' | 'admin' | 'chat' | 'welcome' | 'comment_reply';
+    type: 'like' | 'comment' | 'mention' | 'admin' | 'chat' | 'welcome' | 'comment_reply' | 'broadcast';
     title: string;
     content: string;
     referenceId: string;
+    imageUrl?: string;
+    videoUrl?: string;
     isRead: number;
     senderId: string;
     senderDisplayName: string;

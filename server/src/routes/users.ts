@@ -271,7 +271,7 @@ router.get('/me/notifications', authenticate, async (req: AuthRequest, res) => {
         const notifications = await Notification.find({ user_id: userId })
             .populate('sender_id', 'display_name avatar_url username')
             .sort({ created_at: -1 })
-            .limit(50);
+            .limit(100);
 
         const unreadCount = await Notification.countDocuments({ user_id: userId, is_read: false });
 
@@ -284,6 +284,8 @@ router.get('/me/notifications', authenticate, async (req: AuthRequest, res) => {
                     title: n.title,
                     content: n.content,
                     referenceId: n.reference_id,
+                    imageUrl: n.image_url || '',
+                    videoUrl: n.video_url || '',
                     isRead: n.is_read ? 1 : 0,
                     senderId: sender?._id?.toString() || '',
                     senderDisplayName: sender?.display_name || 'StartupHub',
