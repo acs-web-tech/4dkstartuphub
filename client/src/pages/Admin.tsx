@@ -29,7 +29,7 @@ export default function Admin() {
     const [reviewMessage, setReviewMessage] = useState('');
 
     // Broadcast State
-    const [broadcast, setBroadcast] = useState({ title: '', content: '', videoUrl: '', referenceId: '' });
+    const [broadcast, setBroadcast] = useState({ title: '', content: '', videoUrl: '', imageUrl: '' });
     const [isBroadcasting, setIsBroadcasting] = useState(false);
     const broadcastQuillRef = useRef<ReactQuill>(null);
 
@@ -248,10 +248,10 @@ export default function Admin() {
         e.preventDefault();
         try {
             setIsBroadcasting(true);
-            await adminApi.broadcast(broadcast.title, broadcast.content, broadcast.videoUrl, broadcast.referenceId);
+            await adminApi.broadcast(broadcast.title, broadcast.content, broadcast.videoUrl, undefined, broadcast.imageUrl);
             setMessage('Broadcast sent successfully!');
             setMessageType('success');
-            setBroadcast({ title: '', content: '', videoUrl: '', referenceId: '' });
+            setBroadcast({ title: '', content: '', videoUrl: '', imageUrl: '' });
         } catch (err: any) {
             setMessage(err.message || 'Failed to send broadcast');
             setMessageType('error');
@@ -259,6 +259,28 @@ export default function Admin() {
             setIsBroadcasting(false);
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
+    };
+
+    const broadcastNotifImageHandler = () => {
+        const input = document.createElement('input');
+        input.setAttribute('type', 'file');
+        input.setAttribute('accept', 'image/*');
+        input.click();
+
+        input.onchange = async () => {
+            const file = input.files?.[0];
+            if (!file) return;
+
+            try {
+                setIsImageUploading(true);
+                const { url } = await uploadApi.upload(file);
+                setBroadcast(prev => ({ ...prev, imageUrl: url }));
+            } catch (err) {
+                console.error('Notification image upload failed:', err);
+            } finally {
+                setIsImageUploading(false);
+            }
+        };
     };
 
     const broadcastImageHandler = () => {
@@ -1000,9 +1022,31 @@ export default function Admin() {
                                                 value={broadcast.videoUrl} onChange={e => setBroadcast(prev => ({ ...prev, videoUrl: e.target.value }))} />
                                         </div>
                                         <div className="form-group">
-                                            <label htmlFor="broadcast-ref">Reference ID (Post ID, Optional)</label>
-                                            <input id="broadcast-ref" type="text" className="form-input" placeholder="Clicking will open this post..."
-                                                value={broadcast.referenceId} onChange={e => setBroadcast(prev => ({ ...prev, referenceId: e.target.value }))} />
+                                            <label>Notification Image (Optional)</label>
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary flex-1"
+                                                    onClick={broadcastNotifImageHandler}
+                                                    disabled={isImageUploading}
+                                                >
+                                                    {broadcast.imageUrl ? 'Change Image' : 'Upload Banner Image'}
+                                                </button>
+                                                {broadcast.imageUrl && (
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-ghost danger-text"
+                                                        onClick={() => setBroadcast(prev => ({ ...prev, imageUrl: '' }))}
+                                                    >
+                                                        <X size={16} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {broadcast.imageUrl && (
+                                                <div className="mt-2 text-xs text-green-500 flex items-center gap-1">
+                                                    <CheckCircle2 size={12} /> Image attached to notification
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -1029,6 +1073,11 @@ export default function Admin() {
                                             <div className="font-bold">{broadcast.title || 'Notification Title'}</div>
                                             <div className="text-sm text-gray-400 ql-editor-display" style={{ padding: 0 }}
                                                 dangerouslySetInnerHTML={{ __html: broadcast.content || 'Your message will appear here...' }} />
+                                            {broadcast.imageUrl && (
+                                                <div className="mt-2 rounded overflow-hidden border border-gray-700">
+                                                    <img src={broadcast.imageUrl} alt="Notification Banner" className="w-full h-auto" />
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
