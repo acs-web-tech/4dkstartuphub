@@ -28,8 +28,18 @@ const ResetPassword = () => {
             return;
         }
 
-        if (password.length < 6) {
-            setError("Password must be at least 6 characters");
+        if (password.length < 8) {
+            setError("Password must be at least 8 characters");
+            return;
+        }
+
+        const complexityCheck = /[A-Z]/.test(password) &&
+            /[a-z]/.test(password) &&
+            /[0-9]/.test(password) &&
+            /[^A-Za-z0-9]/.test(password);
+
+        if (!complexityCheck) {
+            setError("Password must include uppercase, lowercase, number, and special character.");
             return;
         }
 
@@ -135,6 +145,22 @@ const ResetPassword = () => {
                                 >
                                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                                 </button>
+                            </div>
+                            <div className="password-rules" style={{
+                                fontSize: '11px',
+                                color: 'var(--text-muted)',
+                                marginTop: '8px',
+                                padding: '10px',
+                                background: 'rgba(255,255,255,0.03)',
+                                borderRadius: '6px',
+                                display: 'grid',
+                                gridTemplateColumns: '1fr 1fr'
+                            }}>
+                                <span style={{ color: password.length >= 8 ? '#10b981' : '' }}>• Min 8 chars</span>
+                                <span style={{ color: /[A-Z]/.test(password) ? '#10b981' : '' }}>• Upper case</span>
+                                <span style={{ color: /[a-z]/.test(password) ? '#10b981' : '' }}>• Lower case</span>
+                                <span style={{ color: /[0-9]/.test(password) ? '#10b981' : '' }}>• Number</span>
+                                <span style={{ color: /[^A-Za-z0-9]/.test(password) ? '#10b981' : '' }}>• Special char</span>
                             </div>
                         </div>
 

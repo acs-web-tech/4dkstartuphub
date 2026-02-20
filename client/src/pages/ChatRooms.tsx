@@ -26,6 +26,7 @@ export default function ChatRooms() {
     const [isMuted, setIsMuted] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const chatContainerRef = useRef<HTMLDivElement>(null);
 
     // @mention state
     const [mentionQuery, setMentionQuery] = useState('');
@@ -85,7 +86,18 @@ export default function ChatRooms() {
             setMembers(data.members);
             setRoomInfo(data.room);
             setIsMuted(!!data.isMuted);
-            setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+
+            // Restore scroll position
+            const savedScroll = sessionStorage.getItem(`chat_scroll_${rId}`);
+            if (savedScroll && parseInt(savedScroll, 10) > 0) {
+                setTimeout(() => {
+                    if (chatContainerRef.current) {
+                        chatContainerRef.current.scrollTop = parseInt(savedScroll, 10);
+                    }
+                }, 100);
+            } else {
+                setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+            }
         } catch (err: any) {
             // Attempt auto-join for open rooms on 403
             if (err.message?.includes('403')) {
@@ -157,7 +169,15 @@ export default function ChatRooms() {
                     if (prev.find(m => m.id === message.id)) return prev;
                     return [...prev, message];
                 });
-                setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+
+                // Only auto-scroll if user is already near the bottom
+                if (chatContainerRef.current) {
+                    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+                    const isNearBottom = scrollHeight - scrollTop - clientHeight < 200;
+                    if (isNearBottom) {
+                        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+                    }
+                }
             }
         };
 
@@ -495,7 +515,16 @@ export default function ChatRooms() {
                             <div className="chat-members-count">{members.length} members</div>
                         </div>
 
-                        <div className="chat-messages">
+                        <div
+                            className="chat-messages"
+                            ref={chatContainerRef}
+                            onScroll={(e) => {
+                                const target = e.currentTarget;
+                                if (roomId) {
+                                    sessionStorage.setItem(`chat_scroll_${roomId}`, target.scrollTop.toString());
+                                }
+                            }}
+                        >
                             {messages.map(msg => {
                                 const isOwn = msg.userId === user?.id;
                                 const msgUrl = extractFirstUrl(msg.content);

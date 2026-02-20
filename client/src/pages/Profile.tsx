@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { usersApi, uploadApi, authApi } from '../services/api';
 import {
-    User, Camera, Pencil, Mail, MapPin, Globe, Briefcase, Twitter, Calendar, Save, CheckCircle, AlertCircle
+    User, Camera, Pencil, Mail, MapPin, Globe, Briefcase, Twitter, Calendar, Save, CheckCircle, AlertCircle, Eye, EyeOff
 } from 'lucide-react';
 
 export default function Profile() {
@@ -24,6 +24,7 @@ export default function Profile() {
     const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
     const [passwordSaving, setPasswordSaving] = useState(false);
     const [passwordMessage, setPasswordMessage] = useState({ text: '', type: '' });
+    const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Sync form state with user prop changes
@@ -102,8 +103,29 @@ export default function Profile() {
 
     const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        const { newPassword, confirmPassword } = passwordForm;
+
+        // Comprehensive Validation
+        if (newPassword !== confirmPassword) {
             setPasswordMessage({ text: 'New passwords do not match', type: 'error' });
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            setPasswordMessage({ text: 'Password must be at least 8 characters long', type: 'error' });
+            return;
+        }
+
+        const hasUpper = /[A-Z]/.test(newPassword);
+        const hasLower = /[a-z]/.test(newPassword);
+        const hasNumber = /[0-9]/.test(newPassword);
+        const hasSpecial = /[^A-Za-z0-9]/.test(newPassword);
+
+        if (!hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+            setPasswordMessage({
+                text: 'Password must include uppercase, lowercase, number, and special character.',
+                type: 'error'
+            });
             return;
         }
 
@@ -296,42 +318,92 @@ export default function Profile() {
                     )}
                     <div className="form-group">
                         <label htmlFor="current-password">Current Password</label>
-                        <input
-                            id="current-password"
-                            type="password"
-                            className="form-input"
-                            value={passwordForm.currentPassword}
-                            onChange={e => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                            required
-                        />
-                    </div>
-                    <div className="form-row">
-                        <div className="form-group">
-                            <label htmlFor="new-password">New Password</label>
+                        <div className="relative" style={{ position: 'relative' }}>
                             <input
-                                id="new-password"
-                                type="password"
+                                id="current-password"
+                                type={showPasswords.current ? "text" : "password"}
                                 className="form-input"
-                                value={passwordForm.newPassword}
-                                onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                                minLength={8}
+                                value={passwordForm.currentPassword}
+                                onChange={e => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
                                 required
                             />
+                            <button
+                                type="button"
+                                className="password-toggle absolute right-3 top-3"
+                                onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
+                                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-secondary)' }}
+                            >
+                                {showPasswords.current ? <EyeOff size={20} /> : <Eye size={20} />}
+                            </button>
+                        </div>
+                    </div>
+                    <div className="form-row" style={{ gap: '20px' }}>
+                        <div className="form-group">
+                            <label htmlFor="new-password">New Password</label>
+                            <div className="relative" style={{ position: 'relative' }}>
+                                <input
+                                    id="new-password"
+                                    type={showPasswords.new ? "text" : "password"}
+                                    className="form-input"
+                                    value={passwordForm.newPassword}
+                                    onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                                    minLength={8}
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    className="password-toggle absolute right-3 top-3"
+                                    onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
+                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-secondary)' }}
+                                >
+                                    {showPasswords.new ? <EyeOff size={20} /> : <Eye size={20} />}
+                                </button>
+                            </div>
                         </div>
                         <div className="form-group">
                             <label htmlFor="confirm-password">Confirm New Password</label>
-                            <input
-                                id="confirm-password"
-                                type="password"
-                                className="form-input"
-                                value={passwordForm.confirmPassword}
-                                onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                                minLength={8}
-                                required
-                            />
+                            <div className="relative" style={{ position: 'relative' }}>
+                                <input
+                                    id="confirm-password"
+                                    type={showPasswords.confirm ? "text" : "password"}
+                                    className="form-input"
+                                    value={passwordForm.confirmPassword}
+                                    onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                                    minLength={8}
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    className="password-toggle absolute right-3 top-3"
+                                    onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
+                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-secondary)' }}
+                                >
+                                    {showPasswords.confirm ? <EyeOff size={20} /> : <Eye size={20} />}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
+
+                    <div className="password-rules" style={{
+                        fontSize: '12.5px',
+                        color: 'var(--text-muted)',
+                        marginTop: '8px',
+                        padding: '12px',
+                        background: 'var(--bg-secondary)',
+                        borderRadius: '8px',
+                        borderLeft: '3px solid var(--accent)'
+                    }}>
+                        <p style={{ fontWeight: '600', marginBottom: '4px', color: 'var(--text-secondary)' }}>Password Requirements:</p>
+                        <ul style={{ listStyle: 'none', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '4px' }}>
+                            <li style={{ color: passwordForm.newPassword.length >= 8 ? 'var(--green)' : '' }}>• Min 8 characters</li>
+                            <li style={{ color: /[A-Z]/.test(passwordForm.newPassword) ? 'var(--green)' : '' }}>• One uppercase</li>
+                            <li style={{ color: /[a-z]/.test(passwordForm.newPassword) ? 'var(--green)' : '' }}>• One lowercase</li>
+                            <li style={{ color: /[0-9]/.test(passwordForm.newPassword) ? 'var(--green)' : '' }}>• One number</li>
+                            <li style={{ color: /[^A-Za-z0-9]/.test(passwordForm.newPassword) ? 'var(--green)' : '' }}>• One special char</li>
+                        </ul>
+                    </div>
+
+                    <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: '24px' }}>
                         <button type="submit" className="btn btn-primary" disabled={passwordSaving}>
                             {passwordSaving ? 'Updating...' : 'Update Password'}
                         </button>
