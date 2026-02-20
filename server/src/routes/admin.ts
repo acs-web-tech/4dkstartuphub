@@ -140,6 +140,8 @@ router.get('/users', async (req: AuthRequest, res) => {
                     isActive: { $cond: ['$is_active', 1, 0] },
                     postCount: { $size: '$userPosts' },
                     paymentStatus: '$payment_status',
+                    paymentId: '$razorpay_payment_id',
+                    orderId: '$razorpay_order_id',
                     premiumExpiry: '$premium_expiry',
                     lastSeen: '$last_seen',
                     createdAt: '$created_at',

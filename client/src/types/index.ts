@@ -13,6 +13,8 @@ export interface User {
     twitter: string;
     userType?: 'startup' | 'investor';
     paymentStatus?: 'free' | 'completed' | 'pending' | 'expired';
+    paymentId?: string;
+    orderId?: string;
     premiumExpiry?: string;
     createdAt: string;
 }

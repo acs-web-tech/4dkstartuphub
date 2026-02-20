@@ -77,12 +77,7 @@ router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => 
         // Email confirmation
         const user = await User.findById(req.user!.userId);
         if (user) {
-            const html = `
-                <p>Hi ${user.display_name},</p>
-                <p>Your pitch request <strong>"${title}"</strong> has been successfully submitted and is pending review.</p>
-                <p>We will notify you once an admin reviews it.</p>
-            `;
-            await emailService.enqueueEmail(user.email, 'Pitch Request Submitted', html);
+            await emailService.sendPitchSubmissionEmail(user.email, user.display_name, title);
         }
 
         res.status(201).json({ message: 'Pitch request submitted successfully', pitchId: newPitch._id.toString() });

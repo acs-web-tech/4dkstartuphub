@@ -682,7 +682,7 @@ export default function Admin() {
                             {/* User Table (Simplified for Brevity) */}
                             <div className="admin-table-wrapper">
                                 <table className="admin-table">
-                                    <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Premium</th><th>Last Seen</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
+                                    <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Premium</th><th>Payment ID</th><th>Last Seen</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
                                     <tbody>
                                         {users.map(u => (
                                             <tr key={u.id} className={!u.isActive ? 'inactive-row' : ''}>
@@ -716,11 +716,14 @@ export default function Admin() {
                                                             {u.paymentStatus || 'free'}
                                                         </span>
                                                         {u.premiumExpiry && (
-                                                            <span className="text-[10px] text-gray-500">
+                                                            <span className="text-[10px] text-gray-400">
                                                                 Exp: {new Date(u.premiumExpiry).toLocaleDateString()}
                                                             </span>
                                                         )}
                                                     </div>
+                                                </td>
+                                                <td className="text-xs font-mono text-gray-400">
+                                                    {u.paymentId || '-'}
                                                 </td>
                                                 <td>{u.lastSeen ? new Date(u.lastSeen).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Never'}</td>
                                                 <td>{new Date(u.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>

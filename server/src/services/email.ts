@@ -191,6 +191,17 @@ export const emailService = {
         return this.enqueueEmail(to, subject, html);
     },
 
+    async sendPitchSubmissionEmail(to: string, name: string, pitchTitle: string) {
+        const subject = 'Pitch Request Submitted';
+        const body = `
+            <p>Hi ${name},</p>
+            <p>Your pitch request <strong>"${pitchTitle}"</strong> has been successfully submitted and is pending review.</p>
+            <p>We will notify you once an admin reviews it.</p>
+        `;
+        const html = getHtmlTemplate('Pitch Request Submitted', body, { text: 'View My Pitches', url: `${config.corsOrigin}/dashboard` });
+        return this.enqueueEmail(to, subject, html);
+    },
+
     async sendPitchRequestStatus(to: string, name: string, status: string, pitchTitle: string) {
         const subject = `Pitch Status Update: ${status}`;
         const body = `<p>Hi ${name},</p><p>The status of your pitch request <strong>"${pitchTitle}"</strong> has been updated to <strong>${status}</strong>.</p><p>Check your dashboard for more details.</p>`;
