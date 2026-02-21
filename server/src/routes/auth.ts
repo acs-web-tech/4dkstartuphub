@@ -347,10 +347,14 @@ router.post('/register-init', authLimiter, validate(registerSchema), async (req,
                     await emailService.sendOTP(user.email, user.display_name, 'verification', verificationOtp!);
                 } catch (e) { console.error('Verification OTP failed during register-init (no payment)', e); }
 
+                const { accessToken, refreshToken } = generateTokens(user._id.toString(), 'user');
+                setTokenCookies(res, accessToken, refreshToken);
+
                 res.json({
                     message: 'Registration successful. Please verify your email.',
                     requireVerification: true,
-                    userId: user._id
+                    userId: user._id,
+                    accessToken, refreshToken
                 });
                 return;
             }
@@ -412,16 +416,17 @@ router.post('/register-finalize', authLimiter, async (req, res) => {
 
         const result = await finalizeUserActivation(user, payment_id);
 
+        const { accessToken, refreshToken } = generateTokens(user._id.toString(), 'user');
+        setTokenCookies(res, accessToken, refreshToken);
+
         if (result.requireVerification) {
             res.status(201).json({
                 message: 'Payment successful! Verification OTP sent to email.',
-                requireVerification: true
+                requireVerification: true,
+                accessToken, refreshToken
             });
             return;
         }
-
-        const { accessToken, refreshToken } = generateTokens(user._id.toString(), 'user');
-        setTokenCookies(res, accessToken, refreshToken);
 
         res.json({
             message: 'Registration complete!',

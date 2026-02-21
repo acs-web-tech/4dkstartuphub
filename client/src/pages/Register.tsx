@@ -64,6 +64,7 @@ export default function Register() {
     };
 
     const [savedOrder, setSavedOrder] = useState<{ orderId: string, keyId: string, amount: number, currency: string, userId: string } | null>(null);
+    const [resendLoading, setResendLoading] = useState(false);
 
     const handleDetailsSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -95,22 +96,26 @@ export default function Register() {
                 userType: userType!,
             });
 
-            // If payment NOT required (frontend logic based on response or settings)
-            // My initiateRegistration logic returns `user` and `accessToken` if !paymentRequired
-            // But types might need adjustment. Let's rely on `paymentRequired` state here or check existing res properties.
-            if ((res as any).accessToken) {
-                navigate('/feed');
-                return;
+            // Store tokens if returned (usually if payment is not required)
+            const regRes = res as any;
+            if (regRes.accessToken) {
+                localStorage.setItem('access_token', regRes.accessToken);
+                if (regRes.refreshToken) localStorage.setItem('refresh_token', regRes.refreshToken);
+
+                if (!regRes.requireVerification) {
+                    window.location.href = '/feed';
+                    return;
+                }
             }
 
-            if ((res as any).requireVerification) {
+            if (regRes.requireVerification) {
                 setVerificationSent(true);
                 setLoading(false);
                 return;
             }
 
             // Payment IS required
-            setSavedOrder(res);
+            setSavedOrder(res as any);
             setLoading(false);
             setStep('payment');
 
@@ -134,7 +139,7 @@ export default function Register() {
             const options = {
                 key: savedOrder.keyId,
                 amount: savedOrder.amount,
-                currency: savedOrder.currency,
+                currency: 'INR',
                 name: 'StartupHub',
                 description: `${userType === 'startup' ? 'Startup' : userType === 'investor' ? 'Investor' : 'Freelancer'} Registration — ₹${paymentAmount}`,
                 order_id: savedOrder.orderId,
@@ -147,16 +152,17 @@ export default function Register() {
                             signature: response.razorpay_signature,
                         });
 
-                        // Manually update auth context user if needed, or rely on page reload/navigation
-                        // Since useAuth likely checks /me or token, we just navigate.
+                        // Store tokens so we are authenticated for verification/resend
+                        if (res.accessToken) {
+                            localStorage.setItem('access_token', res.accessToken);
+                            if (res.refreshToken) localStorage.setItem('refresh_token', res.refreshToken);
+                        }
 
                         if (res.requireVerification) {
                             setVerificationSent(true);
+                            setLoading(false);
                         } else {
-                            // Force a reload or update context? 
-                            // Usually navigate to feed is enough if tokens are set.
-                            // But useAuth might need a trigger.
-                            window.location.href = '/feed'; // distinct reload to pick up cookies
+                            window.location.href = '/feed';
                         }
                     } catch (err: any) {
                         setError(err.message || 'Registration failed after payment');
@@ -196,10 +202,7 @@ export default function Register() {
         setLoading(true);
         setError('');
         try {
-            await request('/auth/verify-email-otp', {
-                method: 'POST',
-                body: JSON.stringify({ otp })
-            });
+            await authApi.verifyEmailOtp(otp);
             window.location.href = '/feed';
         } catch (err: any) {
             if (err.message && err.message.includes('Already verified')) {
@@ -212,10 +215,16 @@ export default function Register() {
     };
 
     const handleResendOtp = async () => {
+        setResendLoading(true);
+        setError('');
         try {
-            await request('/auth/send-verification-otp', { method: 'POST' });
-            alert('Code resent successfully');
-        } catch (err) { }
+            await authApi.sendVerificationOtp();
+            alert('A new verification code has been sent to your email.');
+        } catch (err: any) {
+            setError(err.message || 'Failed to resend verification code');
+        } finally {
+            setResendLoading(false);
+        }
     };
 
     // ── Step Indicator ──────────────────────────────────────────
