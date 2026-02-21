@@ -82,7 +82,10 @@ router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => 
         // Check Pitch Limit
         const Setting = (await import('../models/Setting')).default;
         const limitSetting = await Setting.findOne({ key: 'pitch_upload_limit' });
-        const limit = parseInt(limitSetting?.value || '0', 10);
+
+        // Default to 1 if setting is missing or invalid, as requested by user
+        let limit = parseInt(limitSetting?.value || '1', 10);
+        if (isNaN(limit)) limit = 1;
 
         if (limit > 0 && req.user?.role !== 'admin') {
             const user = await User.findById(req.user!.userId);
@@ -96,10 +99,12 @@ router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => 
             const resetDate = user.pitch_limit_reset_date || user.created_at;
             const query: any = {
                 user_id: new mongoose.Types.ObjectId(req.user!.userId),
-                created_at: { $gt: resetDate }
+                created_at: { $gte: resetDate }
             };
 
             const pitchCount = await PitchRequest.countDocuments(query);
+            console.log(`[QUOTA CHECK] User: ${user.email}, Limit: ${limit}, Count: ${pitchCount}, Since: ${resetDate}`);
+
             if (pitchCount >= limit) {
                 await emailService.sendPitchLimitReachedEmail(user.email, user.display_name, limit);
                 res.status(402).json({
@@ -143,14 +148,17 @@ router.get('/my', authenticate, requirePremium, async (req: AuthRequest, res) =>
             Setting.findOne({ key: 'pitch_upload_limit' }),
             User.findById(req.user!.userId)
         ]);
-        const limit = parseInt(limitSetting?.value || '0', 10);
+
+        // Default to 1 if missing
+        let limit = parseInt(limitSetting?.value || '1', 10);
+        if (isNaN(limit)) limit = 1;
 
         const resetDate = user?.pitch_limit_reset_date || user?.created_at;
         const countQuery: any = {
             user_id: new mongoose.Types.ObjectId(req.user!.userId)
         };
         if (resetDate) {
-            countQuery.created_at = { $gt: resetDate };
+            countQuery.created_at = { $gte: resetDate };
         }
         const pitchCount = await PitchRequest.countDocuments(countQuery);
 
