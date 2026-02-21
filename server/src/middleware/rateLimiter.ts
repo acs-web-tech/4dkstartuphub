@@ -3,21 +3,28 @@ import { config } from '../config/env';
 import { Request } from 'express';
 
 const customKeyGenerator = (req: Request): string => {
-    // If the request has passed auth middleware, use user ID
-    if ((req as any).user?.userId) {
-        return `user_${(req as any).user.userId}`;
+    // 1. Cloudflare
+    if (req.headers['cf-connecting-ip']) {
+        return `ip_${req.headers['cf-connecting-ip']}`;
     }
 
-    // Check X-Forwarded-For header for real client IP behind proxies
+    // 2. Nginx Real IP
+    if (req.headers['x-real-ip']) {
+        return `ip_${req.headers['x-real-ip']}`;
+    }
+
+    // 3. X-Forwarded-For (can be a comma-separated list of IPs)
     const xForwardedFor = req.headers['x-forwarded-for'];
     if (xForwardedFor) {
-        const ips = typeof xForwardedFor === 'string' ? xForwardedFor.split(',') : xForwardedFor[0].split(',');
+        const ips = typeof xForwardedFor === 'string' ? xForwardedFor.split(',') : (xForwardedFor as string[])[0].split(',');
         const realIp = ips[0].trim();
-        if (realIp) return `ip_${realIp}`;
+        if (realIp && realIp !== 'unknown') {
+            return `ip_${realIp}`;
+        }
     }
 
-    // Fallback to Express's req.ip or unknown
-    return `ip_${req.ip || 'unknown'}`;
+    // 4. Default Express IP (Fallback, usually the Docker Gateway IP if proxy isn't forwarding headers)
+    return `ip_${req.ip || req.connection?.remoteAddress || 'unknown'}`;
 };
 
 /**
