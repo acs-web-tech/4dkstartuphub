@@ -125,6 +125,7 @@ export default function PitchRequests() {
             if (selectedFile.size > 5 * 1024 * 1024) {
                 setError('File size exceeds 5MB limit');
                 e.target.value = '';
+                setFile(null);
                 return;
             }
             setError(''); // Clear error if any

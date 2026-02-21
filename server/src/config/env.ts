@@ -27,7 +27,7 @@ export const config = {
     corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
     apiUrl: process.env.API_URL || 'http://localhost:5000/api',
     uploadDir: process.env.UPLOAD_DIR || 'uploads',
-    maxFileSize: 10 * 1024 * 1024, // 10MB
+    maxFileSize: 5 * 1024 * 1024, // 5MB
     rateLimits: {
         auth: { windowMs: 15 * 60 * 1000, max: 1000 },        // Increased significantly
         api: { windowMs: 15 * 60 * 1000, max: 20000 },       // Increased significantly

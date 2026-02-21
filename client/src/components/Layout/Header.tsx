@@ -639,12 +639,12 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                             (selectedNotif.title?.startsWith('Pitch') ||
                                                 selectedNotif.content?.toLowerCase().includes('pitch request'));
 
-                                        const isChatMention = selectedNotif.type === 'mention' && selectedNotif.title?.includes('in ');
+                                        const isChat = selectedNotif.type === 'chat' || (selectedNotif.type === 'mention' && selectedNotif.title?.includes('in '));
 
                                         if (isPitch) {
                                             navigate('/pitch-requests');
-                                        } else if (isChatMention) {
-                                            navigate(`/chat/${selectedNotif.referenceId}`);
+                                        } else if (isChat) {
+                                            navigate(`/chatrooms/${selectedNotif.referenceId}`);
                                         } else {
                                             navigate(`/posts/${selectedNotif.referenceId}`);
                                         }
@@ -655,7 +655,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                     <ExternalLink size={14} />
                                     {selectedNotif.type === 'admin' && (selectedNotif.title?.startsWith('Pitch') || selectedNotif.content?.toLowerCase().includes('pitch request'))
                                         ? 'View Pitch Request'
-                                        : (selectedNotif.type === 'mention' && selectedNotif.title?.includes('in ') ? 'View Chat' : 'View Post')}
+                                        : (selectedNotif.type === 'chat' || (selectedNotif.type === 'mention' && selectedNotif.title?.includes('in ')) ? 'View Chat' : 'View Post')}
                                 </button>
                             </div>
                         )}
