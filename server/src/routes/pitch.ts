@@ -83,33 +83,35 @@ router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => 
         const Setting = (await import('../models/Setting')).default;
         const limitSetting = await Setting.findOne({ key: 'pitch_upload_limit' });
 
-        // Default to 1 if setting is missing or invalid, as requested by user
+        // Final fallback: if setting is 0 or missing, we want 1. 0 = Unlimited is risky right now.
         let limit = parseInt(limitSetting?.value || '1', 10);
-        if (isNaN(limit)) limit = 1;
+        if (isNaN(limit) || limit <= 0) limit = 1;
 
-        if (limit > 0 && req.user?.role !== 'admin') {
+        if (req.user?.role !== 'admin') {
             const user = await User.findById(req.user!.userId);
             if (!user) {
                 res.status(404).json({ error: 'User not found' });
                 return;
             }
 
-            // Only count pitches created AFTER the last reset (payment) date
             // Fallback to user.created_at for old accounts without a reset date
-            const resetDate = user.pitch_limit_reset_date || user.created_at;
-            const query: any = {
-                user_id: new mongoose.Types.ObjectId(req.user!.userId),
-                created_at: { $gte: resetDate }
-            };
+            const resetDate = user.pitch_limit_reset_date || user.created_at || new Date(0);
 
-            const pitchCount = await PitchRequest.countDocuments(query);
-            console.log(`[QUOTA CHECK] User: ${user.email}, Limit: ${limit}, Count: ${pitchCount}, Since: ${resetDate}`);
+            // Query for pitches: Mongoose auto-casts userId string to ObjectId
+            const pitchCount = await PitchRequest.countDocuments({
+                user_id: req.user!.userId,
+                created_at: { $gte: resetDate }
+            });
+
+            console.log(`[QUOTA] User: ${user.email}, Limit: ${limit}, Found: ${pitchCount}, Reset: ${resetDate}`);
 
             if (pitchCount >= limit) {
                 await emailService.sendPitchLimitReachedEmail(user.email, user.display_name, limit);
                 res.status(402).json({
-                    error: `You have reached the maximum limit of ${limit} pitch requests for your current quota. Please upgrade or renew your plan to increase your limit.`,
-                    code: 'LIMIT_REACHED'
+                    error: `Limit Reached: You are allowed ${limit} pitch request(s) per subscription period.`,
+                    code: 'LIMIT_REACHED',
+                    count: pitchCount,
+                    limit: limit
                 });
                 return;
             }
@@ -149,18 +151,15 @@ router.get('/my', authenticate, requirePremium, async (req: AuthRequest, res) =>
             User.findById(req.user!.userId)
         ]);
 
-        // Default to 1 if missing
+        // Match the logic in POST route: default to 1
         let limit = parseInt(limitSetting?.value || '1', 10);
-        if (isNaN(limit)) limit = 1;
+        if (isNaN(limit) || limit <= 0) limit = 1;
 
-        const resetDate = user?.pitch_limit_reset_date || user?.created_at;
-        const countQuery: any = {
-            user_id: new mongoose.Types.ObjectId(req.user!.userId)
-        };
-        if (resetDate) {
-            countQuery.created_at = { $gte: resetDate };
-        }
-        const pitchCount = await PitchRequest.countDocuments(countQuery);
+        const resetDate = user?.pitch_limit_reset_date || user?.created_at || new Date(0);
+        const pitchCount = await PitchRequest.countDocuments({
+            user_id: req.user!.userId,
+            created_at: { $gte: resetDate }
+        });
 
         res.json({
             pitches: pitches.map(p => {
