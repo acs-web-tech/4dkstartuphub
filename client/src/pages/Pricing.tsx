@@ -168,7 +168,6 @@ export default function Pricing() {
                                 'Direct Pitch Requests to Investors',
                                 'Access to All Premium Chat Rooms',
                                 'Exclusive Networking Opportunities',
-                                'Priority Verification Badge',
                                 'Early Access to Events & Meetups',
                                 '24/7 Priority Support'
                             ].map((feature, i) => (

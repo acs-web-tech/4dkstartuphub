@@ -4,12 +4,15 @@ import Header from './Header';
 import Sidebar from './Sidebar';
 import BackToTop from '../Common/BackToTop';
 import { useSocket } from '../../context/SocketContext';
+import { useAuth } from '../../context/AuthContext';
+import Pricing from '../../pages/Pricing';
 import { WifiOff, RefreshCw, Download, Rocket } from 'lucide-react';
 import { settingsApi } from '../../services/api';
 
 type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
 export default function Layout() {
+    const { user } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const location = useLocation();
     const { socket, status: socketState, reconnectAttempt: socketReconnectAttempt } = useSocket();
@@ -20,6 +23,7 @@ export default function Layout() {
     const [showInstallBtn, setShowInstallBtn] = useState(false);
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
     const [appUrls, setAppUrls] = useState<{ android?: string, ios?: string }>({});
+    const [globalLock, setGlobalLock] = useState(false);
 
     const toggleSidebar = useCallback(() => {
         setSidebarOpen(prev => !prev);
@@ -42,8 +46,9 @@ export default function Layout() {
     }, [socket, socketState, socketReconnectAttempt]);
 
     useEffect(() => {
-        settingsApi.getPublic().then(data => {
+        settingsApi.getPublic().then((data: any) => {
             setAppUrls({ android: data.android_app_url, ios: data.ios_app_url });
+            setGlobalLock(data.global_payment_lock || false);
         }).catch(() => { });
     }, []);
 
@@ -103,6 +108,9 @@ export default function Layout() {
             setDeferredPrompt(null);
         }
     };
+
+    const isPremium = user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
+    const isLockedOut = globalLock && user && !isPremium && user.role !== 'admin' && location.pathname !== '/pricing';
 
     return (
         <div className={`app-layout ${sidebarOpen ? 'sidebar-open' : ''}`}>
@@ -167,7 +175,7 @@ export default function Layout() {
             <div className="main-container">
                 <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
                 <main className="main-content">
-                    <Outlet />
+                    {isLockedOut ? <Pricing /> : <Outlet />}
                 </main>
             </div>
             {/* Overlay for mobile sidebar */}

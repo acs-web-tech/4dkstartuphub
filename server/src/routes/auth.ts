@@ -84,33 +84,64 @@ async function finalizeUserActivation(user: any, paymentId: string) {
     } else {
         user.is_email_verified = true;
         await user.save();
-        try {
-            // Send welcome email only when NOT requiring verification (or if already verified)
-            await emailService.sendWelcomeEmail(user.email, user.display_name);
-
-            const welcomeTitle = await Setting.findOne({ key: 'welcome_notification_title' });
-            const welcomeContent = await Setting.findOne({ key: 'welcome_notification_content' });
-            const welcomeVideo = await Setting.findOne({ key: 'welcome_notification_video_url' });
-            const welcomeImage = await Setting.findOne({ key: 'welcome_notification_image_url' });
-
-            let finalContent = welcomeContent?.value || 'Complete your profile to get started.';
-            if (welcomeVideo?.value) {
-                finalContent += `<div class="broadcast-video"><a href="${welcomeVideo.value}" target="_blank" rel="noopener noreferrer">🎬 Watch Video</a></div>`;
-            }
-
-            await Notification.create({
-                user_id: user._id,
-                type: 'welcome',
-                title: welcomeTitle?.value || 'Welcome to StartupHub! 🚀',
-                content: finalContent,
-                image_url: welcomeImage?.value || '',
-                sender_id: null,
-                reference_id: 'welcome'
-            });
-        } catch (e) {
-            console.error('Welcome actions failed during activation', e);
-        }
+        await triggerWelcomeActions(user);
         return { requireVerification: false };
+    }
+}
+
+/**
+ * Trigger welcome email and in-app notification.
+ * Checks for existing welcome notification to prevent duplicates.
+ */
+async function triggerWelcomeActions(user: any) {
+    try {
+        // Prevent duplicate welcome notifications
+        const existingWelcome = await Notification.findOne({ user_id: user._id, type: 'welcome' });
+        if (existingWelcome) return;
+
+        // Send Welcome Email
+        try {
+            await emailService.sendWelcomeEmail(user.email, user.display_name);
+        } catch (emailErr) {
+            console.error('Failed to send welcome email:', emailErr);
+        }
+
+        // Create in-app welcome notification from settings
+        const [welcomeTitle, welcomeContent, welcomeVideo, welcomeImage] = await Promise.all([
+            Setting.findOne({ key: 'welcome_notification_title' }),
+            Setting.findOne({ key: 'welcome_notification_content' }),
+            Setting.findOne({ key: 'welcome_notification_video_url' }),
+            Setting.findOne({ key: 'welcome_notification_image_url' })
+        ]);
+
+        let finalContent = welcomeContent?.value || 'Complete your profile to get started.';
+        if (welcomeVideo?.value) {
+            finalContent += `<div class="broadcast-video"><a href="${welcomeVideo.value}" target="_blank" rel="noopener noreferrer">🎬 Watch Video</a></div>`;
+        }
+
+        const notif = await Notification.create({
+            user_id: user._id,
+            type: 'welcome',
+            title: welcomeTitle?.value || 'Welcome to StartupHub! 🚀',
+            content: finalContent,
+            image_url: welcomeImage?.value || '',
+            sender_id: null,
+            reference_id: 'welcome'
+        });
+
+        // Try to push real-time if they happen to be connected (unlikely during registration but possible on re-verify)
+        const { socketService } = await import('../services/socket');
+        socketService.sendNotification(user._id.toString(), {
+            id: notif._id.toString(),
+            type: 'welcome',
+            title: notif.title,
+            content: notif.content,
+            isRead: false,
+            createdAt: notif.created_at
+        });
+
+    } catch (e) {
+        console.error('Welcome actions failed:', e);
     }
 }
 
@@ -325,29 +356,7 @@ router.post('/register-init', authLimiter, validate(registerSchema), async (req,
             }
 
             // No payment, no verification required
-            try {
-                await emailService.sendWelcomeEmail(user.email, user.display_name);
-                // Create in-app welcome notification
-                const welcomeTitle = await Setting.findOne({ key: 'welcome_notification_title' });
-                const welcomeContent = await Setting.findOne({ key: 'welcome_notification_content' });
-                const welcomeVideo = await Setting.findOne({ key: 'welcome_notification_video_url' });
-                const welcomeImage = await Setting.findOne({ key: 'welcome_notification_image_url' });
-
-                let finalContent = welcomeContent?.value || 'Complete your profile to get started.';
-                if (welcomeVideo?.value) {
-                    finalContent += `<div class="broadcast-video"><a href="${welcomeVideo.value}" target="_blank" rel="noopener noreferrer">🎬 Watch Video</a></div>`;
-                }
-
-                await Notification.create({
-                    user_id: user._id,
-                    type: 'welcome',
-                    title: welcomeTitle?.value || 'Welcome to StartupHub!',
-                    content: finalContent,
-                    image_url: welcomeImage?.value || '',
-                    sender_id: null,
-                    reference_id: 'welcome'
-                });
-            } catch (e) { console.error('Welcome actions failed during register-init (no payment)', e); }
+            await triggerWelcomeActions(user);
 
             const { accessToken, refreshToken } = generateTokens(user._id.toString(), 'user');
             setTokenCookies(res, accessToken, refreshToken);
@@ -517,40 +526,14 @@ router.post('/register', authLimiter, validate(registerSchema), async (req, res)
             email_verification_otp_expires: verificationOtp ? new Date(Date.now() + 10 * 60 * 1000) : undefined
         });
 
-        // Send notifications/emails async
-        if (isVerificationRequired && verificationOtp) {
+        // Send welcome email / notification if not requiring verification
+        if (!isVerificationRequired) {
+            await triggerWelcomeActions(newUser);
+        } else if (verificationOtp) {
             try {
                 await emailService.sendOTP(newUser.email, newUser.display_name, 'verification', verificationOtp);
-            } catch (e) {
-                console.error("Failed to send verification OTP", e);
-            }
-        } else {
-            try {
-                // No verification required, send welcome email
-                await emailService.sendWelcomeEmail(newUser.email, newUser.display_name);
-            } catch (e) {
-                console.error("Failed to send welcome email", e);
-            }
+            } catch (e) { console.error("Failed to send verification OTP", e); }
         }
-
-        // Create welcome notification
-        const welcomeTitle = await Setting.findOne({ key: 'welcome_notification_title' });
-        const welcomeContent = await Setting.findOne({ key: 'welcome_notification_content' });
-        const welcomeVideo = await Setting.findOne({ key: 'welcome_notification_video_url' });
-        const welcomeImage = await Setting.findOne({ key: 'welcome_notification_image_url' });
-
-        let finalContent = welcomeContent?.value || 'Complete your profile to get started.';
-        if (welcomeVideo?.value) {
-            finalContent += `<div class="broadcast-video"><a href="${welcomeVideo.value}" target="_blank" rel="noopener noreferrer">🎬 Watch Video</a></div>`;
-        }
-
-        await Notification.create({
-            user_id: newUser._id,
-            type: 'welcome',
-            title: welcomeTitle?.value || 'Welcome to StartupHub!',
-            content: finalContent,
-            image_url: welcomeImage?.value || ''
-        });
 
         if (isVerificationRequired) {
             res.status(201).json({
@@ -608,11 +591,7 @@ router.get('/verify-email', async (req, res) => {
         user.email_verification_token = undefined;
         await user.save();
 
-        try {
-            await emailService.sendWelcomeEmail(user.email, user.display_name);
-        } catch (e) {
-            console.error("Failed to send welcome email after verification", e);
-        }
+        await triggerWelcomeActions(user);
 
         // Redirect to login with specific query param
         const frontendUrl = config.corsOrigin;
@@ -921,7 +900,7 @@ router.post('/verify-email-otp', authenticate, async (req: AuthRequest, res) => 
         user.email_verification_otp_expires = undefined;
         await user.save();
 
-        await emailService.sendWelcomeEmail(user.email, user.display_name);
+        await triggerWelcomeActions(user);
 
         res.json({ message: 'Email verified successfully' });
     } catch (err) {

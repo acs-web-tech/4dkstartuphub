@@ -75,9 +75,6 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
     }
 
     if (res.status === 402) {
-        if (window.location.pathname !== '/pricing') {
-            window.location.href = '/pricing';
-        }
         throw new Error('Payment required to access the platform.');
     }
 

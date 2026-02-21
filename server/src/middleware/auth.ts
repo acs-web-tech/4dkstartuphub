@@ -47,10 +47,17 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
         // Verify user still exists and is active
         const user = await User.findById(decoded.userId).select('id role is_active');
 
-        if (!user || !user.is_active) {
+        if (!user) {
             res.clearCookie('access_token');
             res.clearCookie('refresh_token');
-            res.status(401).json({ error: 'Account not found or deactivated' });
+            res.status(401).json({ error: 'Account not found' });
+            return;
+        }
+
+        if (!user.is_active) {
+            res.clearCookie('access_token');
+            res.clearCookie('refresh_token');
+            res.status(401).json({ error: 'Account deactivated' });
             return;
         }
 

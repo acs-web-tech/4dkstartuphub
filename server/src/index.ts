@@ -8,6 +8,14 @@ import path from 'path';
 import fs from 'fs';
 import { config } from './config/env';
 import { initializeDatabase } from './config/database';
+
+// ── Process Guard ───────────────────────────────────────────
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+});
+process.on('uncaughtException', (err) => {
+    console.error('❌ Uncaught Exception:', err.message, err.stack);
+});
 import { apiLimiter } from './middleware/rateLimiter';
 import { authenticate, AuthRequest, requirePayment } from './middleware/auth';
 import postRoutes from './routes/posts';
@@ -169,12 +177,15 @@ app.get('/api/health', (_req, res) => {
 app.get('/api/settings/public', async (_req, res) => {
     try {
         const Setting = (await import('./models/Setting')).default;
-        const paymentSetting = await Setting.findOne({ key: 'registration_payment_required' });
-        const amountSetting = await Setting.findOne({ key: 'registration_payment_amount' });
-        const pitchPaymentSetting = await Setting.findOne({ key: 'pitch_request_payment_required' });
-        const pitchAmountSetting = await Setting.findOne({ key: 'pitch_request_payment_amount' });
-        const androidUrl = await Setting.findOne({ key: 'android_app_url' });
-        const iosUrl = await Setting.findOne({ key: 'ios_app_url' });
+        const [paymentSetting, amountSetting, pitchPaymentSetting, pitchAmountSetting, androidUrl, iosUrl, globalLockSetting] = await Promise.all([
+            Setting.findOne({ key: 'registration_payment_required' }),
+            Setting.findOne({ key: 'registration_payment_amount' }),
+            Setting.findOne({ key: 'pitch_request_payment_required' }),
+            Setting.findOne({ key: 'pitch_request_payment_amount' }),
+            Setting.findOne({ key: 'android_app_url' }),
+            Setting.findOne({ key: 'ios_app_url' }),
+            Setting.findOne({ key: 'global_payment_lock' })
+        ]);
 
         res.json({
             registration_payment_required: paymentSetting?.value === 'true',
@@ -183,6 +194,7 @@ app.get('/api/settings/public', async (_req, res) => {
             pitch_request_payment_amount: parseInt(pitchAmountSetting?.value || '950', 10),
             android_app_url: androidUrl?.value || '',
             ios_app_url: iosUrl?.value || '',
+            global_payment_lock: globalLockSetting?.value === 'true'
         });
     } catch (err) {
         console.error('Public settings error:', err);
@@ -192,7 +204,8 @@ app.get('/api/settings/public', async (_req, res) => {
             pitch_request_payment_required: true,
             pitch_request_payment_amount: 950,
             android_app_url: '',
-            ios_app_url: ''
+            ios_app_url: '',
+            global_payment_lock: true
         });
     }
 });
