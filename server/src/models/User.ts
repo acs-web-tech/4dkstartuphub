@@ -97,7 +97,7 @@ const UserSchema: Schema = new Schema({
             ret.role = ret.role;
             ret.isActive = ret.is_active ? 1 : 0;
             ret.profileCompleted = ret.profile_completed ? 1 : 0;
-            ret.userType = ret.user_type;
+            ret.userType = (ret.user_type === 'invester' ? 'investor' : ret.user_type);
             ret.paymentStatus = ret.payment_status;
             ret.premiumExpiry = ret.premium_expiry;
             ret.lastSeen = ret.last_seen;

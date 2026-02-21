@@ -173,24 +173,33 @@ router.put('/profile', authenticate, validate(updateProfileSchema), async (req: 
         }
 
         const body = req.body;
+        const updateData: any = { profile_completed: true };
 
-        if (body.displayName !== undefined) user.display_name = sanitizePlainText(body.displayName);
+        if (body.displayName !== undefined) updateData.display_name = sanitizePlainText(body.displayName);
         if (body.avatarUrl !== undefined) {
             const isInternalUpload = body.avatarUrl.startsWith('/api/upload/file/');
             const isEmpty = body.avatarUrl === '';
             if (!isInternalUpload && !isEmpty) {
                 return res.status(400).json({ error: 'Profile photo must be uploaded via the application.' });
             }
-            user.avatar_url = body.avatarUrl;
+            updateData.avatar_url = body.avatarUrl;
         }
-        if (body.bio !== undefined) user.bio = sanitizePlainText(body.bio);
-        if (body.location !== undefined) user.location = sanitizePlainText(body.location);
-        if (body.website !== undefined) user.website = body.website;
-        if (body.linkedin !== undefined) user.linkedin = sanitizePlainText(body.linkedin);
-        if (body.twitter !== undefined) user.twitter = sanitizePlainText(body.twitter);
+        if (body.bio !== undefined) updateData.bio = sanitizePlainText(body.bio);
+        if (body.location !== undefined) updateData.location = sanitizePlainText(body.location);
+        if (body.website !== undefined) updateData.website = body.website;
+        if (body.linkedin !== undefined) updateData.linkedin = sanitizePlainText(body.linkedin);
+        if (body.twitter !== undefined) updateData.twitter = sanitizePlainText(body.twitter);
 
-        user.profile_completed = true;
-        await user.save();
+        // Optional auto-fix for the legacy typo
+        if (user.user_type && String(user.user_type).toLowerCase().trim() === 'invester') {
+            updateData.user_type = 'investor';
+        }
+
+        await User.updateOne(
+            { _id: user._id },
+            { $set: updateData },
+            { runValidators: false } // Crucial bypass: Prevents Mongoose from throwing on bad legacy enums
+        );
 
         res.json({ message: 'Profile updated' });
     } catch (err) {
