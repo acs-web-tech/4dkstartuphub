@@ -59,6 +59,8 @@ export default function Profile() {
             // Check file size (5MB)
             if (file.size > 5 * 1024 * 1024) {
                 setMessage('File size exceeds 5MB limit');
+                // Target the ref to reset input value
+                if (fileInputRef.current) fileInputRef.current.value = '';
                 return;
             }
 
@@ -77,6 +79,8 @@ export default function Profile() {
                 setMessage(err.message || 'Failed to upload avatar image');
             } finally {
                 setUploading(false);
+                // Crucial fix: Reset the file input value so selecting the same file again triggers onChange
+                if (fileInputRef.current) fileInputRef.current.value = '';
             }
         }
     };
@@ -235,29 +239,50 @@ export default function Profile() {
                                     <span>{user.location}</span>
                                 </div>
                             )}
-                            {user.website && (
-                                <div className="profile-meta-item">
-                                    <span className="meta-label"><Globe size={16} /> Website</span>
-                                    <a href={user.website} target="_blank" rel="noopener noreferrer">{user.website}</a>
-                                </div>
-                            )}
-                            {user.linkedin && (
-                                <div className="profile-meta-item">
-                                    <span className="meta-label"><Briefcase size={16} /> LinkedIn</span>
-                                    <span>{user.linkedin}</span>
-                                </div>
-                            )}
-                            {user.twitter && (
-                                <div className="profile-meta-item">
-                                    <span className="meta-label"><Twitter size={16} /> Twitter</span>
-                                    <span>{user.twitter}</span>
-                                </div>
-                            )}
                             <div className="profile-meta-item">
                                 <span className="meta-label"><Calendar size={16} /> Joined</span>
                                 <span>{user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : 'N/A'}</span>
                             </div>
                         </div>
+
+                        {(user.website || user.linkedin || user.twitter) && (
+                            <div className="profile-social-links" style={{
+                                display: 'flex',
+                                gap: '12px',
+                                marginTop: '24px',
+                                flexWrap: 'wrap',
+                                borderTop: '1px solid var(--border)',
+                                paddingTop: '20px'
+                            }}>
+                                {user.website && (
+                                    <a href={user.website.startsWith('http') ? user.website : `https://${user.website}`}
+                                        target="_blank" rel="noopener noreferrer"
+                                        className="social-btn website-btn"
+                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'var(--bg-secondary)', borderRadius: '20px', color: 'var(--text-primary)', textDecoration: 'none', transition: 'all 0.2s', border: '1px solid var(--border)' }}
+                                    >
+                                        <Globe size={16} /> <span style={{ fontSize: '14px', fontWeight: '500' }}>Website</span>
+                                    </a>
+                                )}
+                                {user.linkedin && (
+                                    <a href={user.linkedin.startsWith('http') ? user.linkedin : `https://${user.linkedin}`}
+                                        target="_blank" rel="noopener noreferrer"
+                                        className="social-btn linkedin-btn"
+                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'rgba(10, 102, 194, 0.1)', borderRadius: '20px', color: '#0a66c2', textDecoration: 'none', transition: 'all 0.2s', border: '1px solid rgba(10, 102, 194, 0.2)' }}
+                                    >
+                                        <Briefcase size={16} /> <span style={{ fontSize: '14px', fontWeight: '500' }}>LinkedIn</span>
+                                    </a>
+                                )}
+                                {user.twitter && (
+                                    <a href={user.twitter.startsWith('http') ? user.twitter : `https://twitter.com/${user.twitter.replace('@', '')}`}
+                                        target="_blank" rel="noopener noreferrer"
+                                        className="social-btn twitter-btn"
+                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'rgba(29, 155, 240, 0.1)', borderRadius: '20px', color: '#1d9bf0', textDecoration: 'none', transition: 'all 0.2s', border: '1px solid rgba(29, 155, 240, 0.2)' }}
+                                    >
+                                        <Twitter size={16} /> <span style={{ fontSize: '14px', fontWeight: '500' }}>Twitter</span>
+                                    </a>
+                                )}
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <form className="profile-edit-form" onSubmit={handleSave}>

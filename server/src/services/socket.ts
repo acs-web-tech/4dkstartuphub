@@ -588,7 +588,7 @@ class SocketService {
                 if (targetUser && targetUser._id.toString() !== userId) {
                     const isMember = await ChatRoomMember.findOne({ room_id: room._id, user_id: targetUser._id });
                     if (isMember) {
-                        await Notification.create({
+                        const notif = await Notification.create({
                             user_id: targetUser._id,
                             sender_id: userId,
                             type: 'mention',
@@ -598,8 +598,17 @@ class SocketService {
                         });
                         // Push real-time notification
                         this.sendNotification(targetUser._id.toString(), {
+                            id: notif._id.toString(),
                             type: 'mention',
-                            title: `${user?.display_name} mentioned you in ${room.name}`
+                            title: `${user?.display_name} mentioned you in ${room.name}`,
+                            content: content.substring(0, 100),
+                            referenceId: room._id.toString(),
+                            senderId: userId.toString(),
+                            senderDisplayName: user?.display_name,
+                            senderAvatarUrl: user?.avatar_url,
+                            senderUsername: user?.username,
+                            isRead: 0,
+                            createdAt: notif.created_at
                         });
                     }
                 }

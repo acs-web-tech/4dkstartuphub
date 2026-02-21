@@ -441,13 +441,27 @@ router.post('/:id/messages', authenticate, validate(chatMessageSchema), async (r
                 // Check if target is in room
                 const isMember = await ChatRoomMember.findOne({ room_id: room._id, user_id: targetUser._id });
                 if (isMember) {
-                    await Notification.create({
+                    const notif = await Notification.create({
                         user_id: targetUser._id,
                         sender_id: req.user!.userId,
                         type: 'mention',
                         title: `${user?.display_name} mentioned you in ${room.name}`,
                         content: content.substring(0, 100),
                         reference_id: room._id.toString()
+                    });
+
+                    socketService.sendNotification(targetUser._id.toString(), {
+                        id: notif._id.toString(),
+                        type: 'mention',
+                        title: `${user?.display_name} mentioned you in ${room.name}`,
+                        content: content.substring(0, 100),
+                        referenceId: room._id.toString(),
+                        senderId: req.user!.userId.toString(),
+                        senderDisplayName: user?.display_name,
+                        senderAvatarUrl: user?.avatar_url,
+                        senderUsername: user?.username,
+                        isRead: 0,
+                        createdAt: notif.created_at
                     });
                 }
             }

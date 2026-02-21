@@ -574,7 +574,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                         </div>
 
                         {(() => {
-                            let content = selectedNotif.content;
+                            let content = selectedNotif.content || '';
                             let embedUrl = null;
 
                             // Extract video URL if present (similar to how we handle it in PostDetail but from content)
@@ -639,8 +639,12 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                             (selectedNotif.title?.startsWith('Pitch') ||
                                                 selectedNotif.content?.toLowerCase().includes('pitch request'));
 
+                                        const isChatMention = selectedNotif.type === 'mention' && selectedNotif.title?.includes('in ');
+
                                         if (isPitch) {
                                             navigate('/pitch-requests');
+                                        } else if (isChatMention) {
+                                            navigate(`/chat/${selectedNotif.referenceId}`);
                                         } else {
                                             navigate(`/posts/${selectedNotif.referenceId}`);
                                         }
@@ -651,7 +655,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                     <ExternalLink size={14} />
                                     {selectedNotif.type === 'admin' && (selectedNotif.title?.startsWith('Pitch') || selectedNotif.content?.toLowerCase().includes('pitch request'))
                                         ? 'View Pitch Request'
-                                        : 'View Post'}
+                                        : (selectedNotif.type === 'mention' && selectedNotif.title?.includes('in ') ? 'View Chat' : 'View Post')}
                                 </button>
                             </div>
                         )}

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { usersApi } from '../services/api';
 import { CATEGORY_CONFIG } from '../config';
-import { MapPin, Globe, FileText, Calendar, Heart, MessageSquare, ArrowLeft } from 'lucide-react';
+import { MapPin, Globe, FileText, Calendar, Heart, MessageSquare, ArrowLeft, Twitter, Briefcase, Mail } from 'lucide-react';
 
 export default function UserDetail() {
     const { id } = useParams<{ id: string }>();
@@ -85,12 +85,6 @@ export default function UserDetail() {
                                 <span style={{ fontWeight: 600 }}>{user.location}</span>
                             </div>
                         )}
-                        {user.website && (
-                            <div className="profile-meta-item">
-                                <span className="meta-label"><Globe size={14} className="inline mr-1" /> WEBSITE</span>
-                                <a href={user.website} target="_blank" rel="noopener noreferrer" style={{ fontWeight: 600 }}>{user.website}</a>
-                            </div>
-                        )}
                         <div className="profile-meta-item">
                             <span className="meta-label"><FileText size={14} className="inline mr-1" /> POSTS</span>
                             <span style={{ fontWeight: 600 }}>{user.postCount || 0}</span>
@@ -100,6 +94,53 @@ export default function UserDetail() {
                             <span style={{ fontWeight: 600 }}>{user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : 'N/A'}</span>
                         </div>
                     </div>
+
+                    {(user.website || user.linkedin || user.twitter || user.email) && (
+                        <div className="profile-social-links" style={{
+                            display: 'flex',
+                            gap: '12px',
+                            marginTop: '24px',
+                            flexWrap: 'wrap',
+                            borderTop: '1px solid var(--border)',
+                            paddingTop: '20px'
+                        }}>
+                            {user.email && (
+                                <a href={`mailto:${user.email}`}
+                                    className="social-btn email-btn"
+                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'var(--bg-secondary)', borderRadius: '20px', color: 'var(--text-primary)', textDecoration: 'none', transition: 'all 0.2s', border: '1px solid var(--border)' }}
+                                >
+                                    <Mail size={16} /> <span style={{ fontSize: '14px', fontWeight: '500' }}>Email</span>
+                                </a>
+                            )}
+                            {user.website && (
+                                <a href={user.website.startsWith('http') ? user.website : `https://${user.website}`}
+                                    target="_blank" rel="noopener noreferrer"
+                                    className="social-btn website-btn"
+                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'var(--bg-secondary)', borderRadius: '20px', color: 'var(--text-primary)', textDecoration: 'none', transition: 'all 0.2s', border: '1px solid var(--border)' }}
+                                >
+                                    <Globe size={16} /> <span style={{ fontSize: '14px', fontWeight: '500' }}>Website</span>
+                                </a>
+                            )}
+                            {user.linkedin && (
+                                <a href={user.linkedin.startsWith('http') ? user.linkedin : `https://${user.linkedin}`}
+                                    target="_blank" rel="noopener noreferrer"
+                                    className="social-btn linkedin-btn"
+                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'rgba(10, 102, 194, 0.1)', borderRadius: '20px', color: '#0a66c2', textDecoration: 'none', transition: 'all 0.2s', border: '1px solid rgba(10, 102, 194, 0.2)' }}
+                                >
+                                    <Briefcase size={16} /> <span style={{ fontSize: '14px', fontWeight: '500' }}>LinkedIn</span>
+                                </a>
+                            )}
+                            {user.twitter && (
+                                <a href={user.twitter.startsWith('http') ? user.twitter : `https://twitter.com/${user.twitter.replace('@', '')}`}
+                                    target="_blank" rel="noopener noreferrer"
+                                    className="social-btn twitter-btn"
+                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'rgba(29, 155, 240, 0.1)', borderRadius: '20px', color: '#1d9bf0', textDecoration: 'none', transition: 'all 0.2s', border: '1px solid rgba(29, 155, 240, 0.2)' }}
+                                >
+                                    <Twitter size={16} /> <span style={{ fontSize: '14px', fontWeight: '500' }}>Twitter</span>
+                                </a>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
