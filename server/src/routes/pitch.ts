@@ -64,18 +64,21 @@ router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => 
     try {
         const { title, description, deckUrl } = req.body;
 
-        if (!title || !description) {
-            res.status(400).json({ error: 'Title and description are required' });
+        const cleanTitle = typeof title === 'string' ? title.trim() : '';
+        const cleanDescription = typeof description === 'string' ? description.trim() : '';
+
+        if (!cleanTitle || !cleanDescription) {
+            res.status(400).json({ error: 'Title and description are required and cannot be empty.' });
             return;
         }
 
-        if (title.length > 200) {
-            res.status(400).json({ error: 'Title is too long (max 200 chars)' });
+        if (cleanTitle.length < 5 || cleanTitle.length > 200) {
+            res.status(400).json({ error: 'Title must be between 5 and 200 characters.' });
             return;
         }
 
-        if (description.length > 5000) {
-            res.status(400).json({ error: 'Description is too long (max 5000 chars)' });
+        if (cleanDescription.length < 20 || cleanDescription.length > 5000) {
+            res.status(400).json({ error: 'Description must be between 20 and 5000 characters.' });
             return;
         }
 

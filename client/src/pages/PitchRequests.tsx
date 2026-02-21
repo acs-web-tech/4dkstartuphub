@@ -122,6 +122,23 @@ export default function PitchRequests() {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const selectedFile = e.target.files[0];
+
+            // Validate file type
+            const allowedTypes = [
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.ms-powerpoint',
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            ];
+
+            if (!allowedTypes.includes(selectedFile.type)) {
+                setError('Invalid file type. Only PDF, DOC, DOCX, PPT, PPTX are allowed.');
+                e.target.value = '';
+                setFile(null);
+                return;
+            }
+
             if (selectedFile.size > 5 * 1024 * 1024) {
                 setError('File size exceeds 5MB limit');
                 e.target.value = '';
@@ -130,6 +147,8 @@ export default function PitchRequests() {
             }
             setError(''); // Clear error if any
             setFile(selectedFile);
+        } else {
+            setFile(null);
         }
     };
 
@@ -138,8 +157,21 @@ export default function PitchRequests() {
         setError('');
         setMessage('');
 
-        if (!title.trim() || !description.trim()) {
-            setError('Title and description are required');
+        const cleanTitle = title.trim();
+        const cleanDescription = description.trim();
+
+        if (!cleanTitle || !cleanDescription) {
+            setError('Title and description are required and cannot be empty.');
+            return;
+        }
+
+        if (cleanTitle.length < 5) {
+            setError('Title must be at least 5 characters long.');
+            return;
+        }
+
+        if (cleanDescription.length < 20) {
+            setError('Description must be at least 20 characters long.');
             return;
         }
 
