@@ -16,7 +16,7 @@ process.on('unhandledRejection', (reason, promise) => {
 process.on('uncaughtException', (err) => {
     console.error('❌ Uncaught Exception:', err.message, err.stack);
 });
-import { apiLimiter } from './middleware/rateLimiter';
+
 import { authenticate, AuthRequest, requirePayment } from './middleware/auth';
 import postRoutes from './routes/posts';
 import userRoutes from './routes/users';
@@ -140,10 +140,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 app.use(cookieParser());
 
-// ── Global Rate Limiter (production only) ────────────────────
-if (isProd) {
-    app.use('/api', apiLimiter);
-}
+// ── Global Rate Limiter (Delegated to Nginx) ────────────────
 
 // ── Global Image Cache Middleware (Aggressive) ──────────────
 app.use((req, res, next) => {

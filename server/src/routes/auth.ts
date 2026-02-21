@@ -4,7 +4,6 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config/env';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
-import { authLimiter } from '../middleware/rateLimiter';
 import { registerSchema, loginSchema, resetPasswordSchema, passwordSchema } from '../validators/schemas';
 import { sanitizeHtml } from '../utils/sanitize';
 import User from '../models/User';
@@ -217,7 +216,7 @@ router.post('/check-availability', async (req, res) => {
 });
 
 // ── POST /api/auth/register-init ─────────────────────────────
-router.post('/register-init', authLimiter, validate(registerSchema), async (req, res) => {
+router.post('/register-init', validate(registerSchema), async (req, res) => {
     try {
         const { username, email, password, displayName, userType } = req.body;
 
@@ -391,7 +390,7 @@ router.post('/register-init', authLimiter, validate(registerSchema), async (req,
 });
 
 // ── POST /api/auth/register-finalize ─────────────────────────
-router.post('/register-finalize', authLimiter, async (req, res) => {
+router.post('/register-finalize', async (req, res) => {
     try {
         const { order_id, payment_id, signature } = req.body;
 
@@ -442,7 +441,7 @@ router.post('/register-finalize', authLimiter, async (req, res) => {
 });
 
 // ── POST /api/auth/register ──────────────────────────────────
-router.post('/register', authLimiter, validate(registerSchema), async (req, res) => {
+router.post('/register', validate(registerSchema), async (req, res) => {
     try {
         const { username, email, password, displayName, userType, payment } = req.body;
 
@@ -609,7 +608,7 @@ router.get('/verify-email', async (req, res) => {
 });
 
 // ── POST /api/auth/forgot-password ───────────────────────────
-router.post('/forgot-password', authLimiter, async (req, res) => {
+router.post('/forgot-password', async (req, res) => {
     try {
         const { email } = req.body;
         if (!email) {
@@ -638,7 +637,7 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
 });
 
 // ── POST /api/auth/reset-password ────────────────────────────
-router.post('/reset-password', authLimiter, async (req, res) => {
+router.post('/reset-password', async (req, res) => {
     try {
         const { token, password } = req.body;
 
@@ -675,7 +674,7 @@ router.post('/reset-password', authLimiter, async (req, res) => {
 });
 
 // ── POST /api/auth/login ─────────────────────────────────────
-router.post('/login', authLimiter, validate(loginSchema), async (req, res) => {
+router.post('/login', validate(loginSchema), async (req, res) => {
     try {
         const { email, password } = req.body;
 
@@ -915,7 +914,7 @@ router.post('/verify-email-otp', authenticate, async (req: AuthRequest, res) => 
 });
 
 // Forgot Password OTP
-router.post('/forgot-password-otp', authLimiter, async (req, res) => {
+router.post('/forgot-password-otp', async (req, res) => {
     try {
         const { email } = req.body;
         if (!email) {
@@ -955,7 +954,7 @@ router.post('/forgot-password-otp', authLimiter, async (req, res) => {
 });
 
 // Reset Password OTP
-router.post('/reset-password-otp', authLimiter, validate(resetPasswordSchema), async (req, res) => {
+router.post('/reset-password-otp', validate(resetPasswordSchema), async (req, res) => {
     try {
         const { email, otp, password } = req.body;
 
