@@ -87,34 +87,32 @@ router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => 
         let limit = parseInt(limitSetting?.value || '1', 10);
         if (isNaN(limit) || limit <= 0) limit = 1;
 
-        if (req.user?.role !== 'admin') {
-            const user = await User.findById(req.user!.userId);
-            if (!user) {
-                res.status(404).json({ error: 'User not found' });
-                return;
-            }
+        const user = await User.findById(req.user!.userId);
+        if (!user) {
+            res.status(404).json({ error: 'User not found' });
+            return;
+        }
 
-            // Fallback to user.created_at for old accounts without a reset date
-            const resetDate = user.pitch_limit_reset_date || user.created_at || new Date(0);
+        // Fallback to user.created_at for old accounts without a reset date
+        const resetDate = user.pitch_limit_reset_date || user.created_at || new Date(0);
 
-            // Query for pitches: Mongoose auto-casts userId string to ObjectId
-            const pitchCount = await PitchRequest.countDocuments({
-                user_id: req.user!.userId,
-                created_at: { $gte: resetDate }
+        // Query for pitches: Mongoose auto-casts userId string to ObjectId
+        const pitchCount = await PitchRequest.countDocuments({
+            user_id: req.user!.userId,
+            created_at: { $gte: resetDate }
+        });
+
+        console.log(`[QUOTA] User: ${user.email}, Limit: ${limit}, Found: ${pitchCount}, Reset: ${resetDate}`);
+
+        if (pitchCount >= limit) {
+            await emailService.sendPitchLimitReachedEmail(user.email, user.display_name, limit);
+            res.status(402).json({
+                error: `Limit Reached: You are allowed ${limit} pitch request(s) per subscription period.`,
+                code: 'LIMIT_REACHED',
+                count: pitchCount,
+                limit: limit
             });
-
-            console.log(`[QUOTA] User: ${user.email}, Limit: ${limit}, Found: ${pitchCount}, Reset: ${resetDate}`);
-
-            if (pitchCount >= limit) {
-                await emailService.sendPitchLimitReachedEmail(user.email, user.display_name, limit);
-                res.status(402).json({
-                    error: `Limit Reached: You are allowed ${limit} pitch request(s) per subscription period.`,
-                    code: 'LIMIT_REACHED',
-                    count: pitchCount,
-                    limit: limit
-                });
-                return;
-            }
+            return;
         }
 
         const newPitch = await PitchRequest.create({
@@ -126,10 +124,7 @@ router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => 
         });
 
         // Email confirmation
-        const user = await User.findById(req.user!.userId);
-        if (user) {
-            await emailService.sendPitchSubmissionEmail(user.email, user.display_name, title);
-        }
+        await emailService.sendPitchSubmissionEmail(user.email, user.display_name, title);
 
         res.status(201).json({ message: 'Pitch request submitted successfully', pitchId: newPitch._id.toString() });
     } catch (err) {

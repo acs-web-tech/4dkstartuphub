@@ -55,8 +55,8 @@ export default function PitchRequests() {
                 setPitchLimit(data.limit || 0);
 
                 // Proactive limit check: if limit > 0 and count >= limit, block submission
-                // Proactive limit check: block non-admins
-                if (data.limit > 0 && data.count >= data.limit && user?.role !== 'admin') {
+                // Proactive limit check: block everyone who hits their quota
+                if (data.limit > 0 && data.count >= data.limit) {
                     setPremiumBlocked(true);
                 }
             })
@@ -239,7 +239,7 @@ export default function PitchRequests() {
         );
     }
 
-    const limitReached = pitchLimit > 0 && pitchCount >= pitchLimit && user?.role !== 'admin';
+    const limitReached = pitchLimit > 0 && pitchCount >= pitchLimit;
 
     return (
         <div className="page-container">

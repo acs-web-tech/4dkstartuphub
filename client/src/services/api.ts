@@ -75,18 +75,17 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
         throw new Error(errMessage);
     }
 
-    if (res.status === 402) {
-        // Dispatch event to force AuthContext to refresh (triggering Join Premium view)
-        window.dispatchEvent(new CustomEvent('auth_refresh_required'));
-        throw new Error('Payment required to access the platform.');
-    }
-
     if (!res.ok) {
         let err: any;
         try {
             err = await res.json();
         } catch (e) {
             err = { error: `HTTP ${res.status}` };
+        }
+
+        if (res.status === 402) {
+            // Dispatch event to force AuthContext to refresh (triggering Join Premium view)
+            window.dispatchEvent(new CustomEvent('auth_refresh_required'));
         }
 
         // Include validation details if present
