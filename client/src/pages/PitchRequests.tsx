@@ -55,7 +55,8 @@ export default function PitchRequests() {
                 setPitchLimit(data.limit || 0);
 
                 // Proactive limit check: if limit > 0 and count >= limit, block submission
-                if (data.limit > 0 && data.count >= data.limit && user?.role === 'user') {
+                // Proactive limit check: block non-admins
+                if (data.limit > 0 && data.count >= data.limit && user?.role !== 'admin') {
                     setPremiumBlocked(true);
                 }
             })
@@ -238,7 +239,7 @@ export default function PitchRequests() {
         );
     }
 
-    const limitReached = pitchLimit > 0 && pitchCount >= pitchLimit && user?.role === 'user';
+    const limitReached = pitchLimit > 0 && pitchCount >= pitchLimit && user?.role !== 'admin';
 
     return (
         <div className="page-container">

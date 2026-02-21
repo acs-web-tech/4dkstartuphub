@@ -86,13 +86,18 @@ router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => 
 
         if (limit > 0 && req.user?.role !== 'admin') {
             const user = await User.findById(req.user!.userId);
-            if (!user) { res.status(404).json({ error: 'User not found' }); return; }
+            if (!user) {
+                res.status(404).json({ error: 'User not found' });
+                return;
+            }
 
             // Only count pitches created AFTER the last reset (payment) date
-            const query: any = { user_id: req.user!.userId };
-            if (user.pitch_limit_reset_date) {
-                query.created_at = { $gt: user.pitch_limit_reset_date };
-            }
+            // Fallback to user.created_at for old accounts without a reset date
+            const resetDate = user.pitch_limit_reset_date || user.created_at;
+            const query: any = {
+                user_id: new mongoose.Types.ObjectId(req.user!.userId),
+                created_at: { $gt: resetDate }
+            };
 
             const pitchCount = await PitchRequest.countDocuments(query);
             if (pitchCount >= limit) {
@@ -129,7 +134,7 @@ router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => 
 // ── GET /api/pitch/my — Get current user's pitch requests ──
 router.get('/my', authenticate, requirePremium, async (req: AuthRequest, res) => {
     try {
-        const pitches = await PitchRequest.find({ user_id: req.user!.userId })
+        const pitches = await PitchRequest.find({ user_id: new mongoose.Types.ObjectId(req.user!.userId) })
             .populate('reviewed_by', 'display_name')
             .sort({ created_at: -1 });
 
@@ -140,9 +145,12 @@ router.get('/my', authenticate, requirePremium, async (req: AuthRequest, res) =>
         ]);
         const limit = parseInt(limitSetting?.value || '0', 10);
 
-        const countQuery: any = { user_id: req.user!.userId };
-        if (user?.pitch_limit_reset_date) {
-            countQuery.created_at = { $gt: user.pitch_limit_reset_date };
+        const resetDate = user?.pitch_limit_reset_date || user?.created_at;
+        const countQuery: any = {
+            user_id: new mongoose.Types.ObjectId(req.user!.userId)
+        };
+        if (resetDate) {
+            countQuery.created_at = { $gt: resetDate };
         }
         const pitchCount = await PitchRequest.countDocuments(countQuery);
 
