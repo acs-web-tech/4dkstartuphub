@@ -175,6 +175,11 @@ export default function PitchRequests() {
             return;
         }
 
+        if (!file) {
+            setError('Uploading a pitch deck is mandatory. Please attach a valid file (PDF, PPT, DOC).');
+            return;
+        }
+
         setSubmitting(true);
         try {
             let deckUrl = '';
@@ -448,7 +453,7 @@ export default function PitchRequests() {
 
 
                             {error && (
-                                <div className="alert alert-danger mb-4">
+                                <div className="alert alert-error mb-4">
                                     <XCircle size={16} className="inline mr-2" /> {error}
                                 </div>
                             )}
@@ -486,13 +491,14 @@ export default function PitchRequests() {
                                 </div>
 
                                 <div className="form-group mb-6">
-                                    <label className="block mb-2 font-medium">Pitch Deck (Optional)</label>
+                                    <label className="block mb-2 font-medium">Pitch Deck <span className="text-red-500">*</span></label>
                                     <div className="border-2 border-dashed border-gray-700 rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer relative">
                                         <input
                                             type="file"
                                             onChange={handleFileChange}
                                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                             accept=".pdf,.ppt,.pptx,.doc,.docx"
+                                            required
                                         />
                                         <div className="pointer-events-none">
                                             <Upload size={32} className="mx-auto mb-2 text-gray-400" />

@@ -82,6 +82,11 @@ router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => 
             return;
         }
 
+        if (!deckUrl || typeof deckUrl !== 'string' || deckUrl.trim() === '') {
+            res.status(400).json({ error: 'Pitch deck file is mandatory.' });
+            return;
+        }
+
         // Check Pitch Limit
         const Setting = (await import('../models/Setting')).default;
         const limitSetting = await Setting.findOne({ key: 'pitch_upload_limit' });
