@@ -19,7 +19,7 @@ export default function PitchRequests() {
     const [upgrading, setUpgrading] = useState(false);
     const [upgradePrice, setUpgradePrice] = useState(950);
     const [pitchCount, setPitchCount] = useState(0);
-    const [pitchLimit, setPitchLimit] = useState(0);
+    const [pitchLimit, setPitchLimit] = useState(1);
 
     // Form state
     const [title, setTitle] = useState('');
@@ -34,6 +34,11 @@ export default function PitchRequests() {
         user?.premiumExpiry &&
         new Date(user.premiumExpiry) > new Date()
     );
+
+    // Always load pitches on mount to pre-check quota
+    useEffect(() => {
+        loadPitches();
+    }, []);
 
     useEffect(() => {
         if (tab === 'my') {
@@ -117,8 +122,19 @@ export default function PitchRequests() {
                 setMessage('');
             }, 1500);
         } catch (err: any) {
-            if (err.message?.includes('Premium access required')) {
+            // Detect ALL forms of quota/premium blocks
+            if (
+                err.status === 402 ||
+                err.message?.includes('Premium access required') ||
+                err.message?.includes('Limit Reached') ||
+                err.data?.code === 'LIMIT_REACHED' ||
+                err.data?.code === 'PREMIUM_REQUIRED'
+            ) {
                 setPremiumBlocked(true);
+                // Update count/limit from server response if available
+                if (err.data?.count !== undefined) setPitchCount(err.data.count);
+                if (err.data?.limit !== undefined) setPitchLimit(err.data.limit);
+                setTab('my'); // Switch to show the gate
             } else {
                 setError(err.message || 'Failed to submit pitch');
             }
@@ -239,7 +255,7 @@ export default function PitchRequests() {
         );
     }
 
-    const limitReached = pitchLimit > 0 && pitchCount >= pitchLimit;
+    const limitReached = premiumBlocked || (pitchLimit > 0 && pitchCount >= pitchLimit);
 
     return (
         <div className="page-container">
@@ -255,12 +271,14 @@ export default function PitchRequests() {
                 >
                     <FileText size={16} className="inline mr-2" /> My Requests
                 </button>
-                <button
-                    className={`tab-btn ${tab === 'submit' ? 'active' : ''}`}
-                    onClick={() => setTab('submit')}
-                >
-                    <Plus size={16} className="inline mr-2" /> New Pitch
-                </button>
+                {!limitReached && (
+                    <button
+                        className={`tab-btn ${tab === 'submit' ? 'active' : ''}`}
+                        onClick={() => setTab('submit')}
+                    >
+                        <Plus size={16} className="inline mr-2" /> New Pitch
+                    </button>
+                )}
             </div>
 
             {tab === 'my' ? (

@@ -83,8 +83,9 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
             err = { error: `HTTP ${res.status}` };
         }
 
-        if (res.status === 402) {
-            // Dispatch event to force AuthContext to refresh (triggering Join Premium view)
+        if (res.status === 402 && err?.code !== 'LIMIT_REACHED') {
+            // Only dispatch for actual premium/payment blocks, NOT quota limits
+            // Quota limits are handled by the individual page components
             window.dispatchEvent(new CustomEvent('auth_refresh_required'));
         }
 
