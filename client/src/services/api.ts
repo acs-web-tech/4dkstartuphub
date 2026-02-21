@@ -76,6 +76,8 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
     }
 
     if (res.status === 402) {
+        // Dispatch event to force AuthContext to refresh (triggering Join Premium view)
+        window.dispatchEvent(new CustomEvent('auth_refresh_required'));
         throw new Error('Payment required to access the platform.');
     }
 

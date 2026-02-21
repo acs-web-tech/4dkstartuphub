@@ -65,17 +65,15 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
             { $limit: limit },
             {
                 $project: {
+                    _id: 0,
                     id: '$_id',
                     username: 1,
                     displayName: '$display_name',
-                    bio: 1,
                     avatarUrl: '$avatar_url',
                     role: 1,
-                    location: 1,
-                    isActive: { $cond: ['$is_active', 1, 0] },
-                    createdAt: '$created_at',
+                    userType: '$user_type',
                     postCount: '$post_count',
-                    lastSeen: '$last_seen'
+                    isActive: { $cond: ['$is_active', 1, 0] }
                 }
             }
         ]);

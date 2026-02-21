@@ -138,11 +138,13 @@ router.get('/users', async (req: AuthRequest, res) => {
             },
             {
                 $project: {
+                    _id: 0,
                     id: '$_id',
                     username: 1,
                     email: 1,
                     displayName: '$display_name',
                     role: 1,
+                    userType: '$user_type',
                     isActive: { $cond: ['$is_active', 1, 0] },
                     postCount: { $size: '$userPosts' },
                     paymentStatus: '$payment_status',

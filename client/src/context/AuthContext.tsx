@@ -39,6 +39,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         refreshUser().finally(() => setLoading(false));
     }, [refreshUser]);
 
+    // Handle global event to refresh user state (e.g. on subscription expiry)
+    useEffect(() => {
+        const handleRefresh = () => refreshUser();
+        window.addEventListener('auth_refresh_required', handleRefresh);
+        return () => window.removeEventListener('auth_refresh_required', handleRefresh);
+    }, [refreshUser]);
+
     // Preload user avatar image for faster loading across the app
     useEffect(() => {
         if (user?.avatarUrl) {
