@@ -16,6 +16,10 @@ git clone https://github.com/acs-web-tech/4dkstartuphub.git
 cd 4dkstartuphub
 docker build --no-cache -t stphub-app .
 docker compose up -d
+or
+docker compose build app
+docker compose up -d app
+
 ```
 
 ### 3. Get Your SSL Certificate (First Time Only)
