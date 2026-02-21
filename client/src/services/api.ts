@@ -29,10 +29,9 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
             // Ignore parse error
         }
 
-        // Try refresh if we have a token, regardless of being on a public page
-        // This prevents logging out a user who just happens to have an expired token 
-        // while manually navigating to /login
-        if (localStorage.getItem('access_token')) {
+        // Try refresh regardless of localStorage (browser handles cookies for Web)
+        // This prevents logging out web users who use HttpOnly cookies
+        {
             // Try refresh
             const refreshRes = await fetch(`${BASE}/auth/refresh`, {
                 method: 'POST',

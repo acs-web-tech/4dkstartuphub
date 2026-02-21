@@ -24,14 +24,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     const refreshUser = useCallback(async () => {
-        if (!localStorage.getItem('access_token')) {
-            setUser(null);
-            return;
-        }
         try {
             const data = await authApi.me();
             setUser(data.user);
         } catch {
+            // Only clear if we actually failed to get the user
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
             setUser(null);
