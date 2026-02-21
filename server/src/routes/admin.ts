@@ -244,6 +244,13 @@ router.put('/users/:id/premium', async (req: AuthRequest, res) => {
         });
 
         res.json({ message: 'Premium status updated' });
+
+        // Real-time: notify the user immediately so their UI updates without refresh
+        socketService.emitAccountStatusUpdate(user._id.toString(), {
+            paymentStatus: user.payment_status,
+            premiumExpiry: user.premium_expiry ? user.premium_expiry.toISOString() : null,
+            reason: 'admin_update'
+        });
     } catch (err) {
         console.error('Update premium error:', err);
         res.status(500).json({ error: 'Failed to update premium status' });
@@ -545,6 +552,9 @@ router.put('/settings', async (req: AuthRequest, res) => {
         );
 
         res.json({ message: 'Setting updated', key, value: String(value) });
+
+        // Real-time: broadcast setting changes to all connected users
+        socketService.emitSettingChanged(key, String(value));
     } catch (err) {
         console.error('Update settings error:', err);
         res.status(500).json({ error: 'Failed to update setting' });

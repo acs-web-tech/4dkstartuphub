@@ -374,6 +374,22 @@ class SocketService {
     }
 
     /**
+     * Emit account status update to a specific user (premium expiry, payment status changes)
+     */
+    emitAccountStatusUpdate(userId: string, data: { paymentStatus?: string; premiumExpiry?: string | null; reason?: string }) {
+        if (!this.io) return;
+        this.io.to(userId).emit('accountStatusUpdate', data);
+    }
+
+    /**
+     * Emit a global setting change to all connected users (e.g. pitch_upload_limit)
+     */
+    emitSettingChanged(key: string, value: string) {
+        if (!this.io) return;
+        this.io.emit('settingChanged', { key, value });
+    }
+
+    /**
      * Emit a new chat message to a room
      */
     emitChatMessage(roomId: string, message: any) {

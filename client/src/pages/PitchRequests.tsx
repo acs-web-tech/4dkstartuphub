@@ -3,6 +3,7 @@ import { Lightbulb, Plus, Upload, Loader2, CheckCircle2, XCircle, Clock, FileTex
 import { pitchApi, uploadApi, paymentApi, settingsApi } from '../services/api';
 import { PitchRequest } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 
 declare global {
     interface Window {
@@ -12,6 +13,7 @@ declare global {
 
 export default function PitchRequests() {
     const { user, refreshUser } = useAuth();
+    const { socket } = useSocket();
     const [tab, setTab] = useState<'my' | 'submit'>('my');
     const [pitches, setPitches] = useState<PitchRequest[]>([]);
     const [loading, setLoading] = useState(false);
@@ -49,6 +51,47 @@ export default function PitchRequests() {
     useEffect(() => {
         settingsApi.getPublic().then(d => setUpgradePrice((d as any).pitch_request_payment_amount || 950));
     }, []);
+
+    // ── Real-time socket listeners ──
+    useEffect(() => {
+        if (!socket) return;
+
+        // When admin changes user's premium status (expire, renew, etc.)
+        const handleAccountUpdate = () => {
+            refreshUser();   // Refresh auth context (premium status, expiry)
+            loadPitches();   // Re-check quota from server
+        };
+
+        // When admin changes a global setting (e.g. pitch_upload_limit)
+        const handleSettingChanged = (data: { key: string; value: string }) => {
+            if (data.key === 'pitch_upload_limit') {
+                const newLimit = parseInt(data.value, 10);
+                setPitchLimit(isNaN(newLimit) || newLimit < 0 ? 1 : newLimit);
+                // Re-check if limit has changed and user is now over/under
+                if (newLimit === 0) {
+                    // 0 = Unlimited
+                    setPremiumBlocked(false);
+                } else if (pitchCount >= newLimit) {
+                    setPremiumBlocked(true);
+                } else {
+                    setPremiumBlocked(false);
+                }
+            }
+            // If payment-related settings changed, refresh
+            if (data.key === 'global_payment_lock' || data.key === 'pitch_request_payment_required') {
+                refreshUser();
+                loadPitches();
+            }
+        };
+
+        socket.on('accountStatusUpdate', handleAccountUpdate);
+        socket.on('settingChanged', handleSettingChanged);
+
+        return () => {
+            socket.off('accountStatusUpdate', handleAccountUpdate);
+            socket.off('settingChanged', handleSettingChanged);
+        };
+    }, [socket, pitchCount]);
 
     const loadPitches = () => {
         setLoading(true);
@@ -262,6 +305,40 @@ export default function PitchRequests() {
             <div className="page-header">
                 <h1><Lightbulb className="inline-icon" size={28} /> Pitch Requests</h1>
                 <p className="page-subtitle">Submit your startup ideas for review</p>
+            </div>
+
+            {/* Quota Display */}
+            <div style={{
+                display: 'flex', alignItems: 'center', gap: '0.75rem',
+                marginBottom: '1rem', padding: '0.75rem 1rem',
+                borderRadius: '0.5rem', background: 'var(--bg-card, rgba(255,255,255,0.05))',
+                border: '1px solid var(--border-color, rgba(255,255,255,0.1))',
+                fontSize: '0.9rem'
+            }}>
+                <FileText size={16} style={{ opacity: 0.7 }} />
+                <span style={{ opacity: 0.8 }}>Pitch Quota:</span>
+                {pitchLimit === 0 ? (
+                    <span style={{ fontWeight: 600, color: 'var(--green, #22c55e)' }}>Unlimited</span>
+                ) : (
+                    <>
+                        <span style={{
+                            fontWeight: 600,
+                            color: pitchCount >= pitchLimit ? 'var(--red, #ef4444)' : 'var(--green, #22c55e)'
+                        }}>
+                            {pitchCount} / {pitchLimit} used
+                        </span>
+                        {pitchCount >= pitchLimit && (
+                            <span style={{ fontSize: '0.8rem', opacity: 0.6, marginLeft: 'auto' }}>
+                                Upgrade to get more
+                            </span>
+                        )}
+                        {pitchCount < pitchLimit && (
+                            <span style={{ fontSize: '0.8rem', opacity: 0.6, marginLeft: 'auto' }}>
+                                {pitchLimit - pitchCount} remaining
+                            </span>
+                        )}
+                    </>
+                )}
             </div>
 
             <div className="tabs-header mb-6">

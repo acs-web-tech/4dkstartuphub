@@ -83,9 +83,9 @@ router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => 
         const Setting = (await import('../models/Setting')).default;
         const limitSetting = await Setting.findOne({ key: 'pitch_upload_limit' });
 
-        // Final fallback: if setting is 0 or missing, we want 1. 0 = Unlimited is risky right now.
-        let limit = parseInt(limitSetting?.value || '1', 10);
-        if (isNaN(limit) || limit <= 0) limit = 1;
+        // 0 = Unlimited (no quota enforced), missing = default to 1
+        let limit = limitSetting ? parseInt(limitSetting.value, 10) : 1;
+        if (isNaN(limit) || limit < 0) limit = 1;
 
         const user = await User.findById(req.user!.userId);
         if (!user) {
@@ -104,7 +104,8 @@ router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => 
 
         console.log(`[QUOTA] User: ${user.email}, Limit: ${limit}, Found: ${pitchCount}, Reset: ${resetDate}`);
 
-        if (pitchCount >= limit) {
+        // limit=0 means unlimited, skip check
+        if (limit > 0 && pitchCount >= limit) {
             await emailService.sendPitchLimitReachedEmail(user.email, user.display_name, limit);
             res.status(402).json({
                 error: `Limit Reached: You are allowed ${limit} pitch request(s) per subscription period.`,
@@ -146,9 +147,9 @@ router.get('/my', authenticate, requirePremium, async (req: AuthRequest, res) =>
             User.findById(req.user!.userId)
         ]);
 
-        // Match the logic in POST route: default to 1
-        let limit = parseInt(limitSetting?.value || '1', 10);
-        if (isNaN(limit) || limit <= 0) limit = 1;
+        // 0 = Unlimited, missing = default to 1
+        let limit = limitSetting ? parseInt(limitSetting.value, 10) : 1;
+        if (isNaN(limit) || limit < 0) limit = 1;
 
         const resetDate = user?.pitch_limit_reset_date || user?.created_at || new Date(0);
         const pitchCount = await PitchRequest.countDocuments({
