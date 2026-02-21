@@ -288,6 +288,12 @@ router.put('/users/:id/toggle-active', async (req: AuthRequest, res) => {
         }
 
         res.json({ message: `User ${action}` });
+
+        // DB is saved. Now emit real-time events.
+        // If deactivated → force logout immediately so they can't do anything
+        if (!user.is_active) {
+            socketService.forceLogout(user._id.toString(), 'Your account has been deactivated by an administrator.');
+        }
     } catch (err) {
         console.error('Toggle active error:', err);
         res.status(500).json({ error: 'Failed to toggle user status' });
@@ -312,6 +318,10 @@ router.delete('/users/:id', async (req: AuthRequest, res) => {
             res.status(404).json({ error: 'User not found' });
             return;
         }
+
+        // Force-logout the user BEFORE deletion starts cleaning up data
+        // This ensures their session is killed while cleanup runs in background
+        socketService.forceLogout(id as string, 'Your account has been deleted by an administrator.');
 
         const { cleanupService } = await import('../services/cleanup');
         await cleanupService.queueUserDeletion(id as string);

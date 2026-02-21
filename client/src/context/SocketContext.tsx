@@ -103,11 +103,24 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 });
             });
 
+            // ── Force Logout: admin deactivated/deleted this account ──
+            let wasForceLoggedOut = false;
+            newSocket.on('forceLogout', ({ reason }: { reason: string }) => {
+                wasForceLoggedOut = true;
+                // Clear all tokens immediately
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                // Disconnect socket and prevent reconnection
+                newSocket.disconnect();
+                // Notify user and redirect
+                alert(reason || 'Your session has been terminated by an administrator.');
+                window.location.href = '/login';
+            });
+
             newSocket.on('disconnect', (reason) => {
                 setConnected(false);
-                // If the server closed the connection or transport failed,
-                // Socket.IO will auto-reconnect. If we called .disconnect(),
-                // it won't (which is the correct behavior).
+                // Do NOT reconnect if the user was force-logged-out
+                if (wasForceLoggedOut) return;
                 if (reason === 'io server disconnect') {
                     // Server forced disconnect — try reconnecting manually
                     setStatus('reconnecting');

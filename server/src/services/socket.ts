@@ -65,7 +65,7 @@ class SocketService {
             }
         });
 
-        this.io.use((socket, next) => {
+        this.io.use(async (socket, next) => {
             try {
                 let token = socket.handshake.auth?.token;
 
@@ -93,6 +93,14 @@ class SocketService {
 
                 try {
                     const decoded = jwt.verify(token, config.jwtSecret) as { userId: string };
+                    // DB check: user must exist AND be active to connect
+                    const user = await User.findById(decoded.userId).select('is_active').lean();
+                    if (!user) {
+                        return next(new Error('Authentication error: Account not found'));
+                    }
+                    if (!user.is_active) {
+                        return next(new Error('Authentication error: Account deactivated'));
+                    }
                     (socket as any).userId = decoded.userId;
                     next();
                 } catch (jwtErr: any) {
@@ -387,6 +395,26 @@ class SocketService {
     emitSettingChanged(key: string, value: string) {
         if (!this.io) return;
         this.io.emit('settingChanged', { key, value });
+    }
+
+    /**
+     * Force logout a user: emit forceLogout event, then disconnect ALL their sockets.
+     * Call this ONLY after the DB change is confirmed (deactivation, deletion).
+     */
+    forceLogout(userId: string, reason: string) {
+        if (!this.io) return;
+        // Step 1: Tell the user's browser to clear session and redirect to login
+        this.io.to(userId).emit('forceLogout', { reason });
+        // Step 2: Forcefully disconnect all their socket connections
+        const socketIds = this.userSockets.get(userId) || [];
+        for (const sid of socketIds) {
+            const s = this.io.sockets.sockets.get(sid);
+            if (s) s.disconnect(true);
+        }
+        // Step 3: Clean up tracking
+        this.userSockets.delete(userId);
+        this.onlineUsers.delete(userId);
+        console.log(`[SOCKET] Force-disconnected user ${userId}: ${reason}`);
     }
 
     /**
