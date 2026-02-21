@@ -526,6 +526,7 @@ router.get('/settings', async (_req: AuthRequest, res) => {
             'welcome_notification_title',
             'welcome_notification_content',
             'welcome_notification_video_url',
+            'welcome_notification_image_url',
             'pitch_request_payment_required',
             'pitch_request_payment_amount',
             'android_app_url',

@@ -1,5 +1,24 @@
 import rateLimit from 'express-rate-limit';
 import { config } from '../config/env';
+import { Request } from 'express';
+
+const customKeyGenerator = (req: Request): string => {
+    // If the request has passed auth middleware, use user ID
+    if ((req as any).user?.userId) {
+        return `user_${(req as any).user.userId}`;
+    }
+
+    // Check X-Forwarded-For header for real client IP behind proxies
+    const xForwardedFor = req.headers['x-forwarded-for'];
+    if (xForwardedFor) {
+        const ips = typeof xForwardedFor === 'string' ? xForwardedFor.split(',') : xForwardedFor[0].split(',');
+        const realIp = ips[0].trim();
+        if (realIp) return `ip_${realIp}`;
+    }
+
+    // Fallback to Express's req.ip or unknown
+    return `ip_${req.ip || 'unknown'}`;
+};
 
 /**
  * Rate limiter for authentication endpoints.
@@ -12,6 +31,7 @@ export const authLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     skipSuccessfulRequests: false,
+    keyGenerator: customKeyGenerator,
 });
 
 /**
@@ -23,6 +43,7 @@ export const apiLimiter = rateLimit({
     message: { error: 'Too many requests. Please slow down.' },
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: customKeyGenerator,
 });
 
 /**
@@ -34,4 +55,5 @@ export const uploadLimiter = rateLimit({
     message: { error: 'Too many uploads. Please try again later.' },
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: customKeyGenerator,
 });

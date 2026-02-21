@@ -193,6 +193,13 @@ class SocketService {
                     this.io?.emit('userOffline', { userId });
                     // Update last_seen
                     User.findByIdAndUpdate(userId, { last_seen: new Date() }).catch(() => { });
+
+                    // Clean up message rate limits array to prevent memory leaks
+                    for (const key of this.messageRateLimits.keys()) {
+                        if (key.endsWith(`:${userId}`)) {
+                            this.messageRateLimits.delete(key);
+                        }
+                    }
                 } else {
                     this.userSockets.set(userId, remaining);
                 }
