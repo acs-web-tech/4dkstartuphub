@@ -17,15 +17,6 @@ export default function Register() {
     const { register, user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
 
-    // Redirect if already logged in
-    useEffect(() => {
-        if (!authLoading && user) {
-            navigate('/feed', { replace: true });
-        }
-    }, [user, authLoading, navigate]);
-
-    if (authLoading) return <div className="loading-container"><div className="spinner" /></div>;
-    if (user) return null;
     const [form, setForm] = useState({ username: '', email: '', password: '', confirmPassword: '', displayName: '' });
     const [userType, setUserType] = useState<UserType | null>(null);
     const [error, setError] = useState('');
@@ -36,6 +27,15 @@ export default function Register() {
     const [paymentAmount, setPaymentAmount] = useState(950);
     const [verificationSent, setVerificationSent] = useState(false);
     const [otp, setOtp] = useState('');
+    const [savedOrder, setSavedOrder] = useState<{ orderId: string, keyId: string, amount: number, currency: string, userId: string } | null>(null);
+    const [resendLoading, setResendLoading] = useState(false);
+
+    // Redirect if already logged in
+    useEffect(() => {
+        if (!authLoading && user) {
+            navigate('/feed', { replace: true });
+        }
+    }, [user, authLoading, navigate]);
 
     // Fetch public settings on mount
     useEffect(() => {
@@ -51,6 +51,23 @@ export default function Register() {
         setForm(prev => ({ ...prev, [field]: value }));
     };
 
+    if (authLoading) return <div className="loading-container"><div className="spinner" /></div>;
+    if (user) return null;
+    if (paymentRequired === null) {
+        return (
+            <div className="auth-page">
+                <div className="auth-container">
+                    <div className="auth-brand">
+                        <Rocket size={64} className="logo-icon-lg text-primary" />
+                        <h1>StartupHub</h1>
+                        <p>Loading...</p>
+                    </div>
+                    <div className="loading-container"><div className="spinner" /></div>
+                </div>
+            </div>
+        );
+    }
+
     const passwordChecks = [
         { label: 'At least 8 characters', valid: form.password.length >= 8 },
         { label: 'One uppercase letter', valid: /[A-Z]/.test(form.password) },
@@ -63,9 +80,6 @@ export default function Register() {
         setUserType(type);
         setStep('details');
     };
-
-    const [savedOrder, setSavedOrder] = useState<{ orderId: string, keyId: string, amount: number, currency: string, userId: string } | null>(null);
-    const [resendLoading, setResendLoading] = useState(false);
 
     const handleDetailsSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

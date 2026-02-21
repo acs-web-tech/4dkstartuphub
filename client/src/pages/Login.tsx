@@ -21,6 +21,10 @@ export default function Login() {
     const [searchParams] = useSearchParams();
     const verified = searchParams.get('verified') === 'true';
 
+    const [showVerification, setShowVerification] = useState(false);
+    const [otp, setOtp] = useState('');
+    const [resendLoading, setResendLoading] = useState(false);
+
     // Redirect if already logged in (prevents login page flicker)
     useEffect(() => {
         if (!authLoading && user) {
@@ -71,10 +75,6 @@ export default function Login() {
         const rzp = new window.Razorpay(options);
         rzp.open();
     };
-
-    const [showVerification, setShowVerification] = useState(false);
-    const [otp, setOtp] = useState('');
-    const [resendLoading, setResendLoading] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
