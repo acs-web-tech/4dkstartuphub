@@ -29,6 +29,7 @@ export default function Login() {
     }, [user, authLoading, navigate]);
 
     if (authLoading) return <div className="loading-container"><div className="spinner" /></div>;
+    if (user) return null;
 
     const handlePaymentRetry = (data: any) => {
         const options = {

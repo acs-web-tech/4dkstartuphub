@@ -29,9 +29,10 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
             // Ignore parse error
         }
 
-        // Refresh failed - redirect to login
-        const publicPages = ['/login', '/register', '/forgot-password', '/reset-password'];
-        if (!publicPages.includes(window.location.pathname)) {
+        // Try refresh if we have a token, regardless of being on a public page
+        // This prevents logging out a user who just happens to have an expired token 
+        // while manually navigating to /login
+        if (localStorage.getItem('access_token')) {
             // Try refresh
             const refreshRes = await fetch(`${BASE}/auth/refresh`, {
                 method: 'POST',
@@ -64,7 +65,8 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
             }
         }
 
-        // If we are here, refresh failed or we are on login/register page
+        // If we are here, refresh failed or no session was active
+        const publicPages = ['/login', '/register', '/forgot-password', '/reset-password'];
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
 

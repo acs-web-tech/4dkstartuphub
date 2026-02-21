@@ -25,6 +25,7 @@ export default function Register() {
     }, [user, authLoading, navigate]);
 
     if (authLoading) return <div className="loading-container"><div className="spinner" /></div>;
+    if (user) return null;
     const [form, setForm] = useState({ username: '', email: '', password: '', confirmPassword: '', displayName: '' });
     const [userType, setUserType] = useState<UserType | null>(null);
     const [error, setError] = useState('');
