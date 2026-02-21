@@ -258,6 +258,12 @@ export default function Admin() {
             const file = input.files?.[0];
             if (!file) return;
 
+            if (file.size > 5 * 1024 * 1024) {
+                setMessage('Image size exceeds 5MB limit');
+                setMessageType('error');
+                return;
+            }
+
             try {
                 setIsImageUploading(true);
                 const { url } = await uploadApi.upload(file);
@@ -297,6 +303,12 @@ export default function Admin() {
             const file = input.files?.[0];
             if (!file) return;
 
+            if (file.size > 5 * 1024 * 1024) {
+                setMessage('Image size exceeds 5MB limit');
+                setMessageType('error');
+                return;
+            }
+
             try {
                 setIsImageUploading(true);
                 const { url } = await uploadApi.upload(file);
@@ -318,6 +330,12 @@ export default function Admin() {
         input.onchange = async () => {
             const file = input.files?.[0];
             if (!file) return;
+
+            if (file.size > 5 * 1024 * 1024) {
+                setMessage('Image size exceeds 5MB limit');
+                setMessageType('error');
+                return;
+            }
 
             try {
                 setIsImageUploading(true);
@@ -579,6 +597,10 @@ export default function Admin() {
         input.onchange = async () => {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('Image size exceeds 5MB limit');
+                    return;
+                }
                 try {
                     setIsImageUploading(true);
                     const data = await uploadApi.upload(file);

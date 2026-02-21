@@ -105,6 +105,12 @@ export default function CreatePost() {
         const files = e.target.files;
         if (!files || !files[0]) return;
         const file = files[0];
+        if (file.size > 5 * 1024 * 1024) {
+            setError('Thumbnail size exceeds 5MB limit');
+            e.target.value = '';
+            return;
+        }
+
         try {
             setThumbnailUploading(true);
             const data = await uploadApi.upload(file);

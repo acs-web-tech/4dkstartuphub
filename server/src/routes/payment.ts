@@ -56,6 +56,7 @@ router.post('/webhook', async (req, res) => {
                 user.payment_status = 'completed';
                 user.razorpay_payment_id = paymentId;
                 user.premium_expiry = expiryDate;
+                user.pitch_limit_reset_date = new Date();
                 user.is_active = true;
                 // Auto-verify email on payment to reduce friction? 
                 // Let's keep existing flow: if they need verification, they can do it.
@@ -166,7 +167,8 @@ router.post('/upgrade', authenticate, async (req: AuthRequest, res) => {
             payment_status: 'completed',
             razorpay_payment_id,
             razorpay_order_id,
-            premium_expiry: expiryDate
+            premium_expiry: expiryDate,
+            pitch_limit_reset_date: new Date()
         });
 
         console.log(`✅ User ${req.user!.userId} upgraded to Premium`);

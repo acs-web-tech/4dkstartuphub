@@ -85,14 +85,20 @@ router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => 
         const limit = parseInt(limitSetting?.value || '0', 10);
 
         if (limit > 0 && req.user?.role !== 'admin') {
-            const pitchCount = await PitchRequest.countDocuments({ user_id: req.user!.userId });
+            const user = await User.findById(req.user!.userId);
+            if (!user) { res.status(404).json({ error: 'User not found' }); return; }
+
+            // Only count pitches created AFTER the last reset (payment) date
+            const query: any = { user_id: req.user!.userId };
+            if (user.pitch_limit_reset_date) {
+                query.created_at = { $gt: user.pitch_limit_reset_date };
+            }
+
+            const pitchCount = await PitchRequest.countDocuments(query);
             if (pitchCount >= limit) {
-                const user = await User.findById(req.user!.userId);
-                if (user) {
-                    await emailService.sendPitchLimitReachedEmail(user.email, user.display_name, limit);
-                }
+                await emailService.sendPitchLimitReachedEmail(user.email, user.display_name, limit);
                 res.status(402).json({
-                    error: `You have reached the maximum limit of ${limit} pitch requests. Please upgrade your plan to increase your limit.`,
+                    error: `You have reached the maximum limit of ${limit} pitch requests for your current quota. Please upgrade or renew your plan to increase your limit.`,
                     code: 'LIMIT_REACHED'
                 });
                 return;
@@ -128,9 +134,17 @@ router.get('/my', authenticate, requirePremium, async (req: AuthRequest, res) =>
             .sort({ created_at: -1 });
 
         const Setting = (await import('../models/Setting')).default;
-        const limitSetting = await Setting.findOne({ key: 'pitch_upload_limit' });
+        const [limitSetting, user] = await Promise.all([
+            Setting.findOne({ key: 'pitch_upload_limit' }),
+            User.findById(req.user!.userId)
+        ]);
         const limit = parseInt(limitSetting?.value || '0', 10);
-        const pitchCount = await PitchRequest.countDocuments({ user_id: req.user!.userId });
+
+        const countQuery: any = { user_id: req.user!.userId };
+        if (user?.pitch_limit_reset_date) {
+            countQuery.created_at = { $gt: user.pitch_limit_reset_date };
+        }
+        const pitchCount = await PitchRequest.countDocuments(countQuery);
 
         res.json({
             pitches: pitches.map(p => {

@@ -19,6 +19,7 @@ export interface IUser extends Document {
     razorpay_payment_id: string;
     razorpay_order_id: string;
     premium_expiry: Date | null;
+    pitch_limit_reset_date: Date;
     last_seen: Date;
     post_count: number;
     created_at: Date;
@@ -63,6 +64,7 @@ const UserSchema: Schema = new Schema({
     razorpay_payment_id: { type: String, default: '' },
     razorpay_order_id: { type: String, default: '' },
     premium_expiry: { type: Date, default: null },
+    pitch_limit_reset_date: { type: Date, default: Date.now },
     last_seen: { type: Date, default: Date.now },
     post_count: { type: Number, default: 0 },
     fcm_tokens: { type: [String], default: [] },

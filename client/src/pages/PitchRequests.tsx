@@ -72,7 +72,14 @@ export default function PitchRequests() {
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            setFile(e.target.files[0]);
+            const selectedFile = e.target.files[0];
+            if (selectedFile.size > 5 * 1024 * 1024) {
+                setError('File size exceeds 5MB limit');
+                e.target.value = '';
+                return;
+            }
+            setError(''); // Clear error if any
+            setFile(selectedFile);
         }
     };
 

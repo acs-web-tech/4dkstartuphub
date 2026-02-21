@@ -66,6 +66,7 @@ async function finalizeUserActivation(user: any, paymentId: string) {
     user.payment_status = 'completed';
     user.razorpay_payment_id = paymentId;
     user.premium_expiry = expiryDate;
+    user.pitch_limit_reset_date = new Date();
     user.is_active = true;
 
     // Honor verification setting
