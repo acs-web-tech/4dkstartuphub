@@ -1,16 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, Link, useLocation } from 'react-router-dom';
 import PostCard from '../components/Post/PostCard';
-import { postsApi } from '../services/api';
+import { postsApi, usersApi } from '../services/api';
 import { Post, Pagination, PostCategory } from '../types';
 import { CATEGORY_CONFIG } from '../config';
 import { useAuth } from '../context/AuthContext';
-import { Search, Newspaper, Hand, CheckCircle, Circle, ArrowRight, Inbox, RefreshCw, X } from 'lucide-react';
+import { Search, Newspaper, Hand, CheckCircle, Circle, ArrowRight, Inbox, RefreshCw, X, User as UserIcon } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 
 // ─── In-memory feed cache (persists across SPA navigations) ───
 interface FeedMemoryCache {
     posts: Post[];
+    searchUsers: any[];
     page: number;
     totalPages: number;
     category: string;
@@ -53,6 +54,7 @@ export default function Feed() {
 
     // State — initialize from cache if available (instant render, no loading flash)
     const [posts, setPosts] = useState<Post[]>(cachedData?.posts || []);
+    const [searchUsers, setSearchUsers] = useState<any[]>(cachedData?.searchUsers || []);
     const [loading, setLoading] = useState(!cachedData);
     const [loadingMore, setLoadingMore] = useState(false);
     const [page, setPage] = useState(cachedData?.page || 1);
@@ -137,6 +139,7 @@ export default function Feed() {
                 });
                 feedCache.set(currentKey, {
                     posts: posts.slice(0, 60),
+                    searchUsers: searchUsers,
                     page: pageRef.current,
                     totalPages: pagination?.totalPages || 1,
                     category: categoryRef.current,
@@ -207,6 +210,7 @@ export default function Feed() {
             if (freshCache) {
                 // Restore from cache immediately (vital for navigation updates)
                 setPosts(freshCache.posts);
+                setSearchUsers(freshCache.searchUsers || []);
                 setPage(freshCache.page);
                 setPagination({
                     page: freshCache.page,
@@ -228,6 +232,7 @@ export default function Feed() {
                 return;
             }
             setPosts([]);
+            setSearchUsers([]);
             setPage(1);
             setHasMore(true);
             skipFetchRef.current = false;
@@ -255,6 +260,14 @@ export default function Feed() {
                     const filtered = current.filter(p => !fetchedIds.has(p.id));
                     return page === 1 ? data.posts : [...filtered, ...data.posts];
                 });
+
+                if (search && page === 1 && !category) {
+                    usersApi.getAll({ search, page: 1 })
+                        .then(uData => {
+                            if (isCurrent) setSearchUsers(uData.users || []);
+                        })
+                        .catch(() => { });
+                }
 
                 setPagination(data.pagination);
                 setHasMore(data.pagination.page < data.pagination.totalPages);
@@ -343,7 +356,7 @@ export default function Feed() {
                     <div className="spinner" />
                     <p>Loading posts...</p>
                 </div>
-            ) : posts.length === 0 ? (
+            ) : posts.length === 0 && searchUsers.length === 0 ? (
                 <div className="empty-state">
                     <span className="empty-icon"><Inbox size={48} /></span>
                     <h2>No posts yet</h2>
@@ -352,6 +365,37 @@ export default function Feed() {
                 </div>
             ) : (
                 <>
+                    {search && searchUsers.length > 0 && page === 1 && (
+                        <div className="search-users-section" style={{ marginBottom: '32px' }}>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '1.25rem', fontWeight: 600, borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                                <UserIcon size={20} /> People
+                            </h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+                                {searchUsers.map(u => (
+                                    <Link key={u.id} to={`/users/${u.id}`} className="card" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', textDecoration: 'none', color: 'inherit', transition: 'transform 0.2s', margin: 0 }}>
+                                        <div style={{ width: '56px', height: '56px', flexShrink: 0, borderRadius: '50%', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid var(--border)' }}>
+                                            {u.avatarUrl ? (
+                                                <img src={u.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            ) : (
+                                                <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>{u.displayName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}</span>
+                                            )}
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ fontWeight: 600, fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.displayName}</div>
+                                            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>@{u.username}</div>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {posts.length > 0 && search && searchUsers.length > 0 && page === 1 && (
+                        <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '1.25rem', fontWeight: 600, borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+                            <Newspaper size={20} /> Posts
+                        </h3>
+                    )}
+
                     <div className="posts-list">
                         {posts
                             .filter(p => !category || p.category === category)
