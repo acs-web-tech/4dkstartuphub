@@ -348,75 +348,65 @@ export default function PitchRequests() {
                 >
                     <FileText size={16} className="inline mr-2" /> My Requests
                 </button>
-                {!limitReached && (
-                    <button
-                        className={`tab-btn ${tab === 'submit' ? 'active' : ''}`}
-                        onClick={() => setTab('submit')}
-                    >
-                        <Plus size={16} className="inline mr-2" /> New Pitch
-                    </button>
-                )}
+                <button
+                    className={`tab-btn ${tab === 'submit' ? 'active' : ''}`}
+                    onClick={() => setTab('submit')}
+                >
+                    <Plus size={16} className="inline mr-2" /> New Pitch
+                </button>
             </div>
 
             {tab === 'my' ? (
-                <>
-                    <div className="pitches-list">
-                        {loading ? (
-                            <div className="loading-container"><div className="spinner" /><p>Loading...</p></div>
-                        ) : pitches.length === 0 ? (
-                            <div className="empty-state">
-                                <span className="empty-icon"><Lightbulb size={48} /></span>
-                                <h2>No pitch requests yet</h2>
-                                <p>Have a great idea? Submit a pitch request now!</p>
-                                {!limitReached && (
-                                    <button className="btn btn-primary mt-4" onClick={() => setTab('submit')}>
-                                        Create Pitch
-                                    </button>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="grid gap-4">
-                                {pitches.map(pitch => (
-                                    <div key={pitch.id} className="card p-4">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <h3 className="text-xl font-semibold">{pitch.title}</h3>
-                                            {getStatusBadge(pitch.status)}
-                                        </div>
-                                        <p className="text-gray-400 mb-4 whitespace-pre-wrap">{pitch.description}</p>
-
-                                        {pitch.deckUrl && (
-                                            <a
-                                                href={pitch.deckUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center text-primary hover:underline mb-4"
-                                            >
-                                                <FileText size={16} className="mr-1" /> View Pitch Deck
-                                            </a>
-                                        )}
-
-                                        {pitch.status !== 'pending' && pitch.adminMessage && (
-                                            <div className={`mt-4 p-3 rounded bg-dark-lighter border ${pitch.status === 'approved' ? 'border-green-900' : 'border-red-900'}`}>
-                                                <p className="text-sm font-semibold mb-1">
-                                                    Admin Feedback ({pitch.reviewerName}):
-                                                </p>
-                                                <p className="text-sm opacity-90">{pitch.adminMessage}</p>
-                                            </div>
-                                        )}
-
-                                        <div className="text-xs text-gray-500 mt-4">
-                                            Submitted on {new Date(pitch.createdAt).toLocaleDateString()}
-                                        </div>
+                <div className="pitches-list">
+                    {loading ? (
+                        <div className="loading-container"><div className="spinner" /><p>Loading...</p></div>
+                    ) : pitches.length === 0 ? (
+                        <div className="empty-state">
+                            <span className="empty-icon"><Lightbulb size={48} /></span>
+                            <h2>No pitch requests yet</h2>
+                            <p>Have a great idea? Submit a pitch request now!</p>
+                            <button className="btn btn-primary mt-4" onClick={() => setTab('submit')}>
+                                Create Pitch
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="grid gap-4">
+                            {pitches.map(pitch => (
+                                <div key={pitch.id} className="card p-4">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h3 className="text-xl font-semibold">{pitch.title}</h3>
+                                        {getStatusBadge(pitch.status)}
                                     </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                                    <p className="text-gray-400 mb-4 whitespace-pre-wrap">{pitch.description}</p>
 
-                    {/* Show upgrade gate below pitches when limit is reached */}
-                    {limitReached && !loading && renderPremiumGate(true)}
-                </>
+                                    {pitch.deckUrl && (
+                                        <a
+                                            href={pitch.deckUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center text-primary hover:underline mb-4"
+                                        >
+                                            <FileText size={16} className="mr-1" /> View Pitch Deck
+                                        </a>
+                                    )}
 
+                                    {pitch.status !== 'pending' && pitch.adminMessage && (
+                                        <div className={`mt-4 p-3 rounded bg-dark-lighter border ${pitch.status === 'approved' ? 'border-green-900' : 'border-red-900'}`}>
+                                            <p className="text-sm font-semibold mb-1">
+                                                Admin Feedback ({pitch.reviewerName}):
+                                            </p>
+                                            <p className="text-sm opacity-90">{pitch.adminMessage}</p>
+                                        </div>
+                                    )}
+
+                                    <div className="text-xs text-gray-500 mt-4">
+                                        Submitted on {new Date(pitch.createdAt).toLocaleDateString()}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             ) : (
                 limitReached ? renderPremiumGate(true) : (
                     <div className="max-w-2xl mx-auto">

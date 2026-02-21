@@ -275,5 +275,34 @@ export const emailService = {
             <p>Complete your membership payment today to instantly unlock India's most powerful network of innovators and funders.</p>
         `;
         return this.enqueueEmail(to, 'Final Step: Your membership is waiting for you', getHtmlTemplate(title, bodyContent, { text: 'Complete Registration', url: `${config.corsOrigin}/login` }, 'welcome'));
+    },
+
+    async sendAccountDeletionEmail(to: string, name: string) {
+        const title = 'Account Permanently Deleted';
+        const bodyContent = `
+            <p>Hello <span class="highlight">${name}</span>,</p>
+            <p>We are writing to inform you that your account on <span class="highlight">StartupHub</span> has been <span class="highlight">permanently deleted</span> by our administrative team.</p>
+            <p>All your data, including posts, comments, pitch requests, and uploaded files have been removed from our systems.</p>
+            <p>If you believe this was done in error, please contact our support team immediately. We're here to help.</p>
+        `;
+        return this.enqueueEmail(to, 'Important: Your StartupHub Account has been Deleted', getHtmlTemplate(title, bodyContent, undefined, 'alert'));
+    },
+
+    async sendPremiumUpdateEmail(to: string, name: string, paymentStatus: string, premiumExpiry: string | null) {
+        const isExpired = paymentStatus === 'expired' || (premiumExpiry && new Date(premiumExpiry) < new Date());
+        const title = isExpired ? 'Premium Membership Expired' : 'Premium Membership Updated';
+        const expiryText = premiumExpiry ? new Date(premiumExpiry).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+        const bodyContent = `
+            <p>Hello <span class="highlight">${name}</span>,</p>
+            <p>Your premium membership has been updated by our administrative team.</p>
+            <p><strong>Status:</strong> <span class="highlight">${paymentStatus}</span></p>
+            <p><strong>Valid Until:</strong> <span class="highlight">${expiryText}</span></p>
+            ${isExpired
+                ? '<p>Your premium features have been paused. Renew your membership to continue enjoying all premium benefits.</p>'
+                : '<p>Your premium features are active. Enjoy full access to all exclusive features!</p>'}
+        `;
+        return this.enqueueEmail(to, `Premium Update: ${title}`, getHtmlTemplate(title, bodyContent,
+            isExpired ? { text: 'Renew Premium', url: `${config.corsOrigin}/pricing` } : { text: 'Continue Exploring', url: `${config.corsOrigin}` },
+            isExpired ? 'alert' : 'success'));
     }
 };

@@ -245,6 +245,15 @@ router.put('/users/:id/premium', async (req: AuthRequest, res) => {
 
         res.json({ message: 'Premium status updated' });
 
+        // Email notification (fire-and-forget, queued)
+        if (user.email) {
+            emailService.sendPremiumUpdateEmail(
+                user.email, user.display_name,
+                user.payment_status,
+                user.premium_expiry ? user.premium_expiry.toISOString() : null
+            ).catch(err => console.error('Premium email failed:', err));
+        }
+
         // Real-time: notify the user immediately so their UI updates without refresh
         socketService.emitAccountStatusUpdate(user._id.toString(), {
             paymentStatus: user.payment_status,
@@ -282,9 +291,10 @@ router.put('/users/:id/toggle-active', async (req: AuthRequest, res) => {
         const action = user.is_active ? 'activated' : 'deactivated';
         console.log(`[AUDIT] Admin ${req.user!.userId} toggled active status for user ${user._id} to ${user.is_active}`);
 
-        // Notify via email
+        // Notify via email (fire-and-forget, queued — don't block response)
         if (user.email) {
-            await emailService.sendAccountStatusEmail(user.email, user.display_name, user.is_active);
+            emailService.sendAccountStatusEmail(user.email, user.display_name, user.is_active)
+                .catch(err => console.error('Account status email failed:', err));
         }
 
         res.json({ message: `User ${action}` });
@@ -319,14 +329,26 @@ router.delete('/users/:id', async (req: AuthRequest, res) => {
             return;
         }
 
-        // Force-logout the user BEFORE deletion starts cleaning up data
-        // This ensures their session is killed while cleanup runs in background
+        // STEP 1: Capture email/name BEFORE any deletion starts
+        // These will be gone once cleanup runs
+        const userEmail = userToDelete.email;
+        const userName = userToDelete.display_name;
+
+        // STEP 2: Send deletion email FIRST (fire-and-forget, queued)
+        // Email is enqueued immediately — even if deletion is slow, the email is safe
+        if (userEmail) {
+            emailService.sendAccountDeletionEmail(userEmail, userName)
+                .catch(err => console.error('Deletion email failed (non-blocking):', err));
+        }
+
+        // STEP 3: Force-logout the user so their session is killed
         socketService.forceLogout(id as string, 'Your account has been deleted by an administrator.');
 
+        // STEP 4: Queue the actual deletion (runs in background)
         const { cleanupService } = await import('../services/cleanup');
         await cleanupService.queueUserDeletion(id as string);
 
-        console.log(`[AUDIT] Admin ${req.user!.userId} queued deletion for user ${id}`);
+        console.log(`[AUDIT] Admin ${req.user!.userId} queued deletion for user ${id} (email: ${userEmail})`);
         res.json({ message: 'User deletion process started in background. Associated data and files will be cleaned up shortly.' });
     } catch (err) {
         console.error('Delete user error:', err);
