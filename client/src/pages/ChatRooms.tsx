@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { chatApi } from '../services/api';
 import { ChatRoom, ChatMessage } from '../types';
-import { MessageCircle, Trash2, Send, Plus, Lock, Shield } from 'lucide-react';
+import { MessageCircle, Trash2, Send, Plus, Lock, Shield, Users, Volume2, VolumeX, LogOut } from 'lucide-react';
 import LinkPreview from '../components/Common/LinkPreview';
 
 export default function ChatRooms() {
@@ -236,9 +236,24 @@ export default function ChatRooms() {
         });
 
         socket.on('roomAccessChanged', ({ roomId: changeRoomId, accessType }: { roomId: string, accessType: 'open' | 'invite' }) => {
+            console.log(`[Socket] Room ${changeRoomId} access changed to ${accessType}`);
             setRooms(prev => prev.map(r => r.id === changeRoomId ? { ...r, accessType } : r));
+
             if (changeRoomId === roomId) {
+                // Instantly update local room info so UI reflects change
                 setRoomInfo(prev => prev ? { ...prev, accessType } : null);
+
+                // If it became open, we try to load messages (which triggers auto-join if needed)
+                if (accessType === 'open') {
+                    loadMessages(changeRoomId);
+                }
+
+                // If it became invite and we are not a member, the useEffect (rooms dependency) 
+                // will eventually kick us out, but we can do it faster here
+                const room = rooms.find(r => r.id === changeRoomId);
+                if (accessType === 'invite' && room && !room.isJoined && !isAdmin) {
+                    navigate('/chatrooms');
+                }
             }
         });
 
@@ -544,7 +559,29 @@ export default function ChatRooms() {
                     <>
                         <div className="chat-header">
                             <div>
-                                <h3>{roomInfo.name}</h3>
+                                <div className="flex items-center gap-2">
+                                    <h3>{roomInfo.name}</h3>
+                                    <span style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        padding: '2px 8px',
+                                        fontSize: '0.65rem',
+                                        fontWeight: 700,
+                                        borderRadius: '12px',
+                                        whiteSpace: 'nowrap',
+                                        marginLeft: '8px',
+                                        background: roomInfo.accessType === 'invite' ? 'rgba(234, 179, 8, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                                        color: roomInfo.accessType === 'invite' ? '#facc15' : '#4ade80',
+                                        border: `1px solid ${roomInfo.accessType === 'invite' ? 'rgba(234, 179, 8, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`
+                                    }}>
+                                        {roomInfo.accessType === 'invite' ? (
+                                            <><Lock size={10} style={{ marginRight: '4px' }} /> Private</>
+                                        ) : (
+                                            <><Users size={10} style={{ marginRight: '4px' }} /> Public</>
+                                        )}
+                                    </span>
+                                </div>
                                 {roomInfo.description && <p className="chat-desc">{roomInfo.description}</p>}
                             </div>
                             <div className="chat-members-count">{members.length} members</div>

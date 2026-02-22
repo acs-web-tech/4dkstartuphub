@@ -34,24 +34,35 @@ export default function Layout() {
         setSidebarOpen(false);
     }, []);
 
-    // Close sidebar when navigating to a new route on mobile
+    // Close sidebar and Sync status when navigating (especially when disconnected)
     useEffect(() => {
         closeSidebar();
 
-        if (status !== 'connected') {
-            console.log(`[Sync] Navigation detected while socket is ${status}. Refreshing states...`);
+        if (user && socketState !== 'connected') {
+            console.log(`[Sync] Navigation detected while socket is ${socketState}. Verifying account...`);
             setIsSyncing(true);
-            const syncPromises = [];
-            if (user) syncPromises.push(refreshUser());
-            syncPromises.push(settingsApi.getPublic().then((data: any) => {
-                console.log('[Sync] Public settings refreshed:', data.global_payment_lock);
-                setAppUrls({ android: data.android_app_url, ios: data.ios_app_url });
-                setGlobalLock(data.global_payment_lock || false);
-            }));
 
-            Promise.all(syncPromises).finally(() => setIsSyncing(false));
+            Promise.all([
+                refreshUser(),
+                settingsApi.getPublic().then((data: any) => {
+                    setAppUrls({ android: data.android_app_url, ios: data.ios_app_url });
+                    setGlobalLock(data.global_payment_lock || false);
+                })
+            ]).catch(err => console.error('[Sync] Navigation sync failed:', err))
+                .finally(() => setIsSyncing(false));
         }
-    }, [location.pathname, closeSidebar, user, status, refreshUser]);
+    }, [location.pathname, closeSidebar, user, socketState, refreshUser]);
+
+    // Force re-verification whenever socket reconnects
+    useEffect(() => {
+        if (user && socketState === 'connected') {
+            console.log('[Sync] Socket reconnected. Re-verifying account status...');
+            refreshUser();
+            settingsApi.getPublic().then((data: any) => {
+                setGlobalLock(data.global_payment_lock || false);
+            }).catch(() => { });
+        }
+    }, [socketState, user, refreshUser]);
 
     useEffect(() => {
         if (socket) {
@@ -127,13 +138,15 @@ export default function Layout() {
     const isPremium = user?.paymentStatus === 'completed' && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
 
     // Lock out if:
-    // 1. Platform is globally locked and user is not premium (and not admin/on pricing)
+    // 1. Platform is globally locked and user is NOT premium (Free or Expired)
     // 2. OR user account has been deactivated (isActive: false)
-    // 3. OR user payment status is specifically 'expired' (must re-pay to see content)
-    const isLockedOut = user && user.role !== 'admin' && (
-        (globalLock && !isPremium && location.pathname !== '/pricing') ||
+    // 3. OR user payment status is explicitly 'expired' or 'free' (forced payment gate)
+    // 4. (Always allow Admin and Pricing page)
+    const isLockedOut = user && user.role !== 'admin' && location.pathname !== '/pricing' && (
+        (globalLock && !isPremium) ||
         (user.isActive === false) ||
-        (user.paymentStatus === 'expired' && location.pathname !== '/pricing')
+        (user.paymentStatus === 'expired') ||
+        (user.paymentStatus === 'free')
     );
 
     return (

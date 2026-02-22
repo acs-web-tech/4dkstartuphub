@@ -292,8 +292,14 @@ router.get('/:id/messages', authenticate, async (req: AuthRequest, res) => {
         const isAdmin = req.user!.role === 'admin';
         const membership = await ChatRoomMember.findOne({ room_id: rObjectId, user_id: req.user!.userId });
 
-        if (!membership && !isAdmin) {
-            res.status(403).json({ error: 'You must join this room to see messages' });
+        const room = await ChatRoom.findById(rObjectId);
+        if (!room || !room.is_active) {
+            res.status(404).json({ error: 'Chat room not found' });
+            return;
+        }
+
+        if (room.access_type === 'invite' && !membership && !isAdmin) {
+            res.status(403).json({ error: 'This is a private room. You must be invited to view messages.' });
             return;
         }
 
