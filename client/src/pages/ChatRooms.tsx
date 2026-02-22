@@ -232,6 +232,14 @@ export default function ChatRooms() {
             setRooms(prev => prev.map(r => r.id === changeRoomId ? { ...r, accessType } : r));
         });
 
+        socket.on('roomDeleted', ({ roomId: deletedRoomId }: { roomId: string }) => {
+            setRooms(prev => prev.filter(r => r.id !== deletedRoomId));
+            if (deletedRoomId === roomId) {
+                setError('This chat room has been deleted by an admin.');
+                setTimeout(() => navigate('/chatrooms'), 2000);
+            }
+        });
+
         socket.on('memberListUpdated', ({ roomId: updateRoomId }: { roomId: string }) => {
             if (updateRoomId === roomId) {
                 loadMessages(roomId);
@@ -246,6 +254,7 @@ export default function ChatRooms() {
             socket.off('userMessagesDeleted');
             socket.off('memberKicked');
             socket.off('roomAccessChanged');
+            socket.off('roomDeleted');
             socket.off('memberListUpdated');
         };
     }, [socket, roomId, status, navigate, loadMessages]);

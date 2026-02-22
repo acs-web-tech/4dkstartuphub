@@ -66,13 +66,14 @@ async function finalizeUserActivation(user: any, paymentId: string) {
     user.razorpay_payment_id = paymentId;
     user.premium_expiry = expiryDate;
     user.pitch_limit_reset_date = new Date();
-    user.is_active = true;
+    // user.is_active will be set to true only when both payment AND verification are done
 
     // Honor verification setting
     const verifySetting = await Setting.findOne({ key: 'registration_email_verification_required' });
     const isVerificationRequired = verifySetting?.value === 'true';
 
     if (isVerificationRequired && !user.is_email_verified) {
+        user.is_active = false; // Stay inactive until email is verified
         const otp = crypto.randomInt(100000, 999999).toString();
         user.email_verification_otp = otp;
         user.email_verification_otp_expires = new Date(Date.now() + 10 * 60 * 1000);
@@ -83,6 +84,7 @@ async function finalizeUserActivation(user: any, paymentId: string) {
         return { requireVerification: true };
     } else {
         user.is_email_verified = true;
+        user.is_active = true; // Payment done + no email verification required (or already verified)
         await user.save();
         await triggerWelcomeActions(user);
         return { requireVerification: false };
@@ -320,7 +322,7 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
             user.user_type = userType || 'startup';
             user.razorpay_order_id = orderId;
             user.payment_status = paymentRequired ? 'pending' : 'completed';
-            user.is_active = !paymentRequired;
+            user.is_active = !paymentRequired && !isVerificationRequired;
             user.is_email_verified = emailVerified;
             user.email_verification_otp = verificationOtp;
             user.email_verification_otp_expires = verificationOtpExpires;
@@ -335,7 +337,7 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
                 user_type: userType || 'startup',
                 payment_status: paymentRequired ? 'pending' : 'completed',
                 razorpay_order_id: orderId,
-                is_active: !paymentRequired,
+                is_active: !paymentRequired && !isVerificationRequired,
                 is_email_verified: emailVerified,
                 email_verification_otp: verificationOtp,
                 email_verification_otp_expires: verificationOtpExpires
@@ -528,6 +530,7 @@ router.post('/register', validate(registerSchema), async (req, res) => {
             razorpay_order_id: razorpayOrderId,
             premium_expiry: expiryDate,
             is_email_verified: emailVerified,
+            is_active: emailVerified, // ONLY active if they don't need to verify (since register handles paid already)
             email_verification_otp: verificationOtp,
             email_verification_otp_expires: verificationOtp ? new Date(Date.now() + 10 * 60 * 1000) : undefined
         });
@@ -935,12 +938,24 @@ router.post('/verify-email-otp', authenticate, async (req: AuthRequest, res) => 
         }
 
         user.is_email_verified = true;
-        user.is_active = true; // Ensure they are active
+
+        // Finalize activation ONLY if payment is also completed (or not required)
+        const paymentSetting = await Setting.findOne({ key: 'registration_payment_required' });
+        const isPaymentRequired = paymentSetting?.value === 'true';
+
+        if (!isPaymentRequired || user.payment_status === 'completed') {
+            user.is_active = true;
+        } else {
+            user.is_active = false; // Still need to pay
+        }
+
         user.email_verification_otp = undefined;
         user.email_verification_otp_expires = undefined;
         await user.save();
 
-        await triggerWelcomeActions(user);
+        if (user.is_active) {
+            await triggerWelcomeActions(user);
+        }
 
         const { accessToken, refreshToken } = generateTokens(user._id.toString(), user.role);
         setTokenCookies(res, accessToken, refreshToken);

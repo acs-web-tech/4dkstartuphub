@@ -117,6 +117,26 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 window.location.href = '/login';
             });
 
+            newSocket.on('accountStatusUpdate', (data: any) => {
+                console.log('🔄 Account status updated via socket:', data);
+                // Refresh user state to reflect premium, activation, or role changes
+                refreshUser();
+
+                // Show a helpful alert if reason provided
+                if (data.reason === 'admin_activation') {
+                    // Optional: Notify user they are now active
+                }
+            });
+
+            newSocket.on('roomDeleted', ({ roomId }: { roomId: string }) => {
+                // Global event for components to react (like redirecting if inside that room)
+                window.dispatchEvent(new CustomEvent('chatRoomDeleted', { detail: { roomId } }));
+            });
+
+            newSocket.on('roomAccessChanged', ({ roomId, accessType }: { roomId: string, accessType: string }) => {
+                window.dispatchEvent(new CustomEvent('chatRoomAccessChanged', { detail: { roomId, accessType } }));
+            });
+
             newSocket.on('disconnect', (reason) => {
                 setConnected(false);
                 // Do NOT reconnect if the user was force-logged-out

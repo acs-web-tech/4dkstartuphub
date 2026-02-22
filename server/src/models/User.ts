@@ -53,7 +53,7 @@ const UserSchema: Schema = new Schema({
     bio: { type: String, default: '' },
     avatar_url: { type: String, default: '' },
     role: { type: String, enum: ['user', 'admin', 'moderator'], default: 'user' },
-    is_active: { type: Boolean, default: true },
+    is_active: { type: Boolean, default: false },
     profile_completed: { type: Boolean, default: false },
     location: { type: String, default: '' },
     website: { type: String, default: '' },

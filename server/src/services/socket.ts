@@ -389,6 +389,14 @@ class SocketService {
     }
 
     /**
+     * Notify all users that a chat room was deleted
+     */
+    emitRoomDeleted(roomId: string) {
+        if (!this.io) return;
+        this.io.emit('roomDeleted', { roomId });
+    }
+
+    /**
      * Emit notifications read event to user
      */
     emitNotificationsRead(userId: string) {
@@ -399,7 +407,7 @@ class SocketService {
     /**
      * Emit account status update to a specific user (premium expiry, payment status changes)
      */
-    emitAccountStatusUpdate(userId: string, data: { paymentStatus?: string; premiumExpiry?: string | null; reason?: string }) {
+    emitAccountStatusUpdate(userId: string, data: { paymentStatus?: string; premiumExpiry?: string | null; isActive?: boolean; role?: string; reason?: string }) {
         if (!this.io) return;
         this.io.to(userId).emit('accountStatusUpdate', data);
     }

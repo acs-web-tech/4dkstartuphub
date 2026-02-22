@@ -547,7 +547,6 @@ router.delete('/:roomId/users/:userId/messages', authenticate, requireAdmin, asy
     }
 });
 
-// ── DELETE /api/chatrooms/:id (Admin only) ──────────────────
 router.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res) => {
     try {
         await ChatRoom.updateOne({ _id: req.params.id }, { $set: { is_active: false } });
@@ -557,6 +556,8 @@ router.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res) 
             ChatMessage.deleteMany({ room_id: req.params.id }),
             ChatRoomMember.deleteMany({ room_id: req.params.id })
         ]);
+
+        socketService.emitRoomDeleted(req.params.id as string);
 
         res.json({ message: 'Chat room deactivated and cleaned up' });
     } catch (err) {

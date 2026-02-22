@@ -204,6 +204,11 @@ router.put('/users/:id/role', validate(updateUserRoleSchema), async (req: AuthRe
             content: `Your role has been updated to ${role}`
         });
 
+        socketService.emitAccountStatusUpdate(id as string, {
+            role,
+            reason: 'role_update'
+        });
+
         res.json({ message: `User role updated to ${role}` });
     } catch (err) {
         console.error('Update role error:', err);
@@ -308,6 +313,12 @@ router.put('/users/:id/toggle-active', async (req: AuthRequest, res) => {
         // If deactivated → force logout immediately so they can't do anything
         if (!user.is_active) {
             socketService.forceLogout(user._id.toString(), 'Your account has been deactivated by an administrator.');
+        } else {
+            // If activated, notify them so they don't have to refresh
+            socketService.emitAccountStatusUpdate(user._id.toString(), {
+                isActive: true,
+                reason: 'admin_activation'
+            });
         }
     } catch (err) {
         console.error('Toggle active error:', err);
@@ -346,7 +357,7 @@ router.delete('/users/:id', async (req: AuthRequest, res) => {
                 .catch(err => console.error('Deletion email failed (non-blocking):', err));
         }
 
-        // STEP 3: Force-logout the user so their session is killed
+        // STEP 3: Force-logout the user so their session is killed immediately
         socketService.forceLogout(id as string, 'Your account has been deleted by an administrator.');
 
         // STEP 4: Queue the actual deletion (runs in background)
@@ -421,6 +432,7 @@ router.delete('/posts/:id', async (req: AuthRequest, res) => {
                 Notification.deleteMany({ reference_id: id })
             ]);
 
+            socketService.emitPostDeleted(id as string);
             console.log(`[AUDIT] Admin ${req.user!.userId} deleted post ${id}`);
         }
         res.json({ message: 'Post deleted by admin' });
