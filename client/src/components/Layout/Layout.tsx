@@ -24,6 +24,7 @@ export default function Layout() {
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
     const [appUrls, setAppUrls] = useState<{ android?: string, ios?: string }>({});
     const [globalLock, setGlobalLock] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
 
     const toggleSidebar = useCallback(() => {
         setSidebarOpen(prev => !prev);
@@ -39,12 +40,16 @@ export default function Layout() {
 
         if (status !== 'connected') {
             console.log(`[Sync] Navigation detected while socket is ${status}. Refreshing states...`);
-            if (user) refreshUser();
-            settingsApi.getPublic().then((data: any) => {
+            setIsSyncing(true);
+            const syncPromises = [];
+            if (user) syncPromises.push(refreshUser());
+            syncPromises.push(settingsApi.getPublic().then((data: any) => {
                 console.log('[Sync] Public settings refreshed:', data.global_payment_lock);
                 setAppUrls({ android: data.android_app_url, ios: data.ios_app_url });
                 setGlobalLock(data.global_payment_lock || false);
-            }).catch(err => console.error('[Sync] Settings refresh failed:', err));
+            }));
+
+            Promise.all(syncPromises).finally(() => setIsSyncing(false));
         }
     }, [location.pathname, closeSidebar, user, status, refreshUser]);
 
@@ -124,9 +129,11 @@ export default function Layout() {
     // Lock out if:
     // 1. Platform is globally locked and user is not premium (and not admin/on pricing)
     // 2. OR user account has been deactivated (isActive: false)
+    // 3. OR user payment status is specifically 'expired' (must re-pay to see content)
     const isLockedOut = user && user.role !== 'admin' && (
         (globalLock && !isPremium && location.pathname !== '/pricing') ||
-        (user.isActive === false)
+        (user.isActive === false) ||
+        (user.paymentStatus === 'expired' && location.pathname !== '/pricing')
     );
 
     return (
@@ -192,7 +199,24 @@ export default function Layout() {
             <div className="main-container">
                 <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
                 <main className="main-content">
-                    {isLockedOut ? <Pricing /> : <Outlet />}
+                    {isSyncing ? (
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%',
+                            gap: '1rem',
+                            padding: '5rem 0'
+                        }}>
+                            <RefreshCw size={40} className="connection-spinner" style={{ color: 'var(--accent)', opacity: 0.5 }} />
+                            <p style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Verifying account status...</p>
+                        </div>
+                    ) : isLockedOut ? (
+                        <Pricing />
+                    ) : (
+                        <Outlet />
+                    )}
                 </main>
             </div>
             {/* Overlay for mobile sidebar */}
