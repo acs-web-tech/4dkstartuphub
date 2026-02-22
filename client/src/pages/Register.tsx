@@ -14,7 +14,7 @@ declare global {
 type UserType = 'startup' | 'investor' | 'freelancer';
 
 export default function Register() {
-    const { register, user, loading: authLoading } = useAuth();
+    const { register, user, loading: authLoading, refreshUser } = useAuth();
     const navigate = useNavigate();
 
     const [form, setForm] = useState({ username: '', email: '', password: '', confirmPassword: '', displayName: '' });
@@ -217,11 +217,16 @@ export default function Register() {
         setLoading(true);
         setError('');
         try {
-            await authApi.verifyEmailOtp(otp);
-            window.location.href = '/feed';
+            const res = await authApi.verifyEmailOtp(otp);
+            if (res.accessToken) localStorage.setItem('access_token', res.accessToken);
+            if (res.refreshToken) localStorage.setItem('refresh_token', res.refreshToken);
+
+            await refreshUser();
+            navigate('/feed');
         } catch (err: any) {
             if (err.message && err.message.includes('Already verified')) {
-                window.location.href = '/feed';
+                await refreshUser();
+                navigate('/feed');
             } else {
                 setError(err.message || 'Verification failed');
                 setLoading(false);

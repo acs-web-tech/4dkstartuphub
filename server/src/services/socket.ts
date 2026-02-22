@@ -29,6 +29,10 @@ class SocketService {
     // Rate Limiting: Map<`${roomId}:${userId}`, timestamps[]>
     private messageRateLimits: Map<string, number[]> = new Map();
 
+    public getIO(): SocketIOServer | null {
+        return this.io;
+    }
+
     initialize(server: HttpServer) {
         const isProd = process.env.NODE_ENV === 'production';
 

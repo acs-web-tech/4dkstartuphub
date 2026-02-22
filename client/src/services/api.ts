@@ -124,7 +124,7 @@ export const authApi = {
     me: () => request<{ user: import('../types').User }>('/auth/me'),
     changePassword: (data: any) => request<{ message: string }>('/auth/change-password', { method: 'POST', body: JSON.stringify(data) }),
     sendVerificationOtp: () => request<{ message: string }>('/auth/send-verification-otp', { method: 'POST' }),
-    verifyEmailOtp: (otp: string) => request<{ message: string }>('/auth/verify-email-otp', { method: 'POST', body: JSON.stringify({ otp }) }),
+    verifyEmailOtp: (otp: string) => request<{ message: string, user: any, accessToken?: string, refreshToken?: string }>('/auth/verify-email-otp', { method: 'POST', body: JSON.stringify({ otp }) }),
 };
 
 // ── Payment ─────────────────────────────────────────────────

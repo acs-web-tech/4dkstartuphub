@@ -292,6 +292,16 @@ router.put('/:id/review', authenticate, requireAdmin, async (req: AuthRequest, r
             }
         }
 
+        // Fire Real Time Socket Update so user's frontend UI changes immediately without reload
+        const io = socketService.getIO();
+        if (io) {
+            io.to(pitch.user_id.toString()).emit('pitch_status_update', {
+                pitchId: pitch._id.toString(),
+                status: pitch.status,
+                adminMessage: pitch.admin_message
+            });
+        }
+
         res.json({ message: `Pitch request ${status}` });
     } catch (err) {
         console.error('Review pitch error:', err);

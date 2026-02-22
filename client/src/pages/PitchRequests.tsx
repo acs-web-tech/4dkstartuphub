@@ -84,14 +84,24 @@ export default function PitchRequests() {
             }
         };
 
+        const handlePitchUpdate = (data: { pitchId: string; status: 'pending' | 'approved' | 'disapproved'; adminMessage: string }) => {
+            setPitches(prevPitches => prevPitches.map(p =>
+                p.id === data.pitchId
+                    ? { ...p, status: data.status, adminMessage: data.adminMessage }
+                    : p
+            ));
+        };
+
         socket.on('accountStatusUpdate', handleAccountUpdate);
         socket.on('settingChanged', handleSettingChanged);
+        socket.on('pitch_status_update', handlePitchUpdate);
 
         return () => {
             socket.off('accountStatusUpdate', handleAccountUpdate);
             socket.off('settingChanged', handleSettingChanged);
+            socket.off('pitch_status_update', handlePitchUpdate);
         };
-    }, [socket, pitchCount]);
+    }, [socket, pitchCount, refreshUser]);
 
     const loadPitches = () => {
         setLoading(true);

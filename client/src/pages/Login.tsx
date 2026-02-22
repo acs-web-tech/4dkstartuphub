@@ -11,7 +11,7 @@ declare global {
 }
 
 export default function Login() {
-    const { login, user, loading: authLoading } = useAuth();
+    const { login, user, loading: authLoading, refreshUser } = useAuth();
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -87,6 +87,8 @@ export default function Login() {
             if (err.data && err.data.error === 'PAYMENT_REQUIRED') {
                 handlePaymentRetry(err.data);
             } else if (err.data && err.data.error === 'EMAIL_VERIFICATION_REQUIRED') {
+                if (err.data.accessToken) localStorage.setItem('access_token', err.data.accessToken);
+                if (err.data.refreshToken) localStorage.setItem('refresh_token', err.data.refreshToken);
                 setShowVerification(true);
             } else {
                 setError(err.message || 'Login failed');
@@ -101,12 +103,12 @@ export default function Login() {
         setError('');
         setLoading(true);
         try {
-            await authApi.verifyEmailOtp(otp);
-            // After verification, we need to refresh the user state in AuthContext
-            // since the user is now verified but the local state doesn't know.
-            // A simple way is to re-login or just navigate as the next page 
-            // will call /me and get the updated status.
-            window.location.href = '/feed';
+            const res = await authApi.verifyEmailOtp(otp);
+            if (res.accessToken) localStorage.setItem('access_token', res.accessToken);
+            if (res.refreshToken) localStorage.setItem('refresh_token', res.refreshToken);
+
+            await refreshUser();
+            navigate('/feed');
         } catch (err: any) {
             setError(err.message || 'Verification failed');
             setLoading(false);

@@ -598,9 +598,12 @@ router.get('/verify-email', async (req, res) => {
 
         await triggerWelcomeActions(user);
 
-        // Redirect to login with specific query param
+        const { accessToken, refreshToken } = generateTokens(user._id.toString(), user.role);
+        setTokenCookies(res, accessToken, refreshToken);
+
+        // Redirect to feed directly
         const frontendUrl = config.corsOrigin;
-        res.redirect(`${frontendUrl}/login?verified=true`);
+        res.redirect(`${frontendUrl}/feed?auth=success`);
     } catch (err) {
         console.error('Verify email error:', err);
         res.status(500).json({ error: 'Verification failed' });
@@ -732,10 +735,15 @@ router.post('/login', validate(loginSchema), async (req, res) => {
         if (verifySetting?.value === 'true' && !user.is_email_verified) {
             const { accessToken, refreshToken } = generateTokens(user._id.toString(), user.role);
             setTokenCookies(res, accessToken, refreshToken);
+
+            const isMobile = req.headers['x-mobile-app'] === 'true';
+
             res.status(403).json({
                 error: 'EMAIL_VERIFICATION_REQUIRED',
                 message: 'Please verify your email address before logging in.',
-                email: user.email
+                email: user.email,
+                accessToken: isMobile ? accessToken : accessToken, // Ensure it's returned for web fallback
+                refreshToken: isMobile ? refreshToken : refreshToken
             });
             return;
         }
@@ -907,7 +915,15 @@ router.post('/verify-email-otp', authenticate, async (req: AuthRequest, res) => 
 
         await triggerWelcomeActions(user);
 
-        res.json({ message: 'Email verified successfully' });
+        const { accessToken, refreshToken } = generateTokens(user._id.toString(), user.role);
+        setTokenCookies(res, accessToken, refreshToken);
+
+        res.json({
+            message: 'Email verified successfully',
+            user: user.toJSON(),
+            accessToken,
+            refreshToken
+        });
     } catch (err) {
         res.status(500).json({ error: 'Verification failed' });
     }
