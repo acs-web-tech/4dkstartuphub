@@ -248,6 +248,7 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
                     user.user_type = userType || 'startup';
                     user.password_hash = passwordHash;
 
+                    user.is_active = true; // Activate since payment is captured
                     const result = await finalizeUserActivation(user, successfulPayment.id);
 
                     if (result.requireVerification) {
@@ -259,7 +260,7 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
                         return;
                     }
 
-                    const { accessToken, refreshToken } = generateTokens(user._id.toString(), 'user');
+                    const { accessToken, refreshToken } = generateTokens(user._id.toString(), user.role);
                     setTokenCookies(res, accessToken, refreshToken);
 
                     res.json({
@@ -347,7 +348,7 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
                     await emailService.sendOTP(user.email, user.display_name, 'verification', verificationOtp!);
                 } catch (e) { console.error('Verification OTP failed during register-init (no payment)', e); }
 
-                const { accessToken, refreshToken } = generateTokens(user._id.toString(), 'user');
+                const { accessToken, refreshToken } = generateTokens(user._id.toString(), user.role);
                 setTokenCookies(res, accessToken, refreshToken);
 
                 res.json({
@@ -416,7 +417,7 @@ router.post('/register-finalize', async (req, res) => {
 
         const result = await finalizeUserActivation(user, payment_id);
 
-        const { accessToken, refreshToken } = generateTokens(user._id.toString(), 'user');
+        const { accessToken, refreshToken } = generateTokens(user._id.toString(), user.role);
         setTokenCookies(res, accessToken, refreshToken);
 
         if (result.requireVerification) {
@@ -593,6 +594,7 @@ router.get('/verify-email', async (req, res) => {
         }
 
         user.is_email_verified = true;
+        user.is_active = true; // Ensure they are active
         user.email_verification_token = undefined;
         await user.save();
 
@@ -714,11 +716,17 @@ router.post('/login', validate(loginSchema), async (req, res) => {
                             // Logic falls through to token generation below
                         } else {
                             // Sync completed but no captured payment found
+                            user.payment_status = 'pending';
+                            user.razorpay_order_id = ''; // Clear to force fresh order generation
+                            await user.save();
                             return await rePromptPayment(res, user);
                         }
                     } catch (err) {
                         console.error('Razorpay sync failed during login:', err);
                         // Sync call itself failed (e.g. order expired or not found in RZP)
+                        user.payment_status = 'pending';
+                        user.razorpay_order_id = '';
+                        await user.save();
                         return await rePromptPayment(res, user);
                     }
                 } else {
@@ -909,6 +917,7 @@ router.post('/verify-email-otp', authenticate, async (req: AuthRequest, res) => 
         }
 
         user.is_email_verified = true;
+        user.is_active = true; // Ensure they are active
         user.email_verification_otp = undefined;
         user.email_verification_otp_expires = undefined;
         await user.save();

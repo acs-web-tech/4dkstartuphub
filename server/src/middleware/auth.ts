@@ -45,7 +45,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
         }
 
         // Verify user still exists and is active
-        const user = await User.findById(decoded.userId).select('id role is_active');
+        const user = await User.findById(decoded.userId).select('_id role is_active');
 
         if (!user) {
             res.clearCookie('access_token');

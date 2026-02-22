@@ -227,7 +227,12 @@ router.put('/users/:id/premium', async (req: AuthRequest, res) => {
             return;
         }
 
-        if (paymentStatus) user.payment_status = paymentStatus;
+        if (paymentStatus) {
+            user.payment_status = paymentStatus;
+            if (paymentStatus === 'completed') {
+                user.is_active = true;
+            }
+        }
         if (premiumExpiry !== undefined) user.premium_expiry = premiumExpiry;
 
         await user.save({ validateModifiedOnly: true });
