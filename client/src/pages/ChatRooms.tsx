@@ -17,7 +17,7 @@ export default function ChatRooms() {
     const [rooms, setRooms] = useState<ChatRoom[]>([]);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [members, setMembers] = useState<any[]>([]);
-    const [roomInfo, setRoomInfo] = useState<any>(null);
+    const [roomInfo, setRoomInfo] = useState<ChatRoom | null>(null);
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
