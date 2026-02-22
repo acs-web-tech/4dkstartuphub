@@ -45,7 +45,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
         }
 
         // Verify user still exists and is active
-        const user = await User.findById(decoded.userId).select('_id role is_active');
+        const user = await User.findById(decoded.userId).select('_id role is_active is_email_verified payment_status');
 
         if (!user) {
             res.clearCookie('access_token');
@@ -55,10 +55,15 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
         }
 
         if (!user.is_active) {
-            res.clearCookie('access_token');
-            res.clearCookie('refresh_token');
-            res.status(401).json({ error: 'Account deactivated' });
-            return;
+            // Allow users whose accounts are pending activation/verification
+            // But block users who were verified & paid previously but then deactivated by admin
+            const isPending = !user.is_email_verified || user.payment_status === 'pending';
+            if (!isPending) {
+                res.clearCookie('access_token');
+                res.clearCookie('refresh_token');
+                res.status(401).json({ error: 'Account deactivated' });
+                return;
+            }
         }
 
         req.user = { userId: user._id.toString(), role: user.role };
