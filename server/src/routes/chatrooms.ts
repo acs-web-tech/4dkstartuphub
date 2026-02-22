@@ -313,7 +313,7 @@ router.get('/:id/messages', authenticate, async (req: AuthRequest, res) => {
             .limit(limit);
 
         const total = await ChatMessage.countDocuments({ room_id: rObjectId });
-        const room = await ChatRoom.findById(rObjectId).populate('created_by', 'display_name');
+        await room.populate('created_by', 'display_name');
 
         const members = await ChatRoomMember.find({ room_id: rObjectId })
             .populate('user_id', 'username display_name avatar_url');
