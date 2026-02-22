@@ -23,15 +23,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const refreshUser = useCallback(async () => {
+    const refreshUser = useCallback(async (isAutoRefresh = false) => {
         try {
             const data = await authApi.me();
             setUser(data.user);
-        } catch {
-            // Only clear if we actually failed to get the user
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
-            setUser(null);
+        } catch (err: any) {
+            // Only clear session if it's a definitive 401 Unauthorized
+            // Don't clear on 503 (Nginx rate limit) or 500 (Server error)
+            if (err.status === 401) {
+                console.warn('🔒 Session invalid: Clearing tokens');
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                setUser(null);
+            } else {
+                console.error(`⚠️ Profile refresh failed (${err.status}): Keeping session.`, err.message);
+            }
         }
     }, []);
 

@@ -83,11 +83,8 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
             err = { error: `HTTP ${res.status}` };
         }
 
-        if (res.status === 402 && err?.code !== 'LIMIT_REACHED') {
-            // Only dispatch for actual premium/payment blocks, NOT quota limits
-            // Quota limits are handled by the individual page components
-            window.dispatchEvent(new CustomEvent('auth_refresh_required'));
-        }
+        // Removed automatic auth_refresh_required on 402 to prevent infinite retry loops.
+        // Page components and Layout handle payment-required states based on the existing user object.
 
         // Include validation details if present
         let message = err.error || `HTTP ${res.status}`;

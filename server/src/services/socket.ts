@@ -98,12 +98,16 @@ class SocketService {
                 try {
                     const decoded = jwt.verify(token, config.jwtSecret) as { userId: string };
                     // DB check: user must exist AND be active to connect
-                    const user = await User.findById(decoded.userId).select('is_active').lean();
+                    const user = await User.findById(decoded.userId).select('is_active is_email_verified payment_status').lean();
                     if (!user) {
                         return next(new Error('Authentication error: Account not found'));
                     }
                     if (!user.is_active) {
-                        return next(new Error('Authentication error: Account deactivated'));
+                        // Allow pending users (unverified or unpaid)
+                        const isPending = !user.is_email_verified || user.payment_status === 'pending';
+                        if (!isPending) {
+                            return next(new Error('Authentication error: Account deactivated'));
+                        }
                     }
                     (socket as any).userId = decoded.userId;
                     next();
