@@ -79,6 +79,13 @@ export default function ChatRooms() {
         loadRooms();
     }, [loadRooms]);
 
+    // Handle initial load and socket reconnection sync
+    useEffect(() => {
+        if (status === 'connected') {
+            loadRooms();
+        }
+    }, [status, loadRooms]);
+
     const loadMessages = useCallback(async (rId: string) => {
         try {
             const data = await chatApi.getMessages(rId);
@@ -230,6 +237,9 @@ export default function ChatRooms() {
 
         socket.on('roomAccessChanged', ({ roomId: changeRoomId, accessType }: { roomId: string, accessType: 'open' | 'invite' }) => {
             setRooms(prev => prev.map(r => r.id === changeRoomId ? { ...r, accessType } : r));
+            if (changeRoomId === roomId) {
+                setRoomInfo(prev => prev ? { ...prev, accessType } : null);
+            }
         });
 
         socket.on('roomDeleted', ({ roomId: deletedRoomId }: { roomId: string }) => {

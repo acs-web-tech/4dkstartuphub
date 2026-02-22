@@ -12,7 +12,7 @@ import { settingsApi } from '../../services/api';
 type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
 export default function Layout() {
-    const { user } = useAuth();
+    const { user, refreshUser } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const location = useLocation();
     const { socket, status: socketState, reconnectAttempt: socketReconnectAttempt } = useSocket();
@@ -36,7 +36,15 @@ export default function Layout() {
     // Close sidebar when navigating to a new route on mobile
     useEffect(() => {
         closeSidebar();
-    }, [location.pathname, closeSidebar]);
+
+        if (user && status !== 'connected') {
+            refreshUser();
+            settingsApi.getPublic().then((data: any) => {
+                setAppUrls({ android: data.android_app_url, ios: data.ios_app_url });
+                setGlobalLock(data.global_payment_lock || false);
+            }).catch(() => { });
+        }
+    }, [location.pathname, closeSidebar, user, status, refreshUser]);
 
     useEffect(() => {
         if (socket) {
