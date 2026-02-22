@@ -16,6 +16,8 @@ export interface User {
     paymentId?: string;
     orderId?: string;
     premiumExpiry?: string;
+    isActive?: boolean;
+    isEmailVerified?: boolean;
     createdAt: string;
 }
 

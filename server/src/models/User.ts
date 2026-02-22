@@ -102,6 +102,8 @@ const UserSchema: Schema = new Schema({
             ret.premiumExpiry = ret.premium_expiry;
             ret.lastSeen = ret.last_seen;
             ret.postCount = ret.post_count;
+            ret.isActive = ret.is_active;
+            ret.isEmailVerified = ret.is_email_verified;
             ret.createdAt = ret.created_at;
             ret.updatedAt = ret.updated_at;
 

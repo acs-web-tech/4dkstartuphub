@@ -135,7 +135,7 @@ export async function requirePayment(req: AuthRequest, res: Response, next: Next
 
             // Strictly check for a valid future expiry date. 
             // 'completed' status alone is not enough if the subscription has expired.
-            const isPremium = user &&
+            const isPremium = user && user.payment_status === 'completed' &&
                 user.premium_expiry && new Date(user.premium_expiry) > new Date();
 
             if (!isPremium) {

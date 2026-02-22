@@ -869,6 +869,14 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
             return;
         }
 
+        if (!user.is_active) {
+            const isPending = !user.is_email_verified || user.payment_status === 'pending';
+            if (!isPending) {
+                res.status(401).json({ error: 'Account deactivated' });
+                return;
+            }
+        }
+
         // Logic to check and handle premium expiry
         if (user.payment_status === 'completed' && user.premium_expiry) {
             if (user.premium_expiry < new Date()) {

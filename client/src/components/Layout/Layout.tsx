@@ -37,12 +37,14 @@ export default function Layout() {
     useEffect(() => {
         closeSidebar();
 
-        if (user && status !== 'connected') {
-            refreshUser();
+        if (status !== 'connected') {
+            console.log(`[Sync] Navigation detected while socket is ${status}. Refreshing states...`);
+            if (user) refreshUser();
             settingsApi.getPublic().then((data: any) => {
+                console.log('[Sync] Public settings refreshed:', data.global_payment_lock);
                 setAppUrls({ android: data.android_app_url, ios: data.ios_app_url });
                 setGlobalLock(data.global_payment_lock || false);
-            }).catch(() => { });
+            }).catch(err => console.error('[Sync] Settings refresh failed:', err));
         }
     }, [location.pathname, closeSidebar, user, status, refreshUser]);
 
@@ -117,8 +119,15 @@ export default function Layout() {
         }
     };
 
-    const isPremium = user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
-    const isLockedOut = globalLock && user && !isPremium && user.role !== 'admin' && location.pathname !== '/pricing';
+    const isPremium = user?.paymentStatus === 'completed' && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
+
+    // Lock out if:
+    // 1. Platform is globally locked and user is not premium (and not admin/on pricing)
+    // 2. OR user account has been deactivated (isActive: false)
+    const isLockedOut = user && user.role !== 'admin' && (
+        (globalLock && !isPremium && location.pathname !== '/pricing') ||
+        (user.isActive === false)
+    );
 
     return (
         <div className={`app-layout ${sidebarOpen ? 'sidebar-open' : ''}`}>
