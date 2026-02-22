@@ -7,6 +7,7 @@ import mongoose from 'mongoose';
 export interface AuthPayload {
     userId: string;
     role: string;
+    jwtExpiresIn?: string; // Added for token expiry information
 }
 
 export interface AuthRequest extends Request {
@@ -20,8 +21,8 @@ export interface AuthRequest extends Request {
 export async function authenticate(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     let token = req.cookies?.access_token;
 
-    // Support Bearer token from header (Critical for Mobile)
-    if (!token && req.headers.authorization) {
+    // Favor Authorization header if present (Standard for SPA refresh and Mobile)
+    if (req.headers.authorization) {
         const parts = req.headers.authorization.split(' ');
         if (parts.length === 2 && parts[0] === 'Bearer') {
             token = parts[1];
@@ -29,25 +30,19 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
     }
 
     if (!token) {
+        console.warn(`🛑 Auth failed: No token provided for request to ${req.path}`);
         res.status(401).json({ error: 'Authentication required' });
         return;
     }
 
     try {
-        const decoded = jwt.verify(token, config.jwtSecret) as AuthPayload;
+        const decoded = jwt.verify(token, config.jwtSecret, { clockTolerance: 30 }) as AuthPayload;
 
-        // Handle legacy integer IDs from SQLite - verify it's a valid ObjectId
-        if (!mongoose.Types.ObjectId.isValid(decoded.userId)) {
-            res.clearCookie('access_token');
-            res.clearCookie('refresh_token');
-            res.status(401).json({ error: 'Invalid session format' });
-            return;
-        }
-
-        // Verify user still exists and is active
+        // Verify user still exists
         const user = await User.findById(decoded.userId).select('_id role is_active is_email_verified payment_status');
 
         if (!user) {
+            console.warn(`🛑 Auth failed: User ${decoded.userId} not found for request to ${req.path}`);
             res.clearCookie('access_token');
             res.clearCookie('refresh_token');
             res.status(401).json({ error: 'Account not found' });
@@ -56,23 +51,27 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
 
         if (!user.is_active) {
             // Allow users whose accounts are pending activation/verification
-            // But block users who were verified & paid previously but then deactivated by admin
+            // But block users who were explicitly deactivated by an admin
             const isPending = !user.is_email_verified || user.payment_status === 'pending';
             if (!isPending) {
+                console.warn(`🛑 Auth blocked: User ${user._id} is explicitly deactivated.`);
                 res.clearCookie('access_token');
                 res.clearCookie('refresh_token');
                 res.status(401).json({ error: 'Account deactivated' });
                 return;
             }
+            console.log(`ℹ️ Auth allowed: User ${user._id} is pending verification/payment.`);
         }
 
         req.user = { userId: user._id.toString(), role: user.role };
         next();
-    } catch (err) {
-        if (err instanceof jwt.TokenExpiredError) {
+    } catch (err: any) {
+        if (err.name === 'TokenExpiredError') {
+            console.warn(`⏳ Auth failed: Token expired for request to ${req.path}`);
             res.status(401).json({ error: 'Token expired', code: 'TOKEN_EXPIRED' });
             return;
         }
+        console.error(`❌ Auth error for ${req.path}:`, err.message);
         res.status(401).json({ error: 'Invalid token' });
     }
 }

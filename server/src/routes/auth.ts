@@ -734,7 +734,14 @@ router.post('/login', validate(loginSchema), async (req, res) => {
                     return await rePromptPayment(res, user);
                 }
             } else {
-                return res.status(403).json({ error: 'Account has been deactivated. Contact admin.' });
+                // Check if they are just unverified
+                if (!user.is_email_verified) {
+                    // Allow through to the verification check below
+                    console.log(`ℹ️ User ${user.email} is inactive but unverified. Proceeding to verification check.`);
+                } else {
+                    console.warn(`🛑 Login blocked: User ${user.email} is deactivated.`);
+                    return res.status(403).json({ error: 'Account has been deactivated. Contact admin.' });
+                }
             }
         }
 
@@ -794,7 +801,7 @@ router.post('/refresh', async (req, res) => {
     }
 
     try {
-        const decoded = jwt.verify(refreshTokenCookie, config.jwtRefreshSecret) as { userId: string; role: string };
+        const decoded = jwt.verify(refreshTokenCookie, config.jwtRefreshSecret, { clockTolerance: 30 }) as { userId: string; role: string };
 
         // Handle legacy integer IDs from SQLite
         if (!mongoose.Types.ObjectId.isValid(decoded.userId)) {
@@ -804,14 +811,25 @@ router.post('/refresh', async (req, res) => {
             return;
         }
 
-        // Verify user still exists and is active
+        // Verify user still exists
         const user = await User.findById(decoded.userId);
 
-        if (!user || !user.is_active) {
+        if (!user) {
             res.clearCookie('access_token');
             res.clearCookie('refresh_token');
-            res.status(401).json({ error: 'User not found or deactivated' });
+            res.status(401).json({ error: 'User not found' });
             return;
+        }
+
+        if (!user.is_active) {
+            // Allow users whose accounts are pending activation/verification
+            const isPending = !user.is_email_verified || user.payment_status === 'pending';
+            if (!isPending) {
+                res.clearCookie('access_token');
+                res.clearCookie('refresh_token');
+                res.status(401).json({ error: 'Account deactivated' });
+                return;
+            }
         }
 
         const { accessToken, refreshToken } = generateTokens(user._id.toString(), user.role);

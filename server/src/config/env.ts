@@ -14,7 +14,7 @@ export const config = {
     mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/stphub',
     jwtSecret: JWT_SECRET,
     jwtRefreshSecret: JWT_REFRESH_SECRET,
-    jwtExpiresIn: '15m',
+    jwtExpiresIn: '1h',
     jwtRefreshExpiresIn: '7d',
     bcryptRounds: 12,
     cookieOptions: {
