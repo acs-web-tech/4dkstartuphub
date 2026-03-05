@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { getSessionImage, isImageCached } from '../../utils/sessionCache';
+import { getSessionImage, getCachedUrl, isImageCached } from '../../utils/sessionCache';
 
 interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
     src: string;
@@ -13,8 +13,9 @@ interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
  * for "immediate" display across the entire session.
  */
 export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, ...props }) => {
-    const [displaySrc, setDisplaySrc] = useState<string>(isImageCached(src) ? (src) : '');
-    const [loading, setLoading] = useState(!isImageCached(src));
+    const initialCached = getCachedUrl(src);
+    const [displaySrc, setDisplaySrc] = useState<string>(initialCached || '');
+    const [loading, setLoading] = useState(!initialCached);
 
     useEffect(() => {
         let isMounted = true;

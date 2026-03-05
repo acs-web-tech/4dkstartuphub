@@ -1,9 +1,9 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { usersApi } from '../services/api';
 import { CATEGORY_CONFIG } from '../config';
-import { MapPin, Globe, FileText, Calendar, Heart, MessageSquare, ArrowLeft, Twitter, Briefcase, Mail } from 'lucide-react';
+import { MapPin, Globe, FileText, Calendar, Heart, MessageSquare, ArrowLeft, Twitter, Briefcase, Mail, Wifi, RefreshCw } from 'lucide-react';
 
 export default function UserDetail() {
     const { id } = useParams<{ id: string }>();
@@ -11,19 +11,46 @@ export default function UserDetail() {
     const [user, setUser] = useState<any>(null);
     const [posts, setPosts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
 
-    useEffect(() => {
+    const loadUser = useCallback(() => {
         if (!id) return;
+        setLoading(true);
+        setError(false);
         usersApi.getById(id)
             .then(data => {
                 setUser(data.user);
                 setPosts(data.recentPosts);
             })
-            .catch(() => { })
+            .catch((err) => {
+                console.error('Failed to load user profile:', err);
+                setError(true);
+            })
             .finally(() => setLoading(false));
     }, [id]);
 
-    if (loading) return <div className="loading-container"><div className="spinner" /><p>Loading...</p></div>;
+    useEffect(() => {
+        loadUser();
+    }, [loadUser]);
+
+    if (loading) return <div className="loading-container"><div className="spinner" /><p>Loading Profile...</p></div>;
+
+    if (error) {
+        return (
+            <div className="error-state p-12 text-center">
+                <Wifi size={48} className="text-gray-500 mx-auto mb-4" />
+                <h2 className="text-xl font-bold mb-2">Failed to load profile</h2>
+                <p className="text-gray-400 mb-6">There was a problem reaching our servers.</p>
+                <button className="btn btn-primary inline-flex items-center" onClick={loadUser}>
+                    <RefreshCw size={18} className="mr-2" /> Try Again
+                </button>
+                <button className="btn btn-ghost mt-4 block mx-auto" onClick={() => navigate(-1)}>
+                    Go Back
+                </button>
+            </div>
+        );
+    }
+
     if (!user) return <div className="empty-state"><h2>User not found</h2></div>;
 
     const initials = user.displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);

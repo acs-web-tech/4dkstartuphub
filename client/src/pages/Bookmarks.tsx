@@ -1,22 +1,45 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { usersApi } from '../services/api';
 import { CATEGORY_CONFIG } from '../config';
-import { Bookmark, FileText, Heart, MessageSquare } from 'lucide-react';
+import { Bookmark, FileText, Heart, MessageSquare, Wifi, RefreshCw } from 'lucide-react';
 
 export default function Bookmarks() {
     const [bookmarks, setBookmarks] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
 
-    useEffect(() => {
+    const loadBookmarks = useCallback(() => {
+        setLoading(true);
+        setError(false);
         usersApi.getBookmarks()
             .then(d => setBookmarks(d.bookmarks))
-            .catch(() => { })
+            .catch((err) => {
+                console.error('Failed to load bookmarks:', err);
+                setError(true);
+            })
             .finally(() => setLoading(false));
     }, []);
 
-    if (loading) return <div className="loading-container"><div className="spinner" /><p>Loading...</p></div>;
+    useEffect(() => {
+        loadBookmarks();
+    }, [loadBookmarks]);
+
+    if (loading) return <div className="loading-container"><div className="spinner" /><p>Loading Bookmarks...</p></div>;
+
+    if (error) {
+        return (
+            <div className="error-state p-12 text-center">
+                <Wifi size={48} className="text-gray-500 mx-auto mb-4" />
+                <h2 className="text-xl font-bold mb-2">Failed to load bookmarks</h2>
+                <p className="text-gray-400 mb-6">There was a problem reaching our servers.</p>
+                <button className="btn btn-primary inline-flex items-center" onClick={loadBookmarks}>
+                    <RefreshCw size={18} className="mr-2" /> Try Again
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="page-container">

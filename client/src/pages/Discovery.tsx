@@ -1,23 +1,33 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { postsApi } from '../services/api';
 import { Post, PostCategory } from '../types';
 import { CATEGORY_CONFIG } from '../config';
 import {
-    Compass, Flame, Star, Users, MessageCircle, Mic, Heart, MessageSquare, ArrowRight, TrendingUp, Eye
+    Compass, Flame, Star, Users, MessageCircle, Mic, Heart, MessageSquare, ArrowRight, TrendingUp, Eye, Wifi, RefreshCw
 } from 'lucide-react';
 
 export default function Discovery() {
     const [trending, setTrending] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
 
-    useEffect(() => {
+    const loadTrending = useCallback(() => {
+        setLoading(true);
+        setError(false);
         postsApi.getAll({ limit: 12, trending: true })
             .then(data => setTrending(data.posts))
-            .catch(() => { })
+            .catch((err) => {
+                console.error('Failed to load discovery trending:', err);
+                setError(true);
+            })
             .finally(() => setLoading(false));
     }, []);
+
+    useEffect(() => {
+        loadTrending();
+    }, [loadTrending]);
 
     const categories = Object.entries(CATEGORY_CONFIG) as [PostCategory, typeof CATEGORY_CONFIG[PostCategory]][];
 
@@ -58,6 +68,15 @@ export default function Discovery() {
                 <h2 className="section-title"><TrendingUp className="inline-icon" size={20} /> Trending Now</h2>
                 {loading ? (
                     <div className="loading-container"><div className="spinner" /></div>
+                ) : error ? (
+                    <div className="discovery-error p-12 text-center card border-dashed border-2 border-gray-800">
+                        <Wifi size={40} className="text-gray-600 mx-auto mb-4" />
+                        <h3 className="text-lg font-bold mb-2">Can't reach the server</h3>
+                        <p className="text-gray-500 mb-6 max-w-sm mx-auto">Check your internet connection and try reloading the trending posts.</p>
+                        <button className="btn btn-primary inline-flex items-center" onClick={loadTrending}>
+                            <RefreshCw size={16} className="mr-2" /> Reload Trending
+                        </button>
+                    </div>
                 ) : (
                     <div className="trending-grid">
                         {trending.slice(0, 6).map((post, index) => {

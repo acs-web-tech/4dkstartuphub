@@ -1,104 +1,129 @@
 const BASE = '/api';
 
+// Request deduplication for GET requests
+const ongoingRequests = new Map<string, Promise<any>>();
+
 export async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
-    const headers: HeadersInit = { ...options.headers };
+    const isGet = !options.method || options.method.toUpperCase() === 'GET';
+    const cacheKey = `${url}:${JSON.stringify(options.headers || {})}`;
 
-    if (!(options.body instanceof FormData)) {
-        (headers as Record<string, string>)['Content-Type'] = 'application/json';
+    if (isGet && ongoingRequests.has(cacheKey)) {
+        return ongoingRequests.get(cacheKey);
     }
 
-    // Add Authorization header if token exists (for Mobile/Socket support)
-    const token = localStorage.getItem('access_token');
-    if (token) {
-        (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
-    }
-
-    const res = await fetch(`${BASE}${url}`, {
-        credentials: 'include',
-        cache: 'no-store', // Prevent caching of API responses (crucial for /me)
-        headers,
-        ...options,
-    });
-
-    if (res.status === 401) {
-        let errMessage = 'Session expired';
+    const requestPromise = (async () => {
         try {
-            const errData = await res.json();
-            if (errData.error) errMessage = errData.error;
-        } catch {
-            // Ignore parse error
-        }
+            const headers: HeadersInit = { ...options.headers };
 
-        // Try refresh regardless of localStorage (browser handles cookies for Web)
-        // This prevents logging out web users who use HttpOnly cookies
-        {
-            // Try refresh
-            const refreshRes = await fetch(`${BASE}/auth/refresh`, {
-                method: 'POST',
+            if (!(options.body instanceof FormData)) {
+                (headers as Record<string, string>)['Content-Type'] = 'application/json';
+            }
+
+            // Add Authorization header if token exists (for Mobile/Socket support)
+            const token = localStorage.getItem('access_token');
+            if (token) {
+                (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+            }
+
+            const res = await fetch(`${BASE}${url}`, {
+
                 credentials: 'include',
+                cache: 'no-store', // Prevent caching of API responses (crucial for /me)
+                headers,
+                ...options,
             });
-            if (refreshRes.ok) {
-                try {
-                    const refreshData = await refreshRes.json();
-                    if (refreshData.accessToken) {
-                        localStorage.setItem('access_token', refreshData.accessToken);
-                        // Update header for retry
-                        (headers as Record<string, string>)['Authorization'] = `Bearer ${refreshData.accessToken}`;
-                    }
-                    if (refreshData.refreshToken) {
-                        localStorage.setItem('refresh_token', refreshData.refreshToken);
-                    }
-                } catch (e) { /* ignore parse error */ }
 
-                // Retry original request
-                const retryRes = await fetch(`${BASE}${url}`, {
-                    credentials: 'include',
-                    headers,
-                    ...options,
-                });
-                if (!retryRes.ok) {
-                    const err = await retryRes.json().catch(() => ({ error: 'Request failed' }));
-                    throw new Error(err.error || 'Request failed');
+            if (res.status === 401) {
+                let errMessage = 'Session expired';
+                try {
+                    const errData = await res.json();
+                    if (errData.error) errMessage = errData.error;
+                } catch {
+                    // Ignore parse error
                 }
-                return retryRes.json();
+
+                // Try refresh regardless of localStorage (browser handles cookies for Web)
+                // This prevents logging out web users who use HttpOnly cookies
+                {
+                    // Try refresh
+                    const refreshRes = await fetch(`${BASE}/auth/refresh`, {
+                        method: 'POST',
+                        credentials: 'include',
+                    });
+                    if (refreshRes.ok) {
+                        try {
+                            const refreshData = await refreshRes.json();
+                            if (refreshData.accessToken) {
+                                localStorage.setItem('access_token', refreshData.accessToken);
+                                // Update header for retry
+                                (headers as Record<string, string>)['Authorization'] = `Bearer ${refreshData.accessToken}`;
+                            }
+                            if (refreshData.refreshToken) {
+                                localStorage.setItem('refresh_token', refreshData.refreshToken);
+                            }
+                        } catch (e) { /* ignore parse error */ }
+
+                        // Retry original request
+                        const retryRes = await fetch(`${BASE}${url}`, {
+                            credentials: 'include',
+                            headers,
+                            ...options,
+                        });
+                        if (!retryRes.ok) {
+                            const err = await retryRes.json().catch(() => ({ error: 'Request failed' }));
+                            throw new Error(err.error || 'Request failed');
+                        }
+                        return retryRes.json();
+                    }
+                }
+
+                // If we are here, refresh failed or no session was active
+                const publicPages = ['/login', '/register', '/forgot-password', '/reset-password'];
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+
+                if (!publicPages.includes(window.location.pathname)) {
+                    window.location.href = '/login';
+                }
+                throw new Error(errMessage);
+            }
+
+            if (!res.ok) {
+                let err: any;
+                try {
+                    err = await res.json();
+                } catch (e) {
+                    err = { error: `HTTP ${res.status}` };
+                }
+
+                // Removed automatic auth_refresh_required on 402 to prevent infinite retry loops.
+                // Page components and Layout handle payment-required states based on the existing user object.
+
+                // Include validation details if present
+                let message = err.error || `HTTP ${res.status}`;
+                if (err.details && Array.isArray(err.details)) {
+                    message = err.details.map((d: { field: string; message: string }) => d.message).join(', ') || message;
+                }
+
+                const error: any = new Error(message);
+                error.data = err;
+                error.status = res.status;
+                throw error;
+            }
+
+            return res.json();
+        } finally {
+            if (isGet) {
+                ongoingRequests.delete(cacheKey);
             }
         }
+    })();
 
-        // If we are here, refresh failed or no session was active
-        const publicPages = ['/login', '/register', '/forgot-password', '/reset-password'];
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-
-        if (!publicPages.includes(window.location.pathname)) {
-            window.location.href = '/login';
-        }
-        throw new Error(errMessage);
+    if (isGet) {
+        ongoingRequests.set(cacheKey, requestPromise);
     }
 
-    if (!res.ok) {
-        let err: any;
-        try {
-            err = await res.json();
-        } catch (e) {
-            err = { error: `HTTP ${res.status}` };
-        }
-
-        // Removed automatic auth_refresh_required on 402 to prevent infinite retry loops.
-        // Page components and Layout handle payment-required states based on the existing user object.
-
-        // Include validation details if present
-        let message = err.error || `HTTP ${res.status}`;
-        if (err.details && Array.isArray(err.details)) {
-            message = err.details.map((d: { field: string; message: string }) => d.message).join(', ') || message;
-        }
-
-        const error: any = new Error(message);
-        error.data = err;
-        error.status = res.status;
-        throw error;
-    }
-
-    return res.json();
+    return requestPromise;
 }
 
 // ── Auth ────────────────────────────────────────────────────
@@ -157,7 +182,14 @@ export const postsApi = {
     checkLiked: (id: string) => request<{ liked: boolean }>(`/posts/${id}/liked`),
     comment: (id: string, data: { content: string; parentId?: string }) =>
         request(`/posts/${id}/comments`, { method: 'POST', body: JSON.stringify(data) }),
+    getComments: (id: string, params?: { page?: number; limit?: number }) => {
+        const qs = new URLSearchParams();
+        if (params?.page) qs.set('page', String(params.page));
+        if (params?.limit) qs.set('limit', String(params.limit));
+        return request<{ comments: import('../types').Comment[]; pagination: import('../types').Pagination }>(`/posts/${id}/comments?${qs.toString()}`);
+    },
     bookmark: (id: string) => request<{ bookmarked: boolean }>(`/posts/${id}/bookmark`, { method: 'POST' }),
+
     pin: (id: string) => request(`/posts/${id}/pin`, { method: 'POST' }),
     lock: (id: string) => request(`/posts/${id}/lock`, { method: 'POST' }),
 };
@@ -177,12 +209,17 @@ export const usersApi = {
     updateProfile: (data: Record<string, string>) =>
         request('/users/profile', { method: 'PUT', body: JSON.stringify(data) }),
     getBookmarks: () => request<{ bookmarks: any[] }>('/users/me/bookmarks'),
-    getNotifications: () =>
-        request<{ notifications: import('../types').AppNotification[]; unreadCount: number }>('/users/me/notifications'),
+    getNotifications: (params?: { page?: number; limit?: number }) => {
+        const qs = new URLSearchParams();
+        if (params?.page) qs.set('page', String(params.page));
+        if (params?.limit) qs.set('limit', String(params.limit));
+        return request<{ notifications: import('../types').AppNotification[]; unreadCount: number; pagination: import('../types').Pagination }>(`/users/me/notifications?${qs.toString()}`);
+    },
     markNotificationsRead: () => request('/users/me/notifications/read', { method: 'PUT' }),
     markOneRead: (id: string) => request(`/users/me/notifications/${id}/read`, { method: 'PUT' }),
     getOnline: () => request<{ onlineUserIds: string[] }>('/users/online'),
 };
+
 
 // ── Chat Rooms ──────────────────────────────────────────────
 export const chatApi = {

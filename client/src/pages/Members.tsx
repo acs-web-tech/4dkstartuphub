@@ -1,12 +1,12 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { usersApi } from '../services/api';
 import {
     Users, User, Search, MapPin,
     MoreVertical, Compass, Grid,
     TrendingUp, Map, Clock,
-    ShieldCheck, Activity
+    ShieldCheck, Activity, Wifi, RefreshCw
 } from 'lucide-react';
 import { SmartImage } from '../components/Common/SmartImage';
 
@@ -25,6 +25,7 @@ export default function Members() {
     const [users, setUsers] = useState<any[]>([]);
     const [pagination, setPagination] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
 
     // Read state from URL — back button naturally restores these
     const filter = searchParams.get('filter') || 'online';
@@ -42,16 +43,24 @@ export default function Members() {
         }, { replace: false });
     };
 
-    useEffect(() => {
+    const loadMembers = useCallback(() => {
         setLoading(true);
+        setError(false);
         usersApi.getAll({ page, search: search || undefined, filter })
             .then(data => {
                 setUsers(data.users);
                 setPagination(data.pagination);
             })
-            .catch(() => { })
+            .catch((err) => {
+                console.error('Failed to load members:', err);
+                setError(true);
+            })
             .finally(() => setLoading(false));
     }, [page, search, filter]);
+
+    useEffect(() => {
+        loadMembers();
+    }, [loadMembers]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -95,6 +104,15 @@ export default function Members() {
                 <div className="loading-container">
                     <div className="spinner" />
                     <p>Fetching members...</p>
+                </div>
+            ) : error ? (
+                <div className="error-state p-12 text-center">
+                    <Wifi size={48} className="text-gray-500 mx-auto mb-4" />
+                    <h2 className="text-xl font-bold mb-2">Failed to load members</h2>
+                    <p className="text-gray-400 mb-6">There was a problem reaching our servers.</p>
+                    <button className="btn btn-primary inline-flex items-center" onClick={loadMembers}>
+                        <RefreshCw size={18} className="mr-2" /> Try Again
+                    </button>
                 </div>
             ) : users.length === 0 ? (
                 <div className="empty-state">

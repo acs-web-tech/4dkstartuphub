@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Lightbulb, Plus, Upload, Loader2, CheckCircle2, XCircle, Clock, FileText, Lock, CreditCard } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Lightbulb, Plus, Upload, Loader2, CheckCircle2, XCircle, Clock, FileText, Lock, CreditCard, Wifi, RefreshCw } from 'lucide-react';
 import { pitchApi, uploadApi, paymentApi, settingsApi } from '../services/api';
 import { loadRazorpay } from '../utils/razorpay';
 import { PitchRequest } from '../types';
@@ -31,6 +31,7 @@ export default function PitchRequests() {
     const [submitting, setSubmitting] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
+    const [loadError, setLoadError] = useState(false);
 
     const isPremium = user?.role === 'admin' || user?.role === 'moderator' || (
         user?.paymentStatus?.toLowerCase() === 'completed' &&
@@ -100,31 +101,29 @@ export default function PitchRequests() {
         };
     }, [socket, pitchCount, refreshUser]);
 
-    const loadPitches = () => {
+    const loadPitches = useCallback(() => {
         setLoading(true);
-        setPremiumBlocked(false);
+        setLoadError(false);
         pitchApi.getMyPitches()
             .then(data => {
                 setPitches(data.pitches);
                 setPitchCount(data.count || 0);
                 setPitchLimit(data.limit || 0);
 
-                // Proactive limit check: if limit > 0 and count >= limit, block submission
-                // Proactive limit check: block everyone who hits their quota
                 if (data.limit > 0 && data.count >= data.limit) {
                     setPremiumBlocked(true);
                 }
             })
             .catch(err => {
-                // Handle both text-based and status-based blocks
                 if (err.status === 402 || err.message?.includes('Premium access required')) {
                     setPremiumBlocked(true);
                 } else {
                     console.error(err);
+                    setLoadError(true);
                 }
             })
             .finally(() => setLoading(false));
-    };
+    }, []);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -412,13 +411,22 @@ export default function PitchRequests() {
                 <div className="pitches-list">
                     {loading ? (
                         <div className="loading-container"><div className="spinner" /><p>Loading...</p></div>
+                    ) : loadError ? (
+                        <div className="error-state p-12 text-center">
+                            <Wifi size={48} className="text-gray-500 mx-auto mb-4" />
+                            <h2 className="text-xl font-bold mb-2">Failed to load pitches</h2>
+                            <p className="text-gray-400 mb-6">There was a problem reaching our servers.</p>
+                            <button className="btn btn-primary inline-flex items-center" onClick={loadPitches}>
+                                <RefreshCw size={18} className="mr-2" /> Try Again
+                            </button>
+                        </div>
                     ) : pitches.length === 0 ? (
                         <div className="empty-state">
                             <span className="empty-icon"><Lightbulb size={48} /></span>
                             <h2>No pitch requests yet</h2>
                             <p>Have a great idea? Submit a pitch request now!</p>
                             <button className="btn btn-primary mt-4" onClick={() => setTab('submit')}>
-                                Create Pitch
+                                <Plus size={16} className="mr-1" /> Create Pitch
                             </button>
                         </div>
                     ) : (

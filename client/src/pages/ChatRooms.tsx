@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { chatApi } from '../services/api';
 import { ChatRoom, ChatMessage } from '../types';
-import { MessageCircle, Trash2, Send, Plus, Lock, Shield, Users, Volume2, VolumeX, LogOut } from 'lucide-react';
+import { MessageCircle, Trash2, Send, Plus, Lock, Shield, Users, Volume2, VolumeX, LogOut, Wifi, RefreshCw } from 'lucide-react';
 import LinkPreview from '../components/Common/LinkPreview';
 
 export default function ChatRooms() {
@@ -68,8 +68,10 @@ export default function ChatRooms() {
         try {
             const d = await chatApi.getRooms();
             setRooms(d.rooms);
-        } catch (err) {
+            setError(null);
+        } catch (err: any) {
             console.error('Failed to load rooms:', err);
+            setError(err.message || 'Failed to load rooms');
         } finally {
             setLoading(false);
         }
@@ -515,6 +517,15 @@ export default function ChatRooms() {
                 )}
 
                 <div className="room-list">
+                    {rooms.length === 0 && error && !loading && (
+                        <div className="p-6 text-center">
+                            <Wifi size={32} className="text-gray-500 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm text-gray-400 mb-3">Failed to load rooms</p>
+                            <button className="btn btn-primary btn-sm mx-auto" onClick={loadRooms}>
+                                <RefreshCw size={14} className="mr-1" /> Retry
+                            </button>
+                        </div>
+                    )}
                     {rooms.map(room => (
                         <div
                             key={room.id}

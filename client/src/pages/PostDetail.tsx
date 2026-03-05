@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -8,7 +8,7 @@ import { Post, Comment } from '../types';
 import { CATEGORY_CONFIG } from '../config';
 import { useAuth } from '../context/AuthContext';
 import {
-    Pin, Lock, Heart, MessageSquare, Bookmark, Pencil, Trash2, PinOff, Unlock, ArrowLeft, X, MoreVertical, Calendar as CalendarIcon, Download, Share2, Link2, Check, Copy
+    Pin, Lock, Heart, MessageSquare, Bookmark, Pencil, Trash2, PinOff, Unlock, ArrowLeft, X, MoreVertical, Calendar as CalendarIcon, Download, Share2, Link2, Check, Copy, Wifi
 } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 import { SmartImage } from '../components/Common/SmartImage';
@@ -71,6 +71,7 @@ export default function PostDetail() {
     const [liked, setLiked] = useState(false);
     const [bookmarked, setBookmarked] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
     const [editing, setEditing] = useState(false);
     const [editForm, setEditForm] = useState({ title: '', content: '', category: '', videoUrl: '' });
     const [saving, setSaving] = useState(false);
@@ -131,18 +132,25 @@ export default function PostDetail() {
         }
     }), []);
 
-    useEffect(() => {
+    const loadPost = useCallback(() => {
         if (!id) return;
         setLoading(true);
-        // post data fetch does not depend on user state in UI, api handles token
+        setError(false);
         postsApi.getById(id)
             .then(data => {
                 setPost(data.post);
                 setComments(data.comments);
             })
-            .catch(() => navigate('/feed'))
+            .catch((err) => {
+                console.error('Failed to load post:', err);
+                setError(true);
+            })
             .finally(() => setLoading(false));
-    }, [id, navigate, location.key]);
+    }, [id]);
+
+    useEffect(() => {
+        loadPost();
+    }, [loadPost, location.key]);
 
     useEffect(() => {
         if (id && user) {
@@ -268,7 +276,24 @@ export default function PostDetail() {
         }
     };
 
-    if (loading) return <div className="loading-container"><div className="spinner" /><p>Loading...</p></div>;
+    if (loading) return <div className="loading-container"><div className="spinner" /><p>Loading Post...</p></div>;
+
+    if (error) {
+        return (
+            <div className="error-state">
+                <Wifi size={48} className="text-gray-500 mb-4" />
+                <h2>Failed to load post</h2>
+                <p className="text-gray-400 mb-6">There was a problem reaching our servers.</p>
+                <button className="btn btn-primary" onClick={loadPost}>
+                    Try Again
+                </button>
+                <button className="btn btn-ghost mt-2" onClick={() => navigate('/feed')}>
+                    Go Back to Feed
+                </button>
+            </div>
+        );
+    }
+
     if (!post) return <div className="empty-state"><h2>Post not found</h2></div>;
 
     const cat = CATEGORY_CONFIG[post.category];

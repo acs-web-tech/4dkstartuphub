@@ -178,11 +178,14 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
             }
         }
 
-        // Get likes and comments count
+        // Get likes and initial comments (limited to 50 for performance)
         const likeCount = await Like.countDocuments({ post_id: post._id });
         const comments = await Comment.find({ post_id: post._id })
             .populate('user_id', 'username display_name avatar_url')
-            .sort({ created_at: 1 });
+            .sort({ created_at: 1 })
+            .limit(50);
+
+        const totalComments = await Comment.countDocuments({ post_id: post._id });
 
         res.json({
             post: {
@@ -197,7 +200,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
                 isLocked: post.is_locked,
                 viewCount: post.view_count,
                 likeCount,
-                commentCount: comments.length,
+                commentCount: totalComments,
                 username: (author as any)?.username || 'deleted',
                 displayName: (author as any)?.display_name || 'Deleted User',
                 avatarUrl: (author as any)?.avatar_url || '',
@@ -224,12 +227,57 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
                     createdAt: c.created_at,
                 };
             }),
+            hasMoreComments: totalComments > 50
         });
     } catch (err) {
         console.error('Get post error:', err);
         res.status(500).json({ error: 'Failed to fetch post' });
     }
 });
+
+// ── GET /api/posts/:id/comments ─────────────────────────────
+router.get('/:id/comments', authenticate, async (req, res) => {
+    try {
+        const page = Math.max(1, parseInt(req.query.page as string) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+        const skip = (page - 1) * limit;
+
+        const comments = await Comment.find({ post_id: req.params.id })
+            .populate('user_id', 'username display_name avatar_url')
+            .sort({ created_at: 1 })
+            .skip(skip)
+            .limit(limit);
+
+        const total = await Comment.countDocuments({ post_id: req.params.id });
+
+        res.json({
+            comments: comments.map(c => {
+                const cUser = c.user_id as any;
+                return {
+                    id: c._id.toString(),
+                    postId: c.post_id.toString(),
+                    userId: cUser._id.toString(),
+                    content: c.content,
+                    parentId: c.parent_id?.toString() || null,
+                    username: cUser.username,
+                    displayName: cUser.display_name,
+                    avatarUrl: cUser.avatar_url,
+                    createdAt: c.created_at,
+                };
+            }),
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            }
+        });
+    } catch (err) {
+        console.error('Get comments error:', err);
+        res.status(500).json({ error: 'Failed to fetch comments' });
+    }
+});
+
 
 // ── POST /api/posts ──────────────────────────────────────────
 router.post('/', authenticate, validate(createPostSchema), async (req: AuthRequest, res) => {

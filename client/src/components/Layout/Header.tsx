@@ -62,6 +62,9 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
     const [unreadCount, setUnreadCount] = useState(0);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [selectedNotif, setSelectedNotif] = useState<AppNotification | null>(null);
+    const [notifPage, setNotifPage] = useState(1);
+    const [hasMoreNotifs, setHasMoreNotifs] = useState(false);
+    const [loadingMoreNotifs, setLoadingMoreNotifs] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const notifRef = useRef<HTMLDivElement>(null);
     const [bellRing, setBellRing] = useState(false);
@@ -77,13 +80,35 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
     // Initial fetch - Only trigger IF user ID changed
     useEffect(() => {
         if (user?.id) {
-            usersApi.getNotifications().then(d => {
+            usersApi.getNotifications({ page: 1, limit: 20 }).then(d => {
                 setUnreadCount(d.unreadCount);
                 setNotifications(d.notifications);
+                setHasMoreNotifs(d.pagination.page < d.pagination.totalPages);
+                setNotifPage(1);
                 isFirstFetchRef.current = false;
             }).catch(() => { });
         }
     }, [user?.id]);
+
+    const loadMoreNotifications = async () => {
+        if (!user?.id || loadingMoreNotifs || !hasMoreNotifs) return;
+        setLoadingMoreNotifs(true);
+        try {
+            const nextPage = notifPage + 1;
+            const res = await usersApi.getNotifications({ page: nextPage, limit: 20 });
+            setNotifications(prev => {
+                const existingIds = new Set(prev.map(n => n.id));
+                const filtered = res.notifications.filter(n => !existingIds.has(n.id));
+                return [...prev, ...filtered];
+            });
+            setNotifPage(nextPage);
+            setHasMoreNotifs(res.pagination.page < res.pagination.totalPages);
+        } catch (err) {
+            console.error('Error loading more notifications:', err);
+        } finally {
+            setLoadingMoreNotifs(false);
+        }
+    };
 
     // Request notification permission
     useEffect(() => {
@@ -105,8 +130,9 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                 // Add to list if not already present
                 setNotifications(prev => {
                     if (prev.some(n => n.id === newNotif.id)) return prev;
-                    return [newNotif, ...prev].slice(0, 20);
+                    return [newNotif, ...prev];
                 });
+
 
                 setUnreadCount(prev => prev + 1);
 
@@ -465,7 +491,21 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                                         </div>
                                                     </div>
                                                 ))}
+                                                {hasMoreNotifs && (
+                                                    <button
+                                                        className="load-more-btn"
+                                                        style={{ width: '100%', padding: '12px', background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 'bold' }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            loadMoreNotifications();
+                                                        }}
+                                                        disabled={loadingMoreNotifs}
+                                                    >
+                                                        {loadingMoreNotifs ? 'Loading...' : 'Load More'}
+                                                    </button>
+                                                )}
                                             </div>
+
                                         )}
                                     </div>
                                 )}

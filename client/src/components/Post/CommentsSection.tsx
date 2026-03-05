@@ -20,6 +20,9 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
     const [newComment, setNewComment] = useState('');
     const [commenting, setCommenting] = useState(false);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(initialComments.length >= 50);
+    const [loadingMore, setLoadingMore] = useState(false);
 
     // @mention autocomplete state
     const [showMentionDropdown, setShowMentionDropdown] = useState(false);
@@ -27,11 +30,56 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
     const [mentionUsers, setMentionUsers] = useState<Array<{ id: string; username: string; displayName: string; avatarUrl: string }>>([]);
     const [mentionCursorPos, setMentionCursorPos] = useState(0);
     const commentInputRef = useRef<HTMLTextAreaElement>(null);
+    const observerTarget = useRef<HTMLDivElement>(null);
 
     // Update comments when initialComments changes
     useEffect(() => {
         setComments(initialComments);
+        setHasMore(initialComments.length >= 50);
+        setPage(1);
     }, [initialComments]);
+
+    // Infinite scroll observer
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            entries => {
+                if (entries[0].isIntersecting && hasMore && !loadingMore) {
+                    loadMoreComments();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (observerTarget.current) {
+            observer.observe(observerTarget.current);
+        }
+
+        return () => observer.disconnect();
+    }, [hasMore, loadingMore, page]);
+
+    const loadMoreComments = async () => {
+        if (!hasMore || loadingMore) return;
+        setLoadingMore(true);
+        try {
+            const nextPage = page + 1;
+            const res = await postsApi.getComments(postId, { page: nextPage, limit: 20 });
+            if (res.comments.length > 0) {
+                setComments(prev => {
+                    const existingIds = new Set(prev.map(c => c.id));
+                    const filtered = res.comments.filter(c => !existingIds.has(c.id));
+                    return [...prev, ...filtered];
+                });
+                setPage(nextPage);
+                setHasMore(res.pagination.page < res.pagination.totalPages);
+            } else {
+                setHasMore(false);
+            }
+        } catch (err) {
+            console.error('Error loading more comments:', err);
+        } finally {
+            setLoadingMore(false);
+        }
+    };
 
     // Extract URLs for live link preview
     useEffect(() => {
@@ -218,8 +266,11 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
                     {comments.map(comment => (
                         <CommentItem key={comment.id} comment={comment} />
                     ))}
+                    <div ref={observerTarget} style={{ height: '10px' }} />
+                    {loadingMore && <div className="loading-spinner-small" style={{ margin: '1rem auto' }} />}
                 </div>
             )}
         </section>
     );
 }
+

@@ -5,7 +5,7 @@ import { postsApi, usersApi } from '../services/api';
 import { Post, Pagination, PostCategory } from '../types';
 import { CATEGORY_CONFIG } from '../config';
 import { useAuth } from '../context/AuthContext';
-import { Search, Newspaper, Hand, CheckCircle, Circle, ArrowRight, Inbox, RefreshCw, X, User as UserIcon } from 'lucide-react';
+import { Search, Newspaper, Hand, CheckCircle, Circle, ArrowRight, Inbox, RefreshCw, X, User as UserIcon, Wifi } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 
 // ─── In-memory feed cache (persists across SPA navigations) ───
@@ -57,6 +57,7 @@ export default function Feed() {
     const [searchUsers, setSearchUsers] = useState<any[]>(cachedData?.searchUsers || []);
     const [loading, setLoading] = useState(!cachedData);
     const [loadingMore, setLoadingMore] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [page, setPage] = useState(cachedData?.page || 1);
     const [hasMore, setHasMore] = useState(cachedData ? cachedData.page < cachedData.totalPages : true);
     const [pagination, setPagination] = useState<Pagination | null>(
@@ -248,6 +249,7 @@ export default function Feed() {
         }
 
         let isCurrent = true;
+        setError(null);
         if (page === 1) setLoading(true);
         else setLoadingMore(true);
 
@@ -273,7 +275,10 @@ export default function Feed() {
                 setHasMore(data.pagination.page < data.pagination.totalPages);
             })
             .catch(() => {
-                if (isCurrent) setHasMore(false);
+                if (isCurrent) {
+                    setHasMore(false);
+                    if (page === 1) setError('Failed to load connection. Please check your network.');
+                }
             })
             .finally(() => {
                 if (isCurrent) {
@@ -355,6 +360,15 @@ export default function Feed() {
                 <div className="loading-container">
                     <div className="spinner" />
                     <p>Loading posts...</p>
+                </div>
+            ) : error ? (
+                <div className="empty-state">
+                    <span className="empty-icon" style={{ color: 'var(--red)' }}><Wifi size={48} /></span>
+                    <h2>{error}</h2>
+                    <p>Hang tight! It looks like there's a network glitch.</p>
+                    <button onClick={() => { setPage(1); setLoading(true); setError(null); }} className="btn btn-primary">
+                        <RefreshCw size={16} className="inline mr-2" /> Reload Feed
+                    </button>
                 </div>
             ) : posts.length === 0 && searchUsers.length === 0 ? (
                 <div className="empty-state">

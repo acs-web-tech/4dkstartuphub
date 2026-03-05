@@ -275,40 +275,49 @@ router.get('/me/bookmarks', authenticate, async (req: AuthRequest, res) => {
 router.get('/me/notifications', authenticate, async (req: AuthRequest, res) => {
     try {
         const userId = new mongoose.Types.ObjectId(req.user!.userId);
+        const page = Math.max(1, parseInt(req.query.page as string) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+        const skip = (page - 1) * limit;
 
         const notifications = await Notification.find({ user_id: userId })
             .populate('sender_id', 'display_name avatar_url username')
             .sort({ created_at: -1 })
-            .limit(100);
+            .skip(skip)
+            .limit(limit);
 
+        const total = await Notification.countDocuments({ user_id: userId });
         const unreadCount = await Notification.countDocuments({ user_id: userId, is_read: false });
 
         res.json({
-            notifications: notifications.map(n => {
-                const sender = n.sender_id as any;
-                return {
-                    id: n._id.toString(),
-                    type: n.type,
-                    title: n.title,
-                    content: n.content,
-                    referenceId: n.reference_id,
-                    imageUrl: n.image_url || '',
-                    videoUrl: n.video_url || '',
-                    isRead: n.is_read ? 1 : 0,
-                    senderId: sender?._id?.toString() || '',
-                    senderDisplayName: sender?.display_name || 'StartupHub',
-                    senderAvatarUrl: sender?.avatar_url || '',
-                    senderUsername: sender?.username || '',
-                    createdAt: n.created_at,
-                };
-            }),
+            notifications: notifications.map(n => ({
+                id: n._id.toString(),
+                type: n.type,
+                title: n.title,
+                content: n.content,
+                referenceId: n.reference_id,
+                imageUrl: n.image_url || '',
+                videoUrl: n.video_url || '',
+                isRead: n.is_read ? 1 : 0,
+                senderId: (n.sender_id as any)?._id?.toString() || '',
+                senderDisplayName: (n.sender_id as any)?.display_name || 'StartupHub',
+                senderAvatarUrl: (n.sender_id as any)?.avatar_url || '',
+                senderUsername: (n.sender_id as any)?.username || '',
+                createdAt: n.created_at,
+            })),
             unreadCount,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            }
         });
     } catch (err) {
         console.error('Get notifications error:', err);
         res.status(500).json({ error: 'Failed to fetch notifications' });
     }
 });
+
 
 // ── PUT /api/users/me/notifications/read ────────────────────
 router.put('/me/notifications/read', authenticate, async (req: AuthRequest, res) => {

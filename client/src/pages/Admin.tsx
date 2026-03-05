@@ -1,11 +1,11 @@
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { adminApi, chatApi, uploadApi, pitchApi, usersApi } from '../services/api';
 import { AdminStats, PitchRequest, User } from '../types';
 import {
     Settings, BarChart2, Users, MessageCircle, Megaphone, Trash2, Send, X, Link as LinkIcon,
     Lightbulb, CheckCircle2, XCircle, Clock, Volume2, VolumeX, Shield, UserPlus, LogOut, FileText,
-    CreditCard, ToggleLeft, ToggleRight, Rocket, ShieldCheck, Gem, TrendingUp, Download
+    CreditCard, ToggleLeft, ToggleRight, Rocket, ShieldCheck, Gem, TrendingUp, Download, Wifi, RefreshCw
 } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
@@ -42,6 +42,7 @@ export default function Admin() {
     // Welcome notification ref
     const welcomeQuillRef = useRef<ReactQuill>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
     const [message, setMessage] = useState('');
     const [messageType, setMessageType] = useState<'success' | 'error'>('success');
 
@@ -62,18 +63,27 @@ export default function Admin() {
     const [welcomeImageUrl, setWelcomeImageUrl] = useState('');
     const [settingsLoading, setSettingsLoading] = useState(false);
 
+    const loadStats = useCallback(() => {
+        setLoading(true);
+        setError(false);
+        adminApi.getStats()
+            .then(data => {
+                setStats(data.stats);
+                setPostsByCategory(data.postsByCategory);
+                setTopPosters(data.topPosters);
+            })
+            .catch((err) => {
+                console.error('Failed to load admin stats:', err);
+                setError(true);
+            })
+            .finally(() => setLoading(false));
+    }, []);
+
     // Tab-change effect — loads data for the selected tab
     useEffect(() => {
+        setError(false);
         if (tab === 'dashboard') {
-            setLoading(true);
-            adminApi.getStats()
-                .then(data => {
-                    setStats(data.stats);
-                    setPostsByCategory(data.postsByCategory);
-                    setTopPosters(data.topPosters);
-                })
-                .catch(() => { })
-                .finally(() => setLoading(false));
+            loadStats();
         } else if (tab === 'users') {
             loadUsers();
         } else if (tab === 'rooms') {
@@ -84,10 +94,8 @@ export default function Admin() {
         } else if (tab === 'settings') {
             loadSettings();
         }
-        // Note: 'pitch' tab is handled by the pitchFilter effect below
     }, [tab]);
 
-    // Separate effect for user pagination — only fires when on users tab
     useEffect(() => {
         if (tab === 'users') {
             loadUsers();
@@ -95,8 +103,9 @@ export default function Admin() {
     }, [userPage]);
 
     // Settings management
-    const loadSettings = () => {
+    const loadSettings = useCallback(() => {
         setSettingsLoading(true);
+        setError(false);
         adminApi.getSettings()
             .then(data => {
                 setPaymentRequired(data.settings.registration_payment_required === 'true');
@@ -113,9 +122,12 @@ export default function Admin() {
                 setPitchRequestAmount(data.settings.pitch_request_payment_amount || '950');
                 setWelcomeImageUrl(data.settings.welcome_notification_image_url || '');
             })
-            .catch(() => { })
+            .catch(() => {
+                setError(true);
+            })
             .finally(() => setSettingsLoading(false));
-    };
+    }, []);
+
 
     const handleTogglePayment = async () => {
         const newValue = !paymentRequired;
@@ -373,16 +385,20 @@ export default function Admin() {
     }), []);
 
     // User management
-    const loadUsers = () => {
+    const loadUsers = useCallback(() => {
         setLoading(true);
+        setError(false);
         adminApi.getUsers({ page: userPage, search: userSearch || undefined })
             .then(data => {
                 setUsers(data.users);
                 setUserPagination(data.pagination);
             })
-            .catch(() => { })
+            .catch((err) => {
+                console.error('Failed to load admin users:', err);
+                setError(true);
+            })
             .finally(() => setLoading(false));
-    };
+    }, [userPage, userSearch]);
 
     const handleUserSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setUserSearch(e.target.value);
@@ -460,13 +476,17 @@ export default function Admin() {
     };
 
     // Chat Room Management
-    const loadRooms = () => {
+    const loadRooms = useCallback(() => {
         setLoading(true);
+        setError(false);
         chatApi.getRooms()
             .then(d => setRooms(d.rooms))
-            .catch(() => { })
+            .catch((err) => {
+                console.error('Failed to load admin rooms:', err);
+                setError(true);
+            })
             .finally(() => setLoading(false));
-    };
+    }, []);
 
     const handleManageRoom = async (roomId: string) => {
         try {
@@ -565,13 +585,17 @@ export default function Admin() {
     };
 
     // Pitch Requests
-    const loadPitches = () => {
+    const loadPitches = useCallback(() => {
         setLoading(true);
+        setError(false);
         pitchApi.getAllPitches(pitchFilter === 'all' ? undefined : pitchFilter)
             .then(data => setPitches(data.pitches))
-            .catch(() => { })
+            .catch((err) => {
+                console.error('Failed to load admin pitches:', err);
+                setError(true);
+            })
             .finally(() => setLoading(false));
-    };
+    }, [pitchFilter]);
 
     // Load pitches when switching to pitch tab OR when filter changes
     useEffect(() => {
@@ -681,8 +705,27 @@ export default function Admin() {
 
             {loading && !selectedRoom && !selectedPitch ? (
                 <div className="loading-container"><div className="spinner" /><p>Loading...</p></div>
+            ) : error ? (
+                <div className="error-state p-12 text-center card border-dashed border-2 border-red-900/50 bg-red-900/10" style={{ margin: '2rem' }}>
+                    <Wifi size={48} className="text-red-500 mx-auto mb-4" />
+                    <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
+                    <p className="text-gray-400 mb-6 font-medium">We couldn't load the admin data. This might be a temporary network issue.</p>
+                    <button
+                        className="btn btn-primary inline-flex items-center gap-2 px-6 py-3"
+                        onClick={() => {
+                            if (tab === 'dashboard') loadStats();
+                            else if (tab === 'users') loadUsers();
+                            else if (tab === 'rooms') loadRooms();
+                            else if (tab === 'pitch') loadPitches();
+                            else if (tab === 'settings') loadSettings();
+                        }}
+                    >
+                        <RefreshCw size={18} /> Retry Connection
+                    </button>
+                </div>
             ) : (
                 <>
+
                     {/* Dashboard Tab */}
                     {tab === 'dashboard' && stats && (
                         <div className="admin-dashboard">

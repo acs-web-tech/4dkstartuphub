@@ -29,8 +29,12 @@ export const getSessionImage = async (url: string): Promise<string> => {
 };
 
 /**
- * Helper to check if an image is already cached in the session
+ * Synchronous helper to get cached blob URL if it exists
  */
+export const getCachedUrl = (url: string): string | null => {
+    return sessionBlobCache.get(url) || null;
+};
+
 export const isImageCached = (url: string): boolean => {
     return sessionBlobCache.has(url);
 };
