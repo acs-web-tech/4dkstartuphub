@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { authenticate, authenticatePending, AuthRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { registerSchema, loginSchema, resetPasswordSchema, passwordSchema } from '../validators/schemas';
 import { sanitizeHtml } from '../utils/sanitize';
@@ -935,7 +935,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
 // ── NEW: OTP Routes ──────────────────────────────────────────
 
 // Resend Verification OTP
-router.post('/send-verification-otp', authenticate, async (req: AuthRequest, res) => {
+router.post('/send-verification-otp', authenticatePending, async (req: AuthRequest, res) => {
     try {
         const user = await User.findById(req.user!.userId);
         if (!user) return;
@@ -963,7 +963,7 @@ router.post('/send-verification-otp', authenticate, async (req: AuthRequest, res
 });
 
 // Verify Email OTP
-router.post('/verify-email-otp', authenticate, async (req: AuthRequest, res) => {
+router.post('/verify-email-otp', authenticatePending, async (req: AuthRequest, res) => {
     try {
         const { otp } = req.body;
         const user = await User.findById(req.user!.userId);

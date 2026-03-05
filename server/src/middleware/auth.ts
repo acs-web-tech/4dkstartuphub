@@ -50,17 +50,11 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
         }
 
         if (!user.is_active) {
-            // Allow users whose accounts are pending activation/verification
-            // But block users who were explicitly deactivated by an admin
-            const isPending = !user.is_email_verified || user.payment_status === 'pending';
-            if (!isPending) {
-                console.warn(`🛑 Auth blocked: User ${user._id} is explicitly deactivated.`);
-                res.clearCookie('access_token');
-                res.clearCookie('refresh_token');
-                res.status(401).json({ error: 'Account deactivated' });
-                return;
-            }
-            console.log(`ℹ️ Auth allowed: User ${user._id} is pending verification/payment.`);
+            console.warn(`🛑 Auth blocked: User ${user._id} is not active (is_active=false).`);
+            res.clearCookie('access_token');
+            res.clearCookie('refresh_token');
+            res.status(401).json({ error: 'Account pending completion or deactivated. Please log in again.' });
+            return;
         }
 
         req.user = { userId: user._id.toString(), role: user.role };
@@ -72,6 +66,49 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
             return;
         }
         console.error(`❌ Auth error for ${req.path}:`, err.message);
+        res.status(401).json({ error: 'Invalid token' });
+    }
+}
+
+/**
+ * Lighter authentication middleware that allows pending (is_active=false) users through.
+ * Use this ONLY for routes that pending users need during onboarding (e.g. OTP verification).
+ */
+export async function authenticatePending(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    let token = req.cookies?.access_token;
+
+    if (req.headers.authorization) {
+        const parts = req.headers.authorization.split(' ');
+        if (parts.length === 2 && parts[0] === 'Bearer') {
+            token = parts[1];
+        }
+    }
+
+    if (!token) {
+        res.status(401).json({ error: 'Authentication required' });
+        return;
+    }
+
+    try {
+        const decoded = jwt.verify(token, config.jwtSecret, { clockTolerance: 30 }) as AuthPayload;
+        const user = await User.findById(decoded.userId).select('_id role is_active');
+
+        if (!user) {
+            res.clearCookie('access_token');
+            res.clearCookie('refresh_token');
+            res.status(401).json({ error: 'Account not found' });
+            return;
+        }
+
+        // NOTE: We deliberately do NOT check is_active here.
+        // This middleware is for routes that pending users need.
+        req.user = { userId: user._id.toString(), role: user.role };
+        next();
+    } catch (err: any) {
+        if (err.name === 'TokenExpiredError') {
+            res.status(401).json({ error: 'Token expired', code: 'TOKEN_EXPIRED' });
+            return;
+        }
         res.status(401).json({ error: 'Invalid token' });
     }
 }
