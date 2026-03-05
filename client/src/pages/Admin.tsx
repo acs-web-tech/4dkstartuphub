@@ -288,7 +288,7 @@ export default function Admin() {
 
             try {
                 setIsImageUploading(true);
-                const { url } = await uploadApi.upload(file);
+                const { url } = await uploadApi.upload(file, 'image');
                 setWelcomeImageUrl(url);
             } catch (err) {
                 console.error('Welcome image upload failed:', err);
@@ -335,7 +335,7 @@ export default function Admin() {
 
             try {
                 setIsImageUploading(true);
-                const { url } = await uploadApi.upload(file);
+                const { url } = await uploadApi.upload(file, 'image');
                 setBroadcast(prev => ({ ...prev, imageUrl: url }));
             } catch (err) {
                 console.error('Notification image upload failed:', err);
@@ -365,7 +365,7 @@ export default function Admin() {
 
             try {
                 setIsImageUploading(true);
-                const { url } = await uploadApi.upload(file);
+                const { url } = await uploadApi.upload(file, 'image');
                 const quill = broadcastQuillRef.current?.getEditor();
                 if (quill) {
                     const range = quill.getSelection();

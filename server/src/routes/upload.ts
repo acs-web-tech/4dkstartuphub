@@ -16,20 +16,26 @@ const fileCache = new NodeCache({ stdTTL: 3600, checkperiod: 600, maxKeys: 100 }
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: config.maxFileSize },
-    fileFilter: (req, file, cb) => {
-        const allowedMimes = [
-            'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-            'application/pdf',
-            'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.ms-powerpoint',
-            'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-        ];
+    fileFilter: (req: any, file, cb) => {
+        const type = req.query.type || 'image';
+        let allowedMimes = [];
+        if (type === 'doc') {
+            allowedMimes = [
+                'application/pdf',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/vnd.ms-powerpoint',
+                'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            ];
+        } else {
+            // Default to image
+            allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        }
 
         if (allowedMimes.includes(file.mimetype)) {
             cb(null, true);
         } else {
-            cb(new Error('Invalid file type. Allowed: Images, PDF, DOC, DOCX, PPT, PPTX'));
+            cb(new Error(`Invalid file type. ${type === 'image' ? 'Only images are allowed here.' : 'Only images, PDF, DOC, DOCX, PPT, PPTX are allowed.'}`));
         }
     }
 });

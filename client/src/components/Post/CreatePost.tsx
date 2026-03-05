@@ -116,7 +116,7 @@ export default function CreatePost() {
 
         try {
             setThumbnailUploading(true);
-            const data = await uploadApi.upload(file);
+            const data = await uploadApi.upload(file, 'image');
             setImageUrl(data.url);
         } catch (err: any) {
             setError('Thumbnail upload failed');
@@ -142,7 +142,7 @@ export default function CreatePost() {
         try {
             setImageUploading(true);
             setError('');
-            const data = await uploadApi.upload(file);
+            const data = await uploadApi.upload(file, 'image');
             const range = quillRef.current?.getEditor().getSelection();
             if (range) {
                 quillRef.current?.getEditor().insertEmbed(range.index, 'image', data.url);

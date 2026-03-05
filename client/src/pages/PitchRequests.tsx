@@ -185,7 +185,7 @@ export default function PitchRequests() {
         try {
             let deckUrl = '';
             if (file) {
-                const uploadData = await uploadApi.upload(file);
+                const uploadData = await uploadApi.upload(file, 'doc');
                 deckUrl = uploadData.url;
             }
 

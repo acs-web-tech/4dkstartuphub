@@ -319,9 +319,9 @@ export const settingsApi = {
 };
 
 export const uploadApi = {
-    upload: (file: File) => {
+    upload: (file: File, type: 'image' | 'doc' = 'image') => {
         const formData = new FormData();
         formData.append('file', file);
-        return request<{ url: string }>('/upload', { method: 'POST', body: formData });
+        return request<{ url: string }>(`/upload?type=${type}`, { method: 'POST', body: formData });
     }
 };

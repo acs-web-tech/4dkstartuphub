@@ -71,7 +71,7 @@ export default function Profile() {
 
             try {
                 // Uploading file...
-                const data = await uploadApi.upload(file);
+                const data = await uploadApi.upload(file, 'image');
                 // Upload response logged
                 updateField('avatarUrl', data.url);
                 // Avatar URL updated
