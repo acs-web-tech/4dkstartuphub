@@ -219,19 +219,28 @@ export default function Login() {
                                 </button>
                             </form>
 
-                            <div className="text-center mt-6">
-                                <p className="text-sm text-gray-500">Didn't receive the code?</p>
+                            <div style={{ textAlign: 'center', marginTop: '24px' }}>
+                                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '8px' }}>Didn't receive the code?</p>
                                 <button
                                     type="button"
-                                    className="btn-link text-primary-color font-semibold hover:opacity-80 transition-opacity disabled:opacity-50"
                                     onClick={handleResendOtp}
                                     disabled={resendLoading}
-                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        padding: '8px 16px',
+                                        cursor: resendLoading ? 'not-allowed' : 'pointer',
+                                        color: 'var(--accent)',
+                                        fontWeight: 600,
+                                        fontSize: '0.95rem',
+                                        opacity: resendLoading ? 0.5 : 1,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                    }}
                                 >
                                     {resendLoading ? (
-                                        <span className="flex items-center gap-2">
-                                            <RefreshCw size={14} className="animate-spin" /> Sending...
-                                        </span>
+                                        <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Sending...</>
                                     ) : 'Resend Verification Code'}
                                 </button>
                             </div>

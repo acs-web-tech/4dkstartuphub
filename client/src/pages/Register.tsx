@@ -343,21 +343,31 @@ export default function Register() {
                                 {loading ? 'Verifying...' : 'Verify Email'}
                             </button>
 
-                            <p style={{ marginTop: '20px', fontSize: '14px', color: 'var(--text-muted)' }}>
-                                Didn't receive the code?{' '}
+                            <div style={{ textAlign: 'center', marginTop: '20px' }}>
+                                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '8px' }}>Didn't receive the code?</p>
                                 <button
-                                    className="btn-link text-primary-color font-semibold hover:opacity-80 transition-opacity disabled:opacity-50"
+                                    type="button"
                                     onClick={handleResendOtp}
                                     disabled={resendLoading}
-                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '14px', marginLeft: '4px' }}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        padding: '8px 16px',
+                                        cursor: resendLoading ? 'not-allowed' : 'pointer',
+                                        color: 'var(--accent)',
+                                        fontWeight: 600,
+                                        fontSize: '0.95rem',
+                                        opacity: resendLoading ? 0.5 : 1,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                    }}
                                 >
                                     {resendLoading ? (
-                                        <span className="flex items-center gap-2">
-                                            <RefreshCw size={14} className="animate-spin" /> Sending...
-                                        </span>
+                                        <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Sending...</>
                                     ) : 'Resend Code'}
                                 </button>
-                            </p>
+                            </div>
                         </div>
                     ) : (
                         <>
