@@ -869,14 +869,10 @@ router.post('/refresh', async (req, res) => {
         }
 
         if (!user.is_active) {
-            // Allow users whose accounts are pending activation/verification
-            const isPending = !user.is_email_verified || user.payment_status === 'pending';
-            if (!isPending) {
-                res.clearCookie('access_token');
-                res.clearCookie('refresh_token');
-                res.status(401).json({ error: 'Account deactivated' });
-                return;
-            }
+            res.clearCookie('access_token');
+            res.clearCookie('refresh_token');
+            res.status(401).json({ error: 'Account pending completion or deactivated. Please log in again.' });
+            return;
         }
 
         const { accessToken, refreshToken } = generateTokens(user._id.toString(), user.role);
@@ -914,11 +910,8 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
         }
 
         if (!user.is_active) {
-            const isPending = !user.is_email_verified || user.payment_status === 'pending';
-            if (!isPending) {
-                res.status(401).json({ error: 'Account deactivated' });
-                return;
-            }
+            res.status(401).json({ error: 'Account pending completion or deactivated. Please log in again.' });
+            return;
         }
 
         // Logic to check and handle premium expiry
