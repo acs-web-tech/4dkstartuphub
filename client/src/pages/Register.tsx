@@ -479,9 +479,9 @@ export default function Register() {
                                                     {userType === 'startup' ? 'Startup' : userType === 'investor' ? 'Investor' : 'Freelancer'}
                                                 </span>
                                             </div>
-                                            <div className="payment-line flex justify-between gap-4 py-1">
-                                                <span className="shrink-0 text-gray-400">User</span>
-                                                <span className="break-all text-right font-medium">{form.displayName} (@{form.username})</span>
+                                            <div className="payment-line">
+                                                <span>User</span>
+                                                <span style={{ wordBreak: 'break-all', textAlign: 'right', maxWidth: '65%' }}>{form.displayName} (@{form.username})</span>
                                             </div>
                                             <div className="payment-divider" />
                                             <div className="payment-line payment-total">

@@ -168,14 +168,14 @@ export default function Login() {
                             <h2 className="mb-2">Payment Required</h2>
                             <p className="text-gray-400 mb-6">Your registration is almost complete! Please pay the one-time fee to activate your account.</p>
 
-                            <div className="payment-summary mb-8 p-4 bg-dark-lighter rounded-lg text-left" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-color)' }}>
-                                <div className="flex justify-between gap-4 mb-3">
-                                    <span className="text-gray-400">Registration Fee</span>
-                                    <span className="font-bold text-xl text-primary-color">₹{pendingPayment.amount / 100}</span>
+                            <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', marginBottom: '24px', textAlign: 'left' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Registration Fee</span>
+                                    <span style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--accent)' }}>₹{pendingPayment.amount / 100}</span>
                                 </div>
-                                <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-4 text-sm text-gray-500">
-                                    <span className="shrink-0">User Account</span>
-                                    <span className="break-all sm:text-right font-medium text-gray-300">{pendingPayment.email}</span>
+                                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>User Account</span>
+                                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500, wordBreak: 'break-all', display: 'block' }}>{pendingPayment.email}</span>
                                 </div>
                             </div>
 
