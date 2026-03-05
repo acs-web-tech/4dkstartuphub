@@ -863,7 +863,7 @@ export default function Admin() {
                                                         </button>
                                                         <button
                                                             className="btn btn-xs btn-ghost danger-text"
-                                                            onClick={() => handleDeleteUser(u.id)}
+                                                            onClick={() => handleDeleteUser(u)}
                                                             title="Delete User"
                                                             id={`delete-user-${u.id}`}
                                                         >
