@@ -43,6 +43,8 @@ export interface IUser extends Document {
         request_count: number;
         reset_count: number;
     };
+    otp_count: number;
+    otp_last_request_date: string;
 }
 
 const UserSchema: Schema = new Schema({
@@ -85,7 +87,9 @@ const UserSchema: Schema = new Schema({
         last_request_date: { type: String, default: '' },
         request_count: { type: Number, default: 0 },
         reset_count: { type: Number, default: 0 }
-    }
+    },
+    otp_count: { type: Number, default: 0 },
+    otp_last_request_date: { type: String, default: '' }
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
     toJSON: {

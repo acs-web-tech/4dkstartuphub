@@ -6,6 +6,7 @@ import { Comment } from '../../types';
 import { Lock } from 'lucide-react';
 import CommentItem from './CommentItem';
 import LinkPreview from '../Common/LinkPreview';
+import { useModal } from '../../context/ModalContext';
 
 interface CommentsSectionProps {
     postId: string;
@@ -16,6 +17,7 @@ interface CommentsSectionProps {
 export default function CommentsSection({ postId, isLocked, initialComments }: CommentsSectionProps) {
     const { user } = useAuth();
     const { socket } = useSocket();
+    const { alert, confirm } = useModal();
     const [comments, setComments] = useState<Comment[]>(initialComments);
     const [newComment, setNewComment] = useState('');
     const [commenting, setCommenting] = useState(false);
@@ -145,7 +147,7 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
             await postsApi.comment(postId, { content });
         } catch (err) {
             setComments(prev => prev.filter(c => c.id !== tempId));
-            alert('Failed to post comment. Please try again.');
+            await alert('Failed to post comment. Please try again.');
             setNewComment(content);
         }
         setCommenting(false);

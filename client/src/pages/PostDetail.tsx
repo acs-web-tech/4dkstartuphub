@@ -14,11 +14,13 @@ import { useSocket } from '../context/SocketContext';
 import { SmartImage } from '../components/Common/SmartImage';
 import CommentsSection from '../components/Post/CommentsSection';
 import LinkPreview from '../components/Common/LinkPreview';
+import { useModal } from '../context/ModalContext';
 
 export default function PostDetail() {
     const { id } = useParams<{ id: string }>();
     const { user } = useAuth();
     const { socket, status } = useSocket();
+    const { alert, confirm } = useModal();
     const navigate = useNavigate();
     const location = useLocation();
     const [post, setPost] = useState<Post | null>(null);
@@ -103,7 +105,7 @@ export default function PostDetail() {
         input.onchange = async () => {
             if (input.files && input.files[0]) {
                 if (input.files[0].size > 5 * 1024 * 1024) {
-                    alert('Image size exceeds 5MB limit');
+                    await alert('Image size exceeds 5MB limit');
                     return;
                 }
                 try {
@@ -114,7 +116,7 @@ export default function PostDetail() {
                         quillRef.current?.getEditor().insertEmbed(range.index, 'image', data.url);
                     }
                 } catch {
-                    alert('Image upload failed');
+                    await alert('Image upload failed');
                 } finally {
                     setImageUploading(false);
                 }
@@ -182,7 +184,9 @@ export default function PostDetail() {
     };
 
     const handleDelete = async () => {
-        if (!id || !confirm('Are you sure you want to delete this post?')) return;
+        if (!id) return;
+        const confirmed = await confirm('Are you sure you want to delete this post?');
+        if (!confirmed) return;
         try {
             await postsApi.delete(id);
             navigate('/feed');
@@ -223,7 +227,7 @@ export default function PostDetail() {
             setPost(data.post);
             setEditing(false);
         } catch (err: any) {
-            alert(err.message || 'Failed to update post');
+            await alert(err.message || 'Failed to update post');
         }
         setSaving(false);
     };

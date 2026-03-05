@@ -6,6 +6,7 @@ import { PitchRequest } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { validateFile } from '../utils/fileValidation';
+import { useModal } from '../context/ModalContext';
 
 declare global {
     interface Window {
@@ -16,6 +17,7 @@ declare global {
 export default function PitchRequests() {
     const { user, refreshUser } = useAuth();
     const { socket } = useSocket();
+    const { alert, confirm } = useModal();
     const [tab, setTab] = useState<'my' | 'submit'>('my');
     const [pitches, setPitches] = useState<PitchRequest[]>([]);
     const [loading, setLoading] = useState(false);
@@ -261,7 +263,7 @@ export default function PitchRequests() {
                         setPremiumBlocked(false);
                         loadPitches();
                     } catch (err: any) {
-                        alert('Upgrade failed: ' + err.message);
+                        await alert('Upgrade failed: ' + err.message);
                     }
                 },
                 prefill: {
@@ -276,18 +278,18 @@ export default function PitchRequests() {
 
             const isLoaded = await loadRazorpay();
             if (!isLoaded) {
-                alert('Razorpay SDK failed to load. Are you offline?');
+                await alert('Razorpay SDK failed to load. Are you offline?');
                 setUpgrading(false);
                 return;
             }
 
             const rzp = new window.Razorpay(options);
-            rzp.on('payment.failed', (response: any) => {
-                alert(`Payment failed: ${response.error.description}`);
+            rzp.on('payment.failed', async (response: any) => {
+                await alert(`Payment failed: ${response.error.description}`);
             });
             rzp.open();
         } catch (err: any) {
-            alert('Failed to initiate upgrade: ' + err.message);
+            await alert('Failed to initiate upgrade: ' + err.message);
             setUpgrading(false);
         } finally {
             // Note: setUpgrading(false) is handled in callbacks or error

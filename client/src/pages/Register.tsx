@@ -4,7 +4,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authApi, paymentApi, settingsApi, request } from '../services/api';
 import { loadRazorpay } from '../utils/razorpay';
-import { Rocket, Eye, EyeOff, Check, Circle, Building2, TrendingUp, CreditCard, Shield, RefreshCw, Wrench } from 'lucide-react';
+import { Rocket, Eye, EyeOff, Check, Circle, Building2, TrendingUp, CreditCard, Shield, RefreshCw, Wrench, Mail, Lock, User, CheckCircle, AlertCircle, Sparkles, Building, Briefcase, Zap, Info, ChevronRight, UserPlus } from 'lucide-react';
+import { useModal } from '../context/ModalContext';
 
 declare global {
     interface Window {
@@ -16,6 +17,7 @@ type UserType = 'startup' | 'investor' | 'freelancer';
 
 export default function Register() {
     const { register, user, loading: authLoading, refreshUser } = useAuth();
+    const { alert, confirm } = useModal();
     const navigate = useNavigate();
 
     const [form, setForm] = useState({ username: '', email: '', password: '', confirmPassword: '', displayName: '' });
@@ -247,7 +249,7 @@ export default function Register() {
         setError('');
         try {
             await authApi.sendVerificationOtp();
-            alert('A new verification code has been sent to your email.');
+            await alert('A new verification code has been sent to your email.');
         } catch (err: any) {
             setError(err.message || 'Failed to resend verification code');
         } finally {
@@ -341,9 +343,19 @@ export default function Register() {
                                 {loading ? 'Verifying...' : 'Verify Email'}
                             </button>
 
-                            <p style={{ marginTop: '20px', fontSize: '14px' }}>
-                                <button className="btn btn-ghost" onClick={handleResendOtp} style={{ fontSize: '14px' }}>
-                                    Resend Code
+                            <p style={{ marginTop: '20px', fontSize: '14px', color: 'var(--text-muted)' }}>
+                                Didn't receive the code?{' '}
+                                <button
+                                    className="btn-link text-primary-color font-semibold hover:opacity-80 transition-opacity disabled:opacity-50"
+                                    onClick={handleResendOtp}
+                                    disabled={resendLoading}
+                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '14px', marginLeft: '4px' }}
+                                >
+                                    {resendLoading ? (
+                                        <span className="flex items-center gap-2">
+                                            <RefreshCw size={14} className="animate-spin" /> Sending...
+                                        </span>
+                                    ) : 'Resend Code'}
                                 </button>
                             </p>
                         </div>
@@ -467,9 +479,9 @@ export default function Register() {
                                                     {userType === 'startup' ? 'Startup' : userType === 'investor' ? 'Investor' : 'Freelancer'}
                                                 </span>
                                             </div>
-                                            <div className="payment-line">
-                                                <span>User</span>
-                                                <span>{form.displayName} (@{form.username})</span>
+                                            <div className="payment-line flex justify-between gap-4 py-1">
+                                                <span className="shrink-0 text-gray-400">User</span>
+                                                <span className="break-all text-right font-medium">{form.displayName} (@{form.username})</span>
                                             </div>
                                             <div className="payment-divider" />
                                             <div className="payment-line payment-total">

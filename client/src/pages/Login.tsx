@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { authApi } from '../services/api';
 import { loadRazorpay } from '../utils/razorpay';
+import { useModal } from '../context/ModalContext';
 
 declare global {
     interface Window {
@@ -13,6 +14,7 @@ declare global {
 
 export default function Login() {
     const { login, user, loading: authLoading, refreshUser } = useAuth();
+    const { alert, confirm } = useModal();
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -138,9 +140,9 @@ export default function Login() {
         setResendLoading(true);
         try {
             await authApi.sendVerificationOtp();
-            alert('A new verification code has been sent to your email.');
+            await alert('A new verification code has been sent to your email.');
         } catch (err: any) {
-            setError(err.message || 'Failed to resend code');
+            setError(err.message || 'Failed to resend verification code');
         } finally {
             setResendLoading(false);
         }
@@ -166,14 +168,14 @@ export default function Login() {
                             <h2 className="mb-2">Payment Required</h2>
                             <p className="text-gray-400 mb-6">Your registration is almost complete! Please pay the one-time fee to activate your account.</p>
 
-                            <div className="payment-summary mb-8 p-4 bg-dark-lighter rounded-lg text-left">
-                                <div className="flex justify-between mb-2">
-                                    <span>Registration Fee</span>
-                                    <span className="font-bold">₹{pendingPayment.amount / 100}</span>
+                            <div className="payment-summary mb-8 p-4 bg-dark-lighter rounded-lg text-left" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-color)' }}>
+                                <div className="flex justify-between gap-4 mb-3">
+                                    <span className="text-gray-400">Registration Fee</span>
+                                    <span className="font-bold text-xl text-primary-color">₹{pendingPayment.amount / 100}</span>
                                 </div>
-                                <div className="flex justify-between text-sm text-gray-500">
-                                    <span>User</span>
-                                    <span>{pendingPayment.email}</span>
+                                <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-4 text-sm text-gray-500">
+                                    <span className="shrink-0">User Account</span>
+                                    <span className="break-all sm:text-right font-medium text-gray-300">{pendingPayment.email}</span>
                                 </div>
                             </div>
 
@@ -221,11 +223,16 @@ export default function Login() {
                                 <p className="text-sm text-gray-500">Didn't receive the code?</p>
                                 <button
                                     type="button"
-                                    className="text-primary-color font-medium hover:underline disabled:opacity-50"
+                                    className="btn-link text-primary-color font-semibold hover:opacity-80 transition-opacity disabled:opacity-50"
                                     onClick={handleResendOtp}
                                     disabled={resendLoading}
+                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
                                 >
-                                    {resendLoading ? 'Sending...' : 'Resend Code'}
+                                    {resendLoading ? (
+                                        <span className="flex items-center gap-2">
+                                            <RefreshCw size={14} className="animate-spin" /> Sending...
+                                        </span>
+                                    ) : 'Resend Verification Code'}
                                 </button>
                             </div>
 

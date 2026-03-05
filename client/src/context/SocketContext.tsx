@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef, useCallb
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { usersApi } from '../services/api';
+import { useModal } from './ModalContext';
 
 type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
@@ -24,7 +25,8 @@ const SocketContext = createContext<SocketContextType>({
 export const useSocket = () => useContext(SocketContext);
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { user, refreshUser } = useAuth();
+    const { user, loading: authLoading, refreshUser } = useAuth();
+    const { alert } = useModal();
     const [socket, setSocket] = useState<Socket | null>(null);
     const [connected, setConnected] = useState(false);
     const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
@@ -105,7 +107,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
             // ── Force Logout: admin deactivated/deleted this account ──
             let wasForceLoggedOut = false;
-            newSocket.on('forceLogout', ({ reason }: { reason: string }) => {
+            newSocket.on('forceLogout', async ({ reason }: { reason: string }) => {
                 wasForceLoggedOut = true;
                 // Clear all tokens immediately
                 localStorage.removeItem('access_token');
@@ -113,7 +115,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 // Disconnect socket and prevent reconnection
                 newSocket.disconnect();
                 // Notify user and redirect
-                alert(reason || 'Your session has been terminated by an administrator.');
+                await alert(reason || 'Your session has been terminated by an administrator.');
                 window.location.href = '/login';
             });
 

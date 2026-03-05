@@ -73,10 +73,16 @@ async function finalizeUserActivation(user: any, paymentId: string) {
     const isVerificationRequired = verifySetting?.value === 'true';
 
     if (isVerificationRequired && !user.is_email_verified) {
-        user.is_active = false; // Stay inactive until email is verified
+        if (hasReachedOtpLimit(user)) {
+            user.payment_status = 'completed'; // Ensure payment still shows as completed
+            await user.save();
+            return { requireVerification: true, limitExceeded: true };
+        }
+        user.is_active = false;
         const otp = crypto.randomInt(100000, 999999).toString();
         user.email_verification_otp = otp;
         user.email_verification_otp_expires = new Date(Date.now() + 10 * 60 * 1000);
+        trackOtpRequest(user);
         await user.save();
         try {
             await emailService.sendOTP(user.email, user.display_name, 'verification', otp);
@@ -186,6 +192,25 @@ async function rePromptPayment(res: Response, user: any) {
     } catch (err) {
         console.error('Failed to create re-prompt order:', err);
         return res.status(403).json({ error: 'Account pending activation. Failed to generate new payment order. Contact admin.' });
+    }
+}
+
+// ── Helper: Daily OTP limiting ───────────────────────────────
+function hasReachedOtpLimit(user: any) {
+    const today = new Date().toISOString().split('T')[0];
+    if (user.otp_last_request_date === today) {
+        return (user.otp_count || 0) >= 15;
+    }
+    return false;
+}
+
+function trackOtpRequest(user: any) {
+    const today = new Date().toISOString().split('T')[0];
+    if (user.otp_last_request_date === today) {
+        user.otp_count = (user.otp_count || 0) + 1;
+    } else {
+        user.otp_last_request_date = today;
+        user.otp_count = 1;
     }
 }
 
@@ -307,6 +332,10 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
         let verificationOtpExpires = undefined;
 
         if (isVerificationRequired) {
+            if (user && hasReachedOtpLimit(user)) {
+                res.status(400).json({ error: 'Daily OTP limit (15) reached. Please contact support.' });
+                return;
+            }
             verificationOtp = crypto.randomInt(100000, 999999).toString();
             verificationOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
         } else {
@@ -326,6 +355,7 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
             user.is_email_verified = emailVerified;
             user.email_verification_otp = verificationOtp;
             user.email_verification_otp_expires = verificationOtpExpires;
+            if (verificationOtp) trackOtpRequest(user);
             await user.save();
         } else {
             // Create new pending user
@@ -342,6 +372,8 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
                 email_verification_otp: verificationOtp,
                 email_verification_otp_expires: verificationOtpExpires
             });
+            if (verificationOtp) trackOtpRequest(user);
+            await user.save();
         }
 
         if (!paymentRequired) {
@@ -535,6 +567,11 @@ router.post('/register', validate(registerSchema), async (req, res) => {
             email_verification_otp_expires: verificationOtp ? new Date(Date.now() + 10 * 60 * 1000) : undefined
         });
 
+        if (verificationOtp) {
+            trackOtpRequest(newUser);
+            await newUser.save();
+        }
+
         // Send welcome email / notification if not requiring verification
         if (!isVerificationRequired) {
             await triggerWelcomeActions(newUser);
@@ -709,9 +746,16 @@ router.post('/login', validate(loginSchema), async (req, res) => {
                         if (successfulPayment) {
                             const result = await finalizeUserActivation(user, successfulPayment.id);
                             if (result.requireVerification) {
+                                const { accessToken, refreshToken } = generateTokens(user._id.toString(), user.role);
+                                setTokenCookies(res, accessToken, refreshToken);
                                 res.status(403).json({
-                                    error: 'email_verification_required',
-                                    message: 'Payment verified! Please verify your email to log in.'
+                                    error: 'EMAIL_VERIFICATION_REQUIRED',
+                                    message: result.limitExceeded
+                                        ? 'Payment verified! However, daily OTP limit (15) reached. Contact support to verify your account today or try again tomorrow.'
+                                        : 'Payment verified! Please verify your email address to log in.',
+                                    email: user.email,
+                                    accessToken,
+                                    refreshToken
                                 });
                                 return;
                             }
@@ -907,9 +951,15 @@ router.post('/send-verification-otp', authenticate, async (req: AuthRequest, res
             return;
         }
 
+        if (hasReachedOtpLimit(user)) {
+            res.status(400).json({ error: 'Daily OTP limit (15) reached. Please contact support.' });
+            return;
+        }
+
         const otp = crypto.randomInt(100000, 999999).toString();
         user.email_verification_otp = otp;
         user.email_verification_otp_expires = new Date(Date.now() + 10 * 60 * 1000);
+        trackOtpRequest(user);
         await user.save();
 
         await emailService.sendOTP(user.email, user.display_name, 'verification', otp);
@@ -1006,9 +1056,15 @@ router.post('/forgot-password-otp', async (req, res) => {
                 };
             }
 
+            if (hasReachedOtpLimit(user)) {
+                res.status(400).json({ error: 'Daily OTP limit (15) reached. Please contact support.' });
+                return;
+            }
+
             const otp = crypto.randomInt(100000, 999999).toString();
             user.reset_password_otp = otp;
             user.reset_password_expires = new Date(Date.now() + 10 * 60 * 1000);
+            trackOtpRequest(user);
             await user.save({ validateModifiedOnly: true });
 
             await emailService.sendOTP(user.email, user.display_name, 'reset', otp);

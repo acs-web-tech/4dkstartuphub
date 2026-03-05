@@ -11,8 +11,10 @@ import {
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { editorModules, editorFormats } from '../config/editor';
+import { useModal } from '../context/ModalContext';
 
 export default function Admin() {
+    const { alert, confirm } = useModal();
     const [tab, setTab] = useState<'dashboard' | 'users' | 'rooms' | 'pitch' | 'broadcast' | 'settings'>('dashboard');
     const [stats, setStats] = useState<AdminStats | null>(null);
     const [postsByCategory, setPostsByCategory] = useState<any[]>([]);
@@ -291,6 +293,7 @@ export default function Admin() {
                 const { url } = await uploadApi.upload(file, 'image');
                 setWelcomeImageUrl(url);
             } catch (err) {
+                await alert('Image upload failed');
                 console.error('Welcome image upload failed:', err);
             } finally {
                 setIsImageUploading(false);
@@ -338,6 +341,7 @@ export default function Admin() {
                 const { url } = await uploadApi.upload(file, 'image');
                 setBroadcast(prev => ({ ...prev, imageUrl: url }));
             } catch (err) {
+                await alert('Image upload failed');
                 console.error('Notification image upload failed:', err);
             } finally {
                 setIsImageUploading(false);
@@ -374,6 +378,7 @@ export default function Admin() {
                     }
                 }
             } catch (err) {
+                await alert('Image upload failed');
                 console.error('Image upload failed:', err);
             } finally {
                 setIsImageUploading(false);
@@ -446,13 +451,14 @@ export default function Admin() {
         }
     };
 
-    const handleDeleteUser = async (userId: string) => {
-        if (!window.confirm('Are you sure you want to PERMANENTLY delete this user? This cannot be undone.')) return;
+    const handleDeleteUser = async (u: User) => {
+        const confirmed = await confirm(`Are you sure you want to PERMANENTLY delete ${u.displayName}? This cannot be undone.`);
+        if (!confirmed) return;
         try {
-            await adminApi.deleteUser(userId);
-            setUsers(prev => prev.map(u => u.id === userId ? { ...u, isDeleting: true } : u));
+            await adminApi.deleteUser(u.id);
+            setUsers(prev => prev.map(user => user.id === u.id ? { ...user, isDeleting: true } : user));
             setTimeout(() => {
-                setUsers(prev => prev.filter(u => u.id !== userId));
+                setUsers(prev => prev.filter(user => user.id !== u.id));
             }, 500);
             setMessage('User deleted successfully');
             setMessageType('success');
@@ -478,6 +484,17 @@ export default function Admin() {
             setMessageType('success');
         } catch (err: any) {
             setMessage(err.message);
+            setMessageType('error');
+        }
+    };
+
+    const handleAdminPasswordReset = async (userId: string) => {
+        try {
+            await adminApi.sendPasswordReset(userId);
+            setMessage('Reset link sent!');
+            setMessageType('success');
+        } catch (e: any) {
+            setMessage(e.message || 'Failed to send reset link');
             setMessageType('error');
         }
     };
@@ -524,7 +541,9 @@ export default function Admin() {
     };
 
     const handleKickMember = async (userId: string) => {
-        if (!selectedRoom || !confirm('Are you sure you want to kick this user?')) return;
+        if (!selectedRoom) return;
+        const confirmed = await confirm('Are you sure you want to kick this user?');
+        if (!confirmed) return;
         try {
             await chatApi.kickMember(selectedRoom.id, userId);
             setRoomMembers(prev => prev.filter(m => m.id !== userId));
@@ -581,7 +600,8 @@ export default function Admin() {
     };
 
     const handleDeleteRoom = async (roomId: string) => {
-        if (!confirm('Delete this chat room?')) return;
+        const confirmed = await confirm('Delete this chat room?');
+        if (!confirmed) return;
         try {
             await chatApi.deleteRoom(roomId);
             setRooms(prev => prev.filter(r => r.id !== roomId));
@@ -637,7 +657,7 @@ export default function Admin() {
             if (input.files && input.files[0]) {
                 const file = input.files[0];
                 if (file.size > 5 * 1024 * 1024) {
-                    alert('Image size exceeds 5MB limit');
+                    await alert('Image size exceeds 5MB limit');
                     return;
                 }
                 try {
@@ -649,7 +669,7 @@ export default function Admin() {
                     }
                 } catch (err) {
                     console.error('Image upload failed:', err);
-                    alert('Image upload failed');
+                    await alert('Image upload failed');
                 } finally {
                     setIsImageUploading(false);
                 }
@@ -834,15 +854,8 @@ export default function Admin() {
                                                         <button
                                                             className="btn btn-xs btn-ghost"
                                                             onClick={async () => {
-                                                                if (!confirm(`Send password reset link to ${u.email}?`)) return;
-                                                                try {
-                                                                    await adminApi.sendPasswordReset(u.id);
-                                                                    setMessage('Reset link sent!');
-                                                                    setMessageType('success');
-                                                                } catch (e: any) {
-                                                                    setMessage(e.message || 'Failed to send reset link');
-                                                                    setMessageType('error');
-                                                                }
+                                                                const confirmed = await confirm(`Send password reset link to ${u.email}?`);
+                                                                if (confirmed) handleAdminPasswordReset(u.id);
                                                             }}
                                                             title="Send Password Reset Link"
                                                         >

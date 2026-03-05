@@ -7,10 +7,12 @@ import { chatApi } from '../services/api';
 import { ChatRoom, ChatMessage } from '../types';
 import { MessageCircle, Trash2, Send, Plus, Lock, Shield, Users, Volume2, VolumeX, LogOut, Wifi, RefreshCw } from 'lucide-react';
 import LinkPreview from '../components/Common/LinkPreview';
+import { useModal } from '../context/ModalContext';
 
 export default function ChatRooms() {
     const { user } = useAuth();
     const { socket, status } = useSocket();
+    const { alert, confirm } = useModal();
     const { roomId } = useParams<{ roomId: string }>();
     const navigate = useNavigate();
 
@@ -44,7 +46,8 @@ export default function ChatRooms() {
 
     const handleDeleteMessage = async (messageId: string) => {
         if (!roomId) return;
-        if (!window.confirm('Delete this message?')) return;
+        const confirmed = await confirm('Delete this message?');
+        if (!confirmed) return;
         try {
             await chatApi.deleteMessage(roomId, messageId);
             setMessages(prev => prev.filter(m => m.id !== messageId));
@@ -55,7 +58,8 @@ export default function ChatRooms() {
 
     const handleDeleteAllUserMessages = async () => {
         if (!roomId || !userActionsTarget) return;
-        if (!window.confirm(`Delete ALL messages from ${userActionsTarget.displayName}? This cannot be undone.`)) return;
+        const confirmed = await confirm(`Delete ALL messages from ${userActionsTarget.displayName}? This cannot be undone.`);
+        if (!confirmed) return;
         try {
             await chatApi.deleteUserMessages(roomId, userActionsTarget.userId);
             setUserActionsTarget(null);
@@ -350,7 +354,9 @@ export default function ChatRooms() {
     };
 
     const handleDeleteRoom = async (rId: string) => {
-        if (!confirm('Are you sure you want to delete this chat room?')) return;
+        if (!roomId) return;
+        const confirmed = await confirm('Are you sure you want to delete this chat room?');
+        if (!confirmed) return;
         try {
             await chatApi.deleteRoom(rId);
             setRooms(prev => prev.filter(r => r.id !== rId));
