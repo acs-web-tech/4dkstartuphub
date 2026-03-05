@@ -97,7 +97,20 @@ router.get('/file/:filename', async (req, res) => {
 });
 
 // POST /api/upload
-router.post('/', authenticate, upload.single('file'), async (req: AuthRequest, res) => {
+router.post('/', authenticate, (req, res, next) => {
+    upload.single('file')(req, res, (err) => {
+        if (err) {
+            if (err instanceof multer.MulterError) {
+                if (err.code === 'LIMIT_FILE_SIZE') {
+                    return res.status(400).json({ error: 'File is too large. Maximum size allowed is 5MB.' });
+                }
+                return res.status(400).json({ error: `Upload error: ${err.message}` });
+            }
+            return res.status(400).json({ error: err.message });
+        }
+        next();
+    });
+}, async (req: AuthRequest, res) => {
     try {
         if (!req.file) {
             res.status(400).json({ error: 'No file uploaded' });
@@ -115,28 +128,19 @@ router.post('/', authenticate, upload.single('file'), async (req: AuthRequest, r
 
         // Upload to S3
         const key = `uploads/${filename}`;
-        console.log(`[S3] Uploading to bucket: ${config.aws.bucketName}, Region: ${config.aws.region}, Key: ${key}`);
+        console.log(`[S3] Uploading to bucket: ${config.aws.bucketName}, Key: ${key}`);
 
         await s3.send(new PutObjectCommand({
             Bucket: config.aws.bucketName,
             Key: key,
             Body: file.buffer,
             ContentType: file.mimetype,
-            // ACL: 'public-read', // Uncomment if bucket permissions allow it
         }));
 
-        console.log(`[S3] Upload success: ${filename}`);
-
-        // Return our proxy URL
         const url = `/api/upload/file/${filename}`;
         res.json({ url });
     } catch (err: any) {
-        console.error('[S3] Upload error detail:', {
-            message: err.message,
-            code: err.code,
-            requestId: err.$metadata?.requestId,
-            bucket: config.aws.bucketName
-        });
+        console.error('[S3] Upload error:', err.message);
         res.status(500).json({ error: err.message || 'File upload failed' });
     }
 });

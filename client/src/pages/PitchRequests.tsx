@@ -5,6 +5,7 @@ import { loadRazorpay } from '../utils/razorpay';
 import { PitchRequest } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
+import { validateFile } from '../utils/fileValidation';
 
 declare global {
     interface Window {
@@ -129,24 +130,18 @@ export default function PitchRequests() {
         if (e.target.files && e.target.files[0]) {
             const selectedFile = e.target.files[0];
 
-            // Validate file type
-            const allowedTypes = [
-                'application/pdf',
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'application/vnd.ms-powerpoint',
-                'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-            ];
-
-            if (!allowedTypes.includes(selectedFile.type)) {
-                setError('Invalid file type. Only PDF, DOC, DOCX, PPT, PPTX are allowed.');
-                e.target.value = '';
-                setFile(null);
-                return;
-            }
-
-            if (selectedFile.size > 5 * 1024 * 1024) {
-                setError('File size exceeds 5MB limit');
+            try {
+                validateFile(selectedFile, {
+                    allowedTypes: [
+                        'application/pdf',
+                        'application/msword',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'application/vnd.ms-powerpoint',
+                        'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+                    ]
+                });
+            } catch (err: any) {
+                setError(err.message);
                 e.target.value = '';
                 setFile(null);
                 return;

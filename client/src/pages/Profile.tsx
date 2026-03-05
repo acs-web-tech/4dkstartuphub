@@ -5,6 +5,7 @@ import { usersApi, uploadApi, authApi } from '../services/api';
 import {
     User, Camera, Pencil, Mail, MapPin, Globe, Briefcase, Twitter, Calendar, Save, CheckCircle, AlertCircle, Eye, EyeOff
 } from 'lucide-react';
+import { validateFile } from '../utils/fileValidation';
 
 export default function Profile() {
     const { user, refreshUser } = useAuth();
@@ -56,10 +57,10 @@ export default function Profile() {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
 
-            // Check file size (5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                setMessage('File size exceeds 5MB limit');
-                // Target the ref to reset input value
+            try {
+                validateFile(file, { allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] });
+            } catch (err: any) {
+                setMessage(err.message);
                 if (fileInputRef.current) fileInputRef.current.value = '';
                 return;
             }

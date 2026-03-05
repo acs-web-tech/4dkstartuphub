@@ -25,6 +25,7 @@ export default function Login() {
     const [showVerification, setShowVerification] = useState(false);
     const [otp, setOtp] = useState('');
     const [resendLoading, setResendLoading] = useState(false);
+    const [pendingPayment, setPendingPayment] = useState<any>(null);
 
     // Redirect if already logged in (prevents login page flicker)
     useEffect(() => {
@@ -36,7 +37,13 @@ export default function Login() {
     if (authLoading) return <div className="loading-container"><div className="spinner" /></div>;
     if (user) return null;
 
-    const handlePaymentRetry = (data: any) => {
+    const handlePaymentRetry = async (data: any) => {
+        const isLoaded = await loadRazorpay();
+        if (!isLoaded) {
+            setError('Razorpay SDK failed to load. Are you offline?');
+            return;
+        }
+
         const options = {
             key: data.keyId,
             amount: data.amount,
@@ -47,14 +54,25 @@ export default function Login() {
             handler: async (response: any) => {
                 setLoading(true);
                 try {
-                    await authApi.finalizeRegistration({
+                    const finalizeRes = await authApi.finalizeRegistration({
                         order_id: response.razorpay_order_id,
                         payment_id: response.razorpay_payment_id,
                         signature: response.razorpay_signature,
                     });
-                    // Successfully finalized, now login automatically
-                    await login(email, password);
-                    navigate('/feed');
+
+                    // Set tokens if provided
+                    if (finalizeRes.accessToken) localStorage.setItem('access_token', finalizeRes.accessToken);
+                    if (finalizeRes.refreshToken) localStorage.setItem('refresh_token', finalizeRes.refreshToken);
+
+                    if (finalizeRes.requireVerification) {
+                        setShowVerification(true);
+                        setPendingPayment(null);
+                        setLoading(false);
+                    } else {
+                        // Successfully finalized and no verification needed
+                        await login(email, password);
+                        navigate('/feed');
+                    }
                 } catch (err: any) {
                     setError(err.message || 'Payment success but activation failed');
                     setLoading(false);
@@ -68,34 +86,25 @@ export default function Login() {
             modal: {
                 ondismiss: () => {
                     setLoading(false);
-                    setError('Payment cancelled. Please complete payment to login.');
                 }
             }
         };
 
-        const loadRzp = async () => {
-            const isLoaded = await loadRazorpay();
-            if (!isLoaded) {
-                setError('Razorpay SDK failed to load. Are you offline?');
-                return;
-            }
-            const rzp = new window.Razorpay(options);
-            rzp.open();
-        }
-
-        loadRzp();
+        const rzp = new window.Razorpay(options);
+        rzp.open();
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        setPendingPayment(null);
         setLoading(true);
         try {
             await login(email, password);
             navigate('/feed');
         } catch (err: any) {
             if (err.data && err.data.error === 'PAYMENT_REQUIRED') {
-                handlePaymentRetry(err.data);
+                setPendingPayment(err.data);
             } else if (err.data && err.data.error === 'EMAIL_VERIFICATION_REQUIRED') {
                 if (err.data.accessToken) localStorage.setItem('access_token', err.data.accessToken);
                 if (err.data.refreshToken) localStorage.setItem('refresh_token', err.data.refreshToken);
@@ -137,6 +146,7 @@ export default function Login() {
         }
     };
 
+
     return (
         <div className="auth-page">
             <div className="auth-container">
@@ -150,7 +160,39 @@ export default function Login() {
                     {verified && <div className="alert alert-success" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' }}>Email Verified! Please log in.</div>}
                     {error && <div className="alert alert-error">{error}</div>}
 
-                    {showVerification ? (
+                    {pendingPayment ? (
+                        <div className="payment-prompt text-center p-6">
+                            <div className="payment-icon-lg mb-4" style={{ fontSize: '48px' }}>💳</div>
+                            <h2 className="mb-2">Payment Required</h2>
+                            <p className="text-gray-400 mb-6">Your registration is almost complete! Please pay the one-time fee to activate your account.</p>
+
+                            <div className="payment-summary mb-8 p-4 bg-dark-lighter rounded-lg text-left">
+                                <div className="flex justify-between mb-2">
+                                    <span>Registration Fee</span>
+                                    <span className="font-bold">₹{pendingPayment.amount / 100}</span>
+                                </div>
+                                <div className="flex justify-between text-sm text-gray-500">
+                                    <span>User</span>
+                                    <span>{pendingPayment.email}</span>
+                                </div>
+                            </div>
+
+                            <button
+                                className="btn btn-primary btn-full py-4 text-lg"
+                                onClick={() => handlePaymentRetry(pendingPayment)}
+                                disabled={loading}
+                            >
+                                {loading ? 'Processing...' : `Pay ₹${pendingPayment.amount / 100} & Continue`}
+                            </button>
+
+                            <button
+                                className="btn btn-ghost btn-full mt-4"
+                                onClick={() => setPendingPayment(null)}
+                            >
+                                Back to Login
+                            </button>
+                        </div>
+                    ) : showVerification ? (
                         <>
                             <h2>Verify Your Email</h2>
                             <p className="auth-subtitle">We've sent a 6-digit code to <strong>{email}</strong></p>

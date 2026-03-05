@@ -213,8 +213,12 @@ app.use('/api', (_req, res) => {
 });
 
 // ── Global Error Handler ────────────────────────────────────
-// Production: hide internal details. Development: show full error message.
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    // Multer errors (file size, etc)
+    if (err.name === 'MulterError' || err.message?.includes('Invalid file type')) {
+        return res.status(400).json({ error: err.message });
+    }
+
     console.error('Unhandled error:', err.message);
     res.status(500).json({
         error: isProd ? 'Internal server error' : err.message,

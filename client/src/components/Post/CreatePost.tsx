@@ -11,6 +11,7 @@ import { Rocket, Link as LinkIcon, Save, Calendar } from 'lucide-react';
 import LinkPreview from '../Common/LinkPreview';
 import { useAuth } from '../../context/AuthContext';
 import { clearFeedCache } from '../../pages/Feed';
+import { validateFile } from '../../utils/fileValidation';
 
 export default function CreatePost() {
     const { user } = useAuth();
@@ -105,8 +106,10 @@ export default function CreatePost() {
         const files = e.target.files;
         if (!files || !files[0]) return;
         const file = files[0];
-        if (file.size > 5 * 1024 * 1024) {
-            setError('Thumbnail size exceeds 5MB limit');
+        try {
+            validateFile(file, { allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] });
+        } catch (err: any) {
+            setError(err.message);
             e.target.value = '';
             return;
         }
@@ -128,8 +131,10 @@ export default function CreatePost() {
         if (!files || !files[0]) return;
 
         const file = files[0];
-        if (file.size > 5 * 1024 * 1024) {
-            setError('Image size exceeds 5MB limit');
+        try {
+            validateFile(file, { allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] });
+        } catch (err: any) {
+            setError(err.message);
             e.target.value = '';
             return;
         }

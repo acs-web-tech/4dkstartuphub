@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { adminApi, chatApi, uploadApi, pitchApi, usersApi } from '../services/api';
+import { authApi, usersApi, chatApi, postsApi, pitchApi, adminApi, uploadApi, settingsApi } from '../services/api';
+import { validateFile } from '../utils/fileValidation';
 import { AdminStats, PitchRequest, User } from '../types';
 import {
     Settings, BarChart2, Users, MessageCircle, Megaphone, Trash2, Send, X, Link as LinkIcon,
@@ -277,8 +278,10 @@ export default function Admin() {
             const file = input.files?.[0];
             if (!file) return;
 
-            if (file.size > 5 * 1024 * 1024) {
-                setMessage('Image size exceeds 5MB limit');
+            try {
+                validateFile(file, { allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] });
+            } catch (err: any) {
+                setMessage(err.message);
                 setMessageType('error');
                 return;
             }
@@ -322,8 +325,10 @@ export default function Admin() {
             const file = input.files?.[0];
             if (!file) return;
 
-            if (file.size > 5 * 1024 * 1024) {
-                setMessage('Image size exceeds 5MB limit');
+            try {
+                validateFile(file, { allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] });
+            } catch (err: any) {
+                setMessage(err.message);
                 setMessageType('error');
                 return;
             }
@@ -350,8 +355,10 @@ export default function Admin() {
             const file = input.files?.[0];
             if (!file) return;
 
-            if (file.size > 5 * 1024 * 1024) {
-                setMessage('Image size exceeds 5MB limit');
+            try {
+                validateFile(file, { allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] });
+            } catch (err: any) {
+                setMessage(err.message);
                 setMessageType('error');
                 return;
             }
