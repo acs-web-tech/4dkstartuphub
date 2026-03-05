@@ -138,7 +138,8 @@ export default function PitchRequests() {
                         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                         'application/vnd.ms-powerpoint',
                         'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-                    ]
+                    ],
+                    customMessage: 'Invalid file type. Please upload a PDF, Word, or PowerPoint file for your pitch deck.'
                 });
             } catch (err: any) {
                 setError(err.message);

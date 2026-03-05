@@ -2,7 +2,7 @@
 /**
  * Utility for validating files before upload
  */
-export const validateFile = (file: File, options: { maxSizeMB?: number, allowedTypes?: string[] } = {}) => {
+export const validateFile = (file: File, options: { maxSizeMB?: number, allowedTypes?: string[], customMessage?: string } = {}) => {
     const { maxSizeMB = 5, allowedTypes = [
         'image/jpeg', 'image/png', 'image/gif', 'image/webp',
         'application/pdf',
@@ -10,7 +10,7 @@ export const validateFile = (file: File, options: { maxSizeMB?: number, allowedT
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'application/vnd.ms-powerpoint',
         'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-    ] } = options;
+    ], customMessage } = options;
 
     const sizeLimit = maxSizeMB * 1024 * 1024;
 
@@ -19,7 +19,14 @@ export const validateFile = (file: File, options: { maxSizeMB?: number, allowedT
     }
 
     if (!allowedTypes.includes(file.type)) {
-        throw new Error('Invalid file type. Allowed: Images, PDF, Word, PowerPoint.');
+        if (customMessage) throw new Error(customMessage);
+
+        const isImageOnly = allowedTypes.every(t => t.startsWith('image/'));
+        const message = isImageOnly
+            ? 'Invalid file type. Only images (JPG, PNG, GIF, WebP) are allowed here.'
+            : 'Invalid file type. Allowed: Images, PDF, Word, PowerPoint.';
+
+        throw new Error(message);
     }
 
     return true;
