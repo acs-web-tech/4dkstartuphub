@@ -75,13 +75,15 @@ export default function ChatRooms() {
         }
     }, []);
 
+    const initialLoadDone = useRef(false);
+
     useEffect(() => {
-        loadRooms();
+        loadRooms().then(() => { initialLoadDone.current = true; });
     }, [loadRooms]);
 
-    // Handle initial load and socket reconnection sync
+    // Reload rooms on socket reconnection (skip the initial 'connected' event)
     useEffect(() => {
-        if (status === 'connected') {
+        if (status === 'connected' && initialLoadDone.current) {
             loadRooms();
         }
     }, [status, loadRooms]);

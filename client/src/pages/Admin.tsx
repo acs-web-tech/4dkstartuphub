@@ -62,6 +62,7 @@ export default function Admin() {
     const [welcomeImageUrl, setWelcomeImageUrl] = useState('');
     const [settingsLoading, setSettingsLoading] = useState(false);
 
+    // Tab-change effect — loads data for the selected tab
     useEffect(() => {
         if (tab === 'dashboard') {
             setLoading(true);
@@ -77,15 +78,21 @@ export default function Admin() {
             loadUsers();
         } else if (tab === 'rooms') {
             loadRooms();
-        } else if (tab === 'pitch') {
-            loadPitches();
         } else if (tab === 'broadcast') {
             setLoading(false);
-            loadSettings(); // Load welcome notification settings for the broadcast tab
+            loadSettings();
         } else if (tab === 'settings') {
             loadSettings();
         }
-    }, [tab, userPage]);
+        // Note: 'pitch' tab is handled by the pitchFilter effect below
+    }, [tab]);
+
+    // Separate effect for user pagination — only fires when on users tab
+    useEffect(() => {
+        if (tab === 'users') {
+            loadUsers();
+        }
+    }, [userPage]);
 
     // Settings management
     const loadSettings = () => {
@@ -566,11 +573,12 @@ export default function Admin() {
             .finally(() => setLoading(false));
     };
 
+    // Load pitches when switching to pitch tab OR when filter changes
     useEffect(() => {
         if (tab === 'pitch') {
             loadPitches();
         }
-    }, [pitchFilter]);
+    }, [tab, pitchFilter]);
 
     const handleReviewPitch = async (status: 'approved' | 'disapproved') => {
         if (!selectedPitch) return;

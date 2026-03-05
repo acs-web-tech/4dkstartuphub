@@ -37,11 +37,7 @@ export default function PitchRequests() {
         new Date(user.premiumExpiry) > new Date()
     );
 
-    // Always load pitches on mount to pre-check quota
-    useEffect(() => {
-        loadPitches();
-    }, []);
-
+    // Load pitches on mount and when switching to 'my' tab
     useEffect(() => {
         if (tab === 'my') {
             loadPitches();

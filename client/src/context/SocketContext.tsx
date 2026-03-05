@@ -43,7 +43,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     token: localStorage.getItem('access_token')
                 },
                 withCredentials: true,
-                transports: ['websocket', 'polling'],
+                transports: ['websocket'],
                 reconnection: true,
                 reconnectionAttempts: Infinity,
                 reconnectionDelay: 2000,
