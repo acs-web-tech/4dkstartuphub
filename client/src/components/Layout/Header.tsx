@@ -74,24 +74,16 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
     // Track previous state to detect NEW notifications
     const isFirstFetchRef = useRef(true);
 
-    const fetchNotifs = useCallback(() => {
-        if (!user) return;
-        usersApi.getNotifications().then(d => {
-            const newNotifications = d.notifications;
-            const newUnread = d.unreadCount;
-
-            setUnreadCount(newUnread);
-            setNotifications(newNotifications);
-            isFirstFetchRef.current = false;
-        }).catch(() => { });
-    }, [user]);
-
     // Initial fetch - Only trigger IF user ID changed
     useEffect(() => {
         if (user?.id) {
-            fetchNotifs();
+            usersApi.getNotifications().then(d => {
+                setUnreadCount(d.unreadCount);
+                setNotifications(d.notifications);
+                isFirstFetchRef.current = false;
+            }).catch(() => { });
         }
-    }, [user?.id, fetchNotifs]);
+    }, [user?.id]);
 
     // Request notification permission
     useEffect(() => {

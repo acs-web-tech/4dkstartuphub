@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Header from './Header';
 import Sidebar from './Sidebar';
@@ -35,33 +35,45 @@ export default function Layout() {
     }, []);
 
     // Close sidebar and Sync status when navigating (especially when disconnected)
+    const prevPath = useRef(location.pathname);
     useEffect(() => {
         closeSidebar();
 
-        if (user && socketState !== 'connected') {
-            console.log(`[Sync] Navigation detected while socket is ${socketState}. Verifying account...`);
-            setIsSyncing(true);
+        if (prevPath.current !== location.pathname) {
+            if (user?.id && socketState !== 'connected') {
+                console.log(`[Sync] Navigation detected while disconnected. Verifying account...`);
+                setIsSyncing(true);
 
-            Promise.all([
-                refreshUser(),
-                settingsApi.getPublic().then((data: any) => {
-                    setAppUrls({ android: data.android_app_url, ios: data.ios_app_url });
-                    setGlobalLock(data.global_payment_lock || false);
-                })
-            ]).catch(err => console.error('[Sync] Navigation sync failed:', err))
-                .finally(() => setIsSyncing(false));
+                Promise.all([
+                    refreshUser(),
+                    settingsApi.getPublic().then((data: any) => {
+                        setAppUrls({ android: data.android_app_url, ios: data.ios_app_url });
+                        setGlobalLock(data.global_payment_lock || false);
+                    })
+                ]).catch(err => console.error('[Sync] Navigation sync failed:', err))
+                    .finally(() => setIsSyncing(false));
+            }
+            prevPath.current = location.pathname;
         }
     }, [location.pathname, closeSidebar, user?.id, socketState, refreshUser]);
 
-    // Force re-verification whenever socket reconnects
+    // Force re-verification ONLY when the socket genuinely drops and reconnects 
+    // (Bypasses the first successful connection since AuthContext handles initial load)
+    const prevSocketState = useRef(socketState);
+    const hasConnectedOnce = useRef(false);
+
     useEffect(() => {
-        if (user && socketState === 'connected') {
-            console.log('[Sync] Socket reconnected. Re-verifying account status...');
-            refreshUser();
-            settingsApi.getPublic().then((data: any) => {
-                setGlobalLock(data.global_payment_lock || false);
-            }).catch(() => { });
+        if (user?.id && socketState === 'connected') {
+            if (hasConnectedOnce.current && prevSocketState.current !== 'connected') {
+                console.log('[Sync] Socket reconnected. Re-verifying account status...');
+                refreshUser();
+                settingsApi.getPublic().then((data: any) => {
+                    setGlobalLock(data.global_payment_lock || false);
+                }).catch(() => { });
+            }
+            hasConnectedOnce.current = true;
         }
+        prevSocketState.current = socketState;
     }, [socketState, user?.id, refreshUser]);
 
     useEffect(() => {
