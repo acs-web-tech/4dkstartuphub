@@ -51,7 +51,7 @@ export default function Layout() {
             ]).catch(err => console.error('[Sync] Navigation sync failed:', err))
                 .finally(() => setIsSyncing(false));
         }
-    }, [location.pathname, closeSidebar, user, socketState, refreshUser]);
+    }, [location.pathname, closeSidebar, user?.id, socketState, refreshUser]);
 
     // Force re-verification whenever socket reconnects
     useEffect(() => {
@@ -62,7 +62,7 @@ export default function Layout() {
                 setGlobalLock(data.global_payment_lock || false);
             }).catch(() => { });
         }
-    }, [socketState, user, refreshUser]);
+    }, [socketState, user?.id, refreshUser]);
 
     useEffect(() => {
         if (socket) {

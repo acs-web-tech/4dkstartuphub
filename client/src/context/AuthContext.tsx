@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (user && 'Notification' in window && Notification.permission === 'granted') {
             subscribeToPushNotifications();
         }
-    }, [user]);
+    }, [user?.id]);
 
     // Handle Native Mobile Token (FCM)
     useEffect(() => {
@@ -121,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             window.removeEventListener('fcm_token', onFcmToken);
             // Don't clear handleNativeToken — keep it available
         };
-    }, [user]);
+    }, [user?.id]);
 
     const login = async (email: string, password: string) => {
         const data: any = await authApi.login({ email, password });
