@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authApi, paymentApi, settingsApi } from '../services/api';
+import { loadRazorpay } from '../utils/razorpay';
 import { Rocket, ShieldCheck, Gem, Check, CreditCard, ArrowRight, Zap, Star, RefreshCw } from 'lucide-react';
 
 export default function Pricing() {
@@ -67,6 +68,11 @@ export default function Pricing() {
                     ondismiss: () => setLoading(false)
                 }
             };
+
+            const isLoaded = await loadRazorpay();
+            if (!isLoaded) {
+                throw new Error('Are you online? Razorpay SDK failed to load');
+            }
 
             const rzp = new (window as any).Razorpay(options);
             rzp.open();

@@ -2,7 +2,8 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { authApi, paymentApi, settingsApi, request } from '../services/api'; // user request imported
+import { authApi, paymentApi, settingsApi, request } from '../services/api';
+import { loadRazorpay } from '../utils/razorpay';
 import { Rocket, Eye, EyeOff, Check, Circle, Building2, TrendingUp, CreditCard, Shield, RefreshCw, Wrench } from 'lucide-react';
 
 declare global {
@@ -199,6 +200,13 @@ export default function Register() {
                     },
                 },
             };
+
+            const isLoaded = await loadRazorpay();
+            if (!isLoaded) {
+                setError('Razorpay SDK failed to load. Are you offline?');
+                setLoading(false);
+                return;
+            }
 
             const rzp = new window.Razorpay(options);
             rzp.on('payment.failed', (response: any) => {

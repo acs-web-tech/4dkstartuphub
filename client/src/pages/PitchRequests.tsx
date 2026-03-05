@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Lightbulb, Plus, Upload, Loader2, CheckCircle2, XCircle, Clock, FileText, Lock, CreditCard } from 'lucide-react';
 import { pitchApi, uploadApi, paymentApi, settingsApi } from '../services/api';
+import { loadRazorpay } from '../utils/razorpay';
 import { PitchRequest } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -277,6 +278,13 @@ export default function PitchRequests() {
                     backdrop_color: 'rgba(15, 15, 20, 0.85)',
                 },
             };
+
+            const isLoaded = await loadRazorpay();
+            if (!isLoaded) {
+                alert('Razorpay SDK failed to load. Are you offline?');
+                setUpgrading(false);
+                return;
+            }
 
             const rzp = new window.Razorpay(options);
             rzp.on('payment.failed', (response: any) => {

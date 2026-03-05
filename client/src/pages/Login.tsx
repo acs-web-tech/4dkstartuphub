@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Eye, EyeOff } from 'lucide-react';
 import { authApi } from '../services/api';
+import { loadRazorpay } from '../utils/razorpay';
 
 declare global {
     interface Window {
@@ -72,8 +73,17 @@ export default function Login() {
             }
         };
 
-        const rzp = new window.Razorpay(options);
-        rzp.open();
+        const loadRzp = async () => {
+            const isLoaded = await loadRazorpay();
+            if (!isLoaded) {
+                setError('Razorpay SDK failed to load. Are you offline?');
+                return;
+            }
+            const rzp = new window.Razorpay(options);
+            rzp.open();
+        }
+
+        loadRzp();
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
