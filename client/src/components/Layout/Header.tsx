@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { usersApi, postsApi } from '../../services/api';
 import { AppNotification } from '../../types';
@@ -55,6 +55,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
     const { user, logout } = useAuth();
     const { socket } = useSocket();
     const navigate = useNavigate();
+    const location = useLocation();
     const [search, setSearch] = useState('');
     const [showDropdown, setShowDropdown] = useState(false);
     const [showNotif, setShowNotif] = useState(false);
@@ -412,6 +413,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                         <Link
                                             key={p.id}
                                             to={`/posts/${p.id}`}
+                                            state={{ background: location }}
                                             className="search-result-item"
                                             onClick={() => { setSearch(''); setShowSearchDropdown(false); }}
                                         >
@@ -678,7 +680,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                         } else if (isChat) {
                                             navigate(`/chatrooms/${selectedNotif.referenceId}`);
                                         } else {
-                                            navigate(`/posts/${selectedNotif.referenceId}`);
+                                            navigate(`/posts/${selectedNotif.referenceId}`, { state: { background: location } });
                                         }
 
                                         setSelectedNotif(null);

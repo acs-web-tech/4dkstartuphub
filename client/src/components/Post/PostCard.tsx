@@ -1,6 +1,6 @@
 
 import { memo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Post } from '../../types';
 import { CATEGORY_CONFIG } from '../../config';
 import { Pin, Heart, MessageSquare, Eye, Video, MoreVertical, Calendar, Download, ArrowRight } from 'lucide-react';
@@ -13,6 +13,7 @@ interface Props {
 }
 
 function PostCard({ post, onImageClick }: Props) {
+    const location = useLocation();
     const [showOptions, setShowOptions] = useState(false);
     const cat = CATEGORY_CONFIG[post.category];
     const Icon = cat.icon;
@@ -155,7 +156,7 @@ function PostCard({ post, onImageClick }: Props) {
                 </div>
             </div>
 
-            <Link to={`/posts/${post.id}`} className="post-title-link">
+            <Link to={`/posts/${post.id}`} state={{ background: location }} className="post-title-link">
                 <h3 className="post-title">{post.title}</h3>
             </Link>
 
@@ -326,12 +327,12 @@ function PostCard({ post, onImageClick }: Props) {
 
             <div className="post-card-footer">
                 <div className="post-stats-group">
-                    <Link to={`/posts/${post.id}`} className={`stat-item${post.likeCount ? ' has-value' : ''}`}><Heart size={16} /> <span>{post.likeCount || '0'}</span></Link>
-                    <Link to={`/posts/${post.id}`} className={`stat-item${post.commentCount ? ' has-value' : ''}`}><MessageSquare size={16} /> <span>{post.commentCount || '0'}</span></Link>
+                    <Link to={`/posts/${post.id}`} state={{ background: location }} className={`stat-item${post.likeCount ? ' has-value' : ''}`}><Heart size={16} /> <span>{post.likeCount || '0'}</span></Link>
+                    <Link to={`/posts/${post.id}`} state={{ background: location }} className={`stat-item${post.commentCount ? ' has-value' : ''}`}><MessageSquare size={16} /> <span>{post.commentCount || '0'}</span></Link>
                     <span className={`stat-item${post.viewCount ? ' has-value' : ''}`}><Eye size={16} /> <span>{post.viewCount || '0'}</span></span>
                 </div>
                 <div className="post-actions-right">
-                    <Link to={`/posts/${post.id}`} className="btn-read-more">
+                    <Link to={`/posts/${post.id}`} state={{ background: location }} className="btn-read-more">
                         Read More <ArrowRight size={14} />
                     </Link>
                 </div>

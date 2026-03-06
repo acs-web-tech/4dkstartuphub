@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { usersApi } from '../services/api';
 import { CATEGORY_CONFIG } from '../config';
 import { MapPin, Globe, FileText, Calendar, Heart, MessageSquare, ArrowLeft, Twitter, Briefcase, Mail, Wifi, RefreshCw } from 'lucide-react';
@@ -8,6 +8,7 @@ import { MapPin, Globe, FileText, Calendar, Heart, MessageSquare, ArrowLeft, Twi
 export default function UserDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const [user, setUser] = useState<any>(null);
     const [posts, setPosts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -179,7 +180,7 @@ export default function UserDetail() {
                             const cat = CATEGORY_CONFIG[p.category as keyof typeof CATEGORY_CONFIG];
                             const Icon = cat?.icon;
                             return (
-                                <Link to={`/posts/${p.id}`} key={p.id} className="post-card">
+                                <Link to={`/posts/${p.id}`} state={{ background: location }} key={p.id} className="post-card">
                                     <div className="post-card-header">
                                         {cat && (
                                             <span className="post-category-badge" style={{ background: cat.color + '22', color: cat.color }}>

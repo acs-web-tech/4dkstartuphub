@@ -1,11 +1,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { usersApi } from '../services/api';
 import { CATEGORY_CONFIG } from '../config';
 import { Bookmark, FileText, Heart, MessageSquare, Wifi, RefreshCw } from 'lucide-react';
 
 export default function Bookmarks() {
+    const location = useLocation();
     const [bookmarks, setBookmarks] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -61,7 +62,7 @@ export default function Bookmarks() {
                         const cat = CATEGORY_CONFIG[b.category as keyof typeof CATEGORY_CONFIG];
                         const Icon = cat?.icon;
                         return (
-                            <Link to={`/posts/${b.id}`} key={b.id} className="post-card">
+                            <Link to={`/posts/${b.id}`} state={{ background: location }} key={b.id} className="post-card">
                                 <div className="post-card-header">
                                     <div className="post-meta">
                                         <span className="post-author">{b.displayName}</span>

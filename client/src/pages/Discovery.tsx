@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { postsApi } from '../services/api';
 import { Post, PostCategory } from '../types';
 import { CATEGORY_CONFIG } from '../config';
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 
 export default function Discovery() {
+    const location = useLocation();
     const [trending, setTrending] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
@@ -84,7 +85,7 @@ export default function Discovery() {
                             const CatIcon = cat.icon;
                             const initials = post.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
                             return (
-                                <Link to={`/posts/${post.id}`} key={post.id} className="card trending-card-premium">
+                                <Link to={`/posts/${post.id}`} state={{ background: location }} key={post.id} className="card trending-card-premium">
                                     <div className="trending-rank">#{index + 1}</div>
                                     <div className="trending-card-top">
                                         <div className="trending-card-info">
