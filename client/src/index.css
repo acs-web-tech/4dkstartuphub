@@ -6456,9 +6456,9 @@ img {
 
 .modal-wrapper {
   position: relative;
-  width: 95%;
-  max-width: 1200px;
-  height: 90vh;
+  width: 98%;
+  max-width: 1400px;
+  height: 94vh;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -6521,7 +6521,7 @@ img {
 
 .post-split-right {
   flex: 1;
-  padding: 0 16px;
+  padding: 16px;
   background: var(--bg-card);
   border-top: 1px solid var(--border-color);
 }
@@ -6532,6 +6532,15 @@ img {
   background: transparent;
   box-shadow: none;
   margin: 0;
+}
+
+/* Better fitting comments section inside modal */
+.modal-wrapper .comments-section.card {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  margin: 0;
+  padding: 0;
 }
 
 @media (min-width: 900px) {
@@ -6558,7 +6567,7 @@ img {
     border-top: none;
     background: var(--bg-primary);
     overflow-y: auto;
-    padding: 0;
+    padding: 24px;
   }
 }
 
