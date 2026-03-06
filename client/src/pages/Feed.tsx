@@ -184,11 +184,16 @@ export default function Feed() {
             setPosts(prev => prev.map(p => p.id === postId ? { ...p, commentCount } : p));
         };
 
+        const handleViewCount = ({ postId, viewCount }: { postId: string, viewCount: number }) => {
+            setPosts(prev => prev.map(p => p.id === postId ? { ...p, viewCount } : p));
+        };
+
         socket.on('newPost', handleNewPost);
         socket.on('postLiked', handlePostLiked);
         socket.on('postUpdated', handlePostUpdated);
         socket.on('postDeleted', handlePostDeleted);
         socket.on('commentCountUpdated', handleCommentCount);
+        socket.on('viewCountUpdated', handleViewCount);
 
         return () => {
             socket.off('newPost', handleNewPost);
@@ -196,6 +201,7 @@ export default function Feed() {
             socket.off('postUpdated', handlePostUpdated);
             socket.off('postDeleted', handlePostDeleted);
             socket.off('commentCountUpdated', handleCommentCount);
+            socket.off('viewCountUpdated', handleViewCount);
         };
     }, [socket]);
 

@@ -316,6 +316,13 @@ class SocketService {
     }
 
     /**
+     * Emit view count update
+     */
+    emitViewCountUpdate(postId: string, viewCount: number) {
+        this.io?.emit('viewCountUpdated', { postId, viewCount });
+    }
+
+    /**
      * Check if a user is currently kick-blocked from a room
      */
     isUserKicked(roomId: string, userId: string): boolean {

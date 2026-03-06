@@ -175,6 +175,9 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
                 post.view_count += 1;
                 await post.save();
                 hasIncremented = true;
+
+                // Emit real-time view count update
+                socketService.emitViewCountUpdate(post._id.toString(), post.view_count);
             }
         }
 

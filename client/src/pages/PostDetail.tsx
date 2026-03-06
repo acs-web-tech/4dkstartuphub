@@ -58,12 +58,20 @@ export default function PostDetail() {
                 }
             });
 
+            // Handle view count updates
+            socket.on('viewCountUpdated', ({ postId, viewCount }: { postId: string, viewCount: number }) => {
+                if (postId === id) {
+                    setPost(prev => prev ? { ...prev, viewCount } : null);
+                }
+            });
+
             return () => {
                 socket.emit('leavePost', id);
                 socket.off('postLiked');
                 socket.off('postUpdated');
                 socket.off('postDeleted');
                 socket.off('commentCountUpdated');
+                socket.off('viewCountUpdated');
             };
         }
     }, [socket, id, status, navigate]);
