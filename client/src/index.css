@@ -6444,6 +6444,9 @@ img {
   display: flex;
   align-items: center;
   justify-content: center;
+  max-width: none !important;
+  /* Override .post-detail-page max-width */
+  margin: 0 !important;
 }
 
 .modal-backdrop {
@@ -6457,7 +6460,8 @@ img {
 .modal-wrapper {
   position: relative;
   width: 98%;
-  max-width: 1400px;
+  max-width: 1500px;
+  /* Wider to cover 70%+ of feed */
   height: 94vh;
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
@@ -6557,13 +6561,15 @@ img {
   }
 
   .modal-wrapper .post-split-left {
-    flex: 6;
+    flex: 7;
+    /* Increased left pane width proportion since we're covering more area */
     border-right: 1px solid var(--border-color);
     overflow-y: auto;
   }
 
   .modal-wrapper .post-split-right {
-    flex: 4;
+    flex: 3;
+    /* Narrower comments ratio looks better with huge modal width */
     border-top: none;
     background: var(--bg-primary);
     overflow-y: auto;

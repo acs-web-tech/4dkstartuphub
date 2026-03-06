@@ -8,7 +8,8 @@ import { useLocation, useNavigationType } from 'react-router-dom';
  * scroll position on back/forward (POP) actions.
  */
 export default function ScrollRestoration() {
-    const { pathname, search, key } = useLocation();
+    const location = useLocation();
+    const { pathname, search, key, state } = location;
     const navType = useNavigationType();
     const lastScrollY = useRef<{ [key: string]: number }>({});
     const currentLocKey = useRef(key);
@@ -28,6 +29,11 @@ export default function ScrollRestoration() {
         window.addEventListener('scroll', handleScroll, { passive: true });
 
         // When key changes, we are on a new page/entry in history
+        if (state?.background) {
+            // Keep scroll intact if we are opening a modal layer over the background
+            return;
+        }
+
         if (navType === 'PUSH') {
             window.scrollTo(0, 0);
         } else if (navType === 'POP') {
