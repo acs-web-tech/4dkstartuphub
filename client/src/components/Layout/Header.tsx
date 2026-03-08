@@ -246,6 +246,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
             return;
         }
         setSearchLoading(true);
+        setShowSearchDropdown(true);
         searchTimerRef.current = setTimeout(() => {
             Promise.all([
                 usersApi.getAll({ search: search.trim(), page: 1 }).catch(() => ({ users: [] })),
@@ -364,7 +365,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                             placeholder="Search posts, people..."
                             value={search}
                             onChange={e => setSearch(e.target.value)}
-                            onFocus={() => { if (searchResults.users.length || searchResults.posts.length) setShowSearchDropdown(true); }}
+                            onFocus={() => { if (search.trim().length >= 2) setShowSearchDropdown(true); }}
                             maxLength={100}
                             id="global-search"
                         />
@@ -379,62 +380,79 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                             </button>
                         )}
                     </form>
-                    {showSearchDropdown && (searchResults.users.length > 0 || searchResults.posts.length > 0) && (
+                    {showSearchDropdown && (
                         <div className="search-dropdown">
-                            {searchResults.users.length > 0 && (
-                                <div className="search-section">
-                                    <div className="search-section-title">People</div>
-                                    {searchResults.users.map((u: any) => (
-                                        <Link
-                                            key={u.id}
-                                            to={`/users/${u.id}`}
-                                            className="search-result-item"
-                                            onClick={() => { setSearch(''); setShowSearchDropdown(false); }}
-                                        >
-                                            <div className="search-result-avatar">
-                                                {u.avatarUrl ? (
-                                                    <img src={u.avatarUrl} alt="" />
-                                                ) : (
-                                                    <span>{getInitials(u.displayName)}</span>
-                                                )}
-                                            </div>
-                                            <div className="search-result-info">
-                                                <strong>{u.displayName}</strong>
-                                                <span>@{u.username}</span>
-                                            </div>
-                                        </Link>
-                                    ))}
+                            {searchLoading ? (
+                                <div className="search-empty-state">
+                                    <div className="search-empty-spinner" />
+                                    <p>Searching...</p>
                                 </div>
-                            )}
-                            {searchResults.posts.length > 0 && (
-                                <div className="search-section">
-                                    <div className="search-section-title">Posts</div>
-                                    {searchResults.posts.map((p: any) => (
-                                        <Link
-                                            key={p.id}
-                                            to={`/posts/${p.id}`}
-                                            state={{ background: location }}
-                                            className="search-result-item"
-                                            onClick={() => { setSearch(''); setShowSearchDropdown(false); }}
-                                        >
-                                            <div className="search-result-icon">
-                                                <Search size={14} />
-                                            </div>
-                                            <div className="search-result-info">
-                                                <strong>{p.title}</strong>
-                                                <span>by {p.displayName}</span>
-                                            </div>
-                                        </Link>
-                                    ))}
+                            ) : searchResults.users.length === 0 && searchResults.posts.length === 0 ? (
+                                <div className="search-empty-state">
+                                    <Search size={32} className="search-empty-icon" />
+                                    <p className="search-empty-title">No results found</p>
+                                    <p className="search-empty-subtitle">
+                                        We couldn't find any posts or people matching "<strong>{search.trim()}</strong>"
+                                    </p>
                                 </div>
+                            ) : (
+                                <>
+                                    {searchResults.users.length > 0 && (
+                                        <div className="search-section">
+                                            <div className="search-section-title">People</div>
+                                            {searchResults.users.map((u: any) => (
+                                                <Link
+                                                    key={u.id}
+                                                    to={`/users/${u.id}`}
+                                                    className="search-result-item"
+                                                    onClick={() => { setSearch(''); setShowSearchDropdown(false); }}
+                                                >
+                                                    <div className="search-result-avatar">
+                                                        {u.avatarUrl ? (
+                                                            <img src={u.avatarUrl} alt="" />
+                                                        ) : (
+                                                            <span>{getInitials(u.displayName)}</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="search-result-info">
+                                                        <strong>{u.displayName}</strong>
+                                                        <span>@{u.username}</span>
+                                                    </div>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {searchResults.posts.length > 0 && (
+                                        <div className="search-section">
+                                            <div className="search-section-title">Posts</div>
+                                            {searchResults.posts.map((p: any) => (
+                                                <Link
+                                                    key={p.id}
+                                                    to={`/posts/${p.id}`}
+                                                    state={{ background: location }}
+                                                    className="search-result-item"
+                                                    onClick={() => { setSearch(''); setShowSearchDropdown(false); }}
+                                                >
+                                                    <div className="search-result-icon">
+                                                        <Search size={14} />
+                                                    </div>
+                                                    <div className="search-result-info">
+                                                        <strong>{p.title}</strong>
+                                                        <span>by {p.displayName}</span>
+                                                    </div>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <Link
+                                        to={`/feed?search=${encodeURIComponent(search.trim())}`}
+                                        className="search-view-all"
+                                        onClick={() => { setSearch(''); setShowSearchDropdown(false); }}
+                                    >
+                                        View all results for "{search.trim()}"
+                                    </Link>
+                                </>
                             )}
-                            <Link
-                                to={`/feed?search=${encodeURIComponent(search.trim())}`}
-                                className="search-view-all"
-                                onClick={() => { setSearch(''); setShowSearchDropdown(false); }}
-                            >
-                                View all results for "{search.trim()}"
-                            </Link>
                         </div>
                     )}
                 </div>
