@@ -5,7 +5,7 @@ import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client as s3 } from '../utils/s3';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { authenticate, requirePayment, AuthRequest } from '../middleware/auth';
 import { config } from '../config/env';
 import NodeCache from 'node-cache';
 
@@ -103,7 +103,7 @@ router.get('/file/:filename', async (req, res) => {
 });
 
 // POST /api/upload
-router.post('/', authenticate, (req, res, next) => {
+router.post('/', authenticate, requirePayment, (req, res, next) => {
     upload.single('file')(req, res, (err) => {
         if (err) {
             if (err instanceof multer.MulterError) {

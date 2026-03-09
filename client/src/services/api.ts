@@ -3,6 +3,10 @@ const BASE = '/api';
 // Request deduplication for GET requests
 const ongoingRequests = new Map<string, Promise<any>>();
 
+// Token Refresh Queue Lock
+let isRefreshing = false;
+let refreshQueue: Array<(token: string | null) => void> = [];
+
 export async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
     const isGet = !options.method || options.method.toUpperCase() === 'GET';
     const cacheKey = `${url}:${JSON.stringify(options.headers || {})}`;
@@ -42,50 +46,93 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
                     // Ignore parse error
                 }
 
-                // Try refresh regardless of localStorage (browser handles cookies for Web)
-                // This prevents logging out web users who use HttpOnly cookies
-                {
-                    // Try refresh
-                    const refreshRes = await fetch(`${BASE}/auth/refresh`, {
-                        method: 'POST',
-                        credentials: 'include',
-                    });
-                    if (refreshRes.ok) {
-                        try {
-                            const refreshData = await refreshRes.json();
-                            if (refreshData.accessToken) {
-                                localStorage.setItem('access_token', refreshData.accessToken);
-                                // Update header for retry
-                                (headers as Record<string, string>)['Authorization'] = `Bearer ${refreshData.accessToken}`;
-                            }
-                            if (refreshData.refreshToken) {
-                                localStorage.setItem('refresh_token', refreshData.refreshToken);
-                            }
-                        } catch (e) { /* ignore parse error */ }
-
-                        // Retry original request
-                        const retryRes = await fetch(`${BASE}${url}`, {
+                if (!isRefreshing) {
+                    isRefreshing = true;
+                    // Try refresh regardless of localStorage (browser handles cookies for Web)
+                    // This prevents logging out web users who use HttpOnly cookies
+                    try {
+                        const refreshRes = await fetch(`${BASE}/auth/refresh`, {
+                            method: 'POST',
                             credentials: 'include',
-                            headers,
-                            ...options,
                         });
-                        if (!retryRes.ok) {
-                            const err = await retryRes.json().catch(() => ({ error: 'Request failed' }));
-                            throw new Error(err.error || 'Request failed');
+
+                        if (refreshRes.ok) {
+                            let newToken = '';
+                            try {
+                                const refreshData = await refreshRes.json();
+                                if (refreshData.accessToken) {
+                                    newToken = refreshData.accessToken;
+                                    localStorage.setItem('access_token', refreshData.accessToken);
+                                    // Update header for retry
+                                    (headers as Record<string, string>)['Authorization'] = `Bearer ${refreshData.accessToken}`;
+                                }
+                                if (refreshData.refreshToken) {
+                                    localStorage.setItem('refresh_token', refreshData.refreshToken);
+                                }
+                            } catch (e) { /* ignore parse error */ }
+
+                            isRefreshing = false;
+
+                            // Process queued requests
+                            refreshQueue.forEach(cb => cb(newToken));
+                            refreshQueue = [];
+
+                            // Retry original request
+                            const retryRes = await fetch(`${BASE}${url}`, {
+                                credentials: 'include',
+                                headers,
+                                ...options,
+                            });
+                            if (!retryRes.ok) {
+                                const err = await retryRes.json().catch(() => ({ error: 'Request failed' }));
+                                throw new Error(err.error || 'Request failed');
+                            }
+                            return retryRes.json();
+                        } else {
+                            throw new Error('Refresh failed');
                         }
-                        return retryRes.json();
+                    } catch (error) {
+                        isRefreshing = false;
+                        refreshQueue.forEach(cb => cb(null));
+                        refreshQueue = [];
+
+                        // If we are here, refresh failed or no session was active
+                        const publicPages = ['/login', '/register', '/forgot-password', '/reset-password'];
+                        localStorage.removeItem('access_token');
+                        localStorage.removeItem('refresh_token');
+
+                        if (!publicPages.includes(window.location.pathname)) {
+                            window.location.href = '/login';
+                        }
+                        throw new Error(errMessage);
                     }
+                } else {
+                    // Put in queue and wait for the current refresh to finish
+                    return new Promise((resolve, reject) => {
+                        refreshQueue.push(async (newToken: string | null) => {
+                            if (newToken) {
+                                (headers as Record<string, string>)['Authorization'] = `Bearer ${newToken}`;
+                                try {
+                                    const retryRes = await fetch(`${BASE}${url}`, {
+                                        credentials: 'include',
+                                        headers,
+                                        ...options,
+                                    });
+                                    if (!retryRes.ok) {
+                                        const err = await retryRes.json().catch(() => ({ error: 'Request failed' }));
+                                        reject(new Error(err.error || 'Request failed'));
+                                        return;
+                                    }
+                                    resolve(retryRes.json());
+                                } catch (e) {
+                                    reject(e);
+                                }
+                            } else {
+                                reject(new Error(errMessage));
+                            }
+                        });
+                    });
                 }
-
-                // If we are here, refresh failed or no session was active
-                const publicPages = ['/login', '/register', '/forgot-password', '/reset-password'];
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
-
-                if (!publicPages.includes(window.location.pathname)) {
-                    window.location.href = '/login';
-                }
-                throw new Error(errMessage);
             }
 
             if (!res.ok) {

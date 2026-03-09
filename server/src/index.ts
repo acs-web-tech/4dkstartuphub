@@ -162,7 +162,7 @@ app.use('/api/admin', adminRoutes); // Admin routes handle their own auth/check
 app.use('/api/pitch', authenticate, requirePayment, pitchRoutes);
 app.use('/api/notifications', authenticate, requirePayment, notificationRoutes);
 app.use('/api/meta', metaRoutes);
-app.use('/api/upload', authenticate, requirePayment, uploadRoutes);
+app.use('/api/upload', uploadRoutes);
 app.use('/api/payment', paymentRoutes); // Payment routes must be public to allow paying!
 
 // ── Health Check ────────────────────────────────────────────
