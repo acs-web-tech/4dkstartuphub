@@ -1667,7 +1667,7 @@ img {
   margin-bottom: 24px;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  background: linear-gradient(135deg, rgba(153, 27, 27, 0.15) 0%, rgba(0, 0, 0, 0.5) 100%), var(--bg-tertiary);
+  background: linear-gradient(135deg, var(--accent-soft) 0%, var(--bg-primary) 100%);
   border: 1px solid var(--border-color);
   height: 400px;
   width: 100%;
@@ -5845,7 +5845,7 @@ img {
 .post-card-media-thumb {
   border-radius: var(--radius);
   overflow: hidden;
-  background: linear-gradient(135deg, rgba(153, 27, 27, 0.15) 0%, rgba(0, 0, 0, 0.5) 100%), var(--bg-secondary);
+  background: linear-gradient(135deg, var(--accent-soft) 0%, var(--bg-primary) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
