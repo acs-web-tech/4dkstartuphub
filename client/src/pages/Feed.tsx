@@ -139,7 +139,7 @@ export default function Feed() {
                     search: searchRef.current
                 });
                 feedCache.set(currentKey, {
-                    posts: posts.slice(0, 60),
+                    posts: posts,
                     searchUsers: searchUsers,
                     page: pageRef.current,
                     totalPages: pagination?.totalPages || 1,
