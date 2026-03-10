@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { postsApi, usersApi } from '../../services/api';
 import { Comment } from '../../types';
-import { Lock } from 'lucide-react';
+import { Lock, Search, X } from 'lucide-react';
 import CommentItem from './CommentItem';
 import LinkPreview from '../Common/LinkPreview';
 import { useModal } from '../../context/ModalContext';
@@ -17,7 +17,7 @@ interface CommentsSectionProps {
 export default function CommentsSection({ postId, isLocked, initialComments }: CommentsSectionProps) {
     const { user } = useAuth();
     const { socket } = useSocket();
-    const { alert, confirm } = useModal();
+    const { alert } = useModal();
     const [comments, setComments] = useState<Comment[]>(initialComments);
     const [newComment, setNewComment] = useState('');
     const [commenting, setCommenting] = useState(false);
@@ -25,6 +25,13 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(initialComments.length >= 50);
     const [loadingMore, setLoadingMore] = useState(false);
+
+    // Reply state
+    const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
+
+    // Search state
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showSearch, setShowSearch] = useState(false);
 
     // @mention autocomplete state
     const [showMentionDropdown, setShowMentionDropdown] = useState(false);
@@ -118,19 +125,37 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
         }
     }, [socket, postId]);
 
+    const handleReply = (comment: Comment) => {
+        setReplyingTo(comment);
+        // Auto-prefix with @mention
+        setNewComment(`@${comment.username} `);
+        setTimeout(() => {
+            commentInputRef.current?.focus();
+            const len = `@${comment.username} `.length;
+            commentInputRef.current?.setSelectionRange(len, len);
+        }, 50);
+    };
+
+    const cancelReply = () => {
+        setReplyingTo(null);
+        setNewComment('');
+    };
+
     const handleComment = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user || !postId || !newComment.trim()) return;
 
         const content = newComment.trim();
         const tempId = `temp-${Date.now()}`;
+        const parentId = replyingTo?.id || null;
 
         const optimisticComment: Comment = {
             id: tempId,
             postId: postId,
             userId: user.id,
             content: content,
-            parentId: null,
+            parentId: parentId,
+            parentDisplayName: replyingTo?.displayName,
             displayName: user.displayName,
             avatarUrl: user.avatarUrl || '',
             username: user.username,
@@ -141,14 +166,16 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
         setNewComment('');
         setPreviewUrls([]);
         setShowMentionDropdown(false);
+        setReplyingTo(null);
         setCommenting(true);
 
         try {
-            await postsApi.comment(postId, { content });
+            await postsApi.comment(postId, { content, parentId: parentId || undefined });
         } catch (err) {
             setComments(prev => prev.filter(c => c.id !== tempId));
             await alert('Failed to post comment. Please try again.');
             setNewComment(content);
+            if (parentId && replyingTo) setReplyingTo(replyingTo);
         }
         setCommenting(false);
     };
@@ -200,16 +227,108 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
         }, 0);
     };
 
+    // ─── Search / filter logic ───
+    const filteredComments = useMemo(() => {
+        if (!searchQuery.trim()) return comments;
+        const q = searchQuery.toLowerCase().trim();
+        return comments.filter(c =>
+            c.content.toLowerCase().includes(q) ||
+            c.displayName.toLowerCase().includes(q) ||
+            c.username.toLowerCase().includes(q)
+        );
+    }, [comments, searchQuery]);
+
+    // ─── Threaded comments: group replies under parents ───
+    const threadedComments = useMemo(() => {
+        // Build a map of parentId -> replies
+        const replyMap = new Map<string, Comment[]>();
+        const topLevel: Comment[] = [];
+
+        for (const c of filteredComments) {
+            if (c.parentId) {
+                const existing = replyMap.get(c.parentId) || [];
+                existing.push(c);
+                replyMap.set(c.parentId, existing);
+            } else {
+                topLevel.push(c);
+            }
+        }
+
+        // Flatten: parent followed by its replies
+        const result: { comment: Comment; isReply: boolean }[] = [];
+        for (const parent of topLevel) {
+            result.push({ comment: parent, isReply: false });
+            const replies = replyMap.get(parent.id);
+            if (replies) {
+                for (const reply of replies) {
+                    result.push({ comment: reply, isReply: true });
+                }
+            }
+        }
+
+        // Also add any replies whose parents were filtered out (orphan replies)
+        const resultIds = new Set(result.map(r => r.comment.id));
+        for (const c of filteredComments) {
+            if (!resultIds.has(c.id)) {
+                result.push({ comment: c, isReply: !!c.parentId });
+            }
+        }
+
+        return result;
+    }, [filteredComments]);
+
+    const totalCount = comments.length;
+
     return (
         <section className="card comments-section">
-            <h2>Comments ({comments.length})</h2>
+            <div className="comments-section-header">
+                <h2>Comments ({totalCount})</h2>
+                {totalCount > 0 && (
+                    <button
+                        className="comment-search-toggle"
+                        onClick={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); }}
+                        title="Search comments"
+                        type="button"
+                    >
+                        {showSearch ? <X size={16} /> : <Search size={16} />}
+                    </button>
+                )}
+            </div>
+
+            {showSearch && (
+                <div className="comment-search-bar">
+                    <Search size={14} className="comment-search-icon" />
+                    <input
+                        type="text"
+                        className="form-input comment-search-input"
+                        placeholder="Search by keyword or username..."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        autoFocus
+                        id="comment-search-input"
+                    />
+                    {searchQuery && (
+                        <button className="comment-search-clear" onClick={() => setSearchQuery('')} type="button">
+                            <X size={14} />
+                        </button>
+                    )}
+                </div>
+            )}
 
             {user && !isLocked && (
                 <form className="comment-form" onSubmit={handleComment} style={{ position: 'relative' }}>
+                    {replyingTo && (
+                        <div className="comment-replying-banner">
+                            <span>Replying to <strong>{replyingTo.displayName}</strong></span>
+                            <button type="button" className="cancel-reply-btn" onClick={cancelReply}>
+                                <X size={14} /> Cancel
+                            </button>
+                        </div>
+                    )}
                     <textarea
                         ref={commentInputRef}
                         className="form-input"
-                        placeholder="Write a comment... (use @ to mention users)"
+                        placeholder={replyingTo ? `Reply to ${replyingTo.displayName}...` : 'Write a comment... (use @ to mention users)'}
                         value={newComment}
                         onChange={e => setNewComment(e.target.value)}
                         maxLength={2000}
@@ -252,7 +371,7 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
                         disabled={commenting || !newComment.trim()}
                         id="submit-comment"
                     >
-                        {commenting ? 'Posting...' : 'Post Comment'}
+                        {commenting ? 'Posting...' : (replyingTo ? 'Reply' : 'Post Comment')}
                     </button>
                 </form>
             )}
@@ -261,12 +380,20 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
                 <div className="alert alert-info"><Lock size={16} className="inline mr-1" /> Comments are locked on this post</div>
             )}
 
-            {comments.length === 0 ? (
+            {searchQuery && filteredComments.length === 0 ? (
+                <p className="empty-comments">No comments match "{searchQuery}"</p>
+            ) : threadedComments.length === 0 ? (
                 <p className="empty-comments">No comments yet. Be the first to comment!</p>
             ) : (
                 <div className="comments-list">
-                    {comments.map(comment => (
-                        <CommentItem key={comment.id} comment={comment} />
+                    {threadedComments.map(({ comment, isReply: isReplyItem }) => (
+                        <CommentItem
+                            key={comment.id}
+                            comment={comment}
+                            isReply={isReplyItem}
+                            onReply={user ? handleReply : undefined}
+                            isLocked={!!isLocked}
+                        />
                     ))}
                     <div ref={observerTarget} style={{ height: '10px' }} />
                     {loadingMore && <div className="loading-spinner-small" style={{ margin: '1rem auto' }} />}
@@ -275,4 +402,3 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
         </section>
     );
 }
-

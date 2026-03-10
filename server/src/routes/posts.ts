@@ -185,6 +185,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
         const likeCount = await Like.countDocuments({ post_id: post._id });
         const comments = await Comment.find({ post_id: post._id })
             .populate('user_id', 'username display_name avatar_url')
+            .populate({ path: 'parent_id', populate: { path: 'user_id', select: 'display_name' } })
             .sort({ created_at: 1 })
             .limit(50);
 
@@ -218,12 +219,14 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
             },
             comments: comments.map(c => {
                 const cUser = c.user_id as any;
+                const parentComment = c.parent_id as any;
                 return {
                     id: c._id.toString(),
                     postId: c.post_id.toString(),
                     userId: cUser._id.toString(),
                     content: c.content,
-                    parentId: c.parent_id?.toString() || null,
+                    parentId: parentComment?._id?.toString() || null,
+                    parentDisplayName: parentComment?.user_id?.display_name || undefined,
                     username: cUser.username,
                     displayName: cUser.display_name,
                     avatarUrl: cUser.avatar_url,
@@ -247,6 +250,7 @@ router.get('/:id/comments', authenticate, async (req, res) => {
 
         const comments = await Comment.find({ post_id: req.params.id })
             .populate('user_id', 'username display_name avatar_url')
+            .populate({ path: 'parent_id', populate: { path: 'user_id', select: 'display_name' } })
             .sort({ created_at: 1 })
             .skip(skip)
             .limit(limit);
@@ -256,12 +260,14 @@ router.get('/:id/comments', authenticate, async (req, res) => {
         res.json({
             comments: comments.map(c => {
                 const cUser = c.user_id as any;
+                const parentComment = c.parent_id as any;
                 return {
                     id: c._id.toString(),
                     postId: c.post_id.toString(),
                     userId: cUser._id.toString(),
                     content: c.content,
-                    parentId: c.parent_id?.toString() || null,
+                    parentId: parentComment?._id?.toString() || null,
+                    parentDisplayName: parentComment?.user_id?.display_name || undefined,
                     username: cUser.username,
                     displayName: cUser.display_name,
                     avatarUrl: cUser.avatar_url,
@@ -612,6 +618,18 @@ router.post('/:id/comments', authenticate, validate(createCommentSchema), async 
         const commenter = await User.findById(userId);
         if (!commenter) throw new Error('Commenter not found');
 
+        // Look up parent comment author for reply context
+        let parentDisplayName: string | undefined;
+        let parentCommentAuthorId: string | undefined;
+        if (parentId) {
+            const parentComment = await Comment.findById(parentId).populate('user_id', 'display_name');
+            if (parentComment) {
+                const parentAuthor = parentComment.user_id as any;
+                parentDisplayName = parentAuthor?.display_name;
+                parentCommentAuthorId = parentAuthor?._id?.toString();
+            }
+        }
+
         // Emit new comment
         const fullComment = {
             id: newComment._id.toString(),
@@ -619,6 +637,7 @@ router.post('/:id/comments', authenticate, validate(createCommentSchema), async 
             userId: userId.toString(),
             content: newComment.content,
             parentId: newComment.parent_id?.toString() || null,
+            parentDisplayName,
             displayName: commenter.display_name,
             avatarUrl: commenter.avatar_url,
             username: commenter.username,
@@ -729,18 +748,52 @@ router.post('/:id/comments', authenticate, validate(createCommentSchema), async 
             }
         }
 
+        // Notify parent comment author (direct reply notification)
+        if (parentCommentAuthorId
+            && parentCommentAuthorId !== userId.toString()
+            && parentCommentAuthorId !== post.user_id.toString()
+            && !mentionedUserIds.has(parentCommentAuthorId)
+        ) {
+            const replyNotif = await Notification.create({
+                user_id: parentCommentAuthorId,
+                sender_id: userId,
+                type: 'comment_reply',
+                title: 'Someone replied to your comment',
+                content: `${commenter.display_name} replied to your comment`,
+                reference_id: String(id)
+            });
+
+            socketService.sendNotification(parentCommentAuthorId, {
+                id: replyNotif._id.toString(),
+                type: 'comment_reply',
+                title: 'Someone replied to your comment',
+                content: `${commenter.display_name} replied to your comment`,
+                referenceId: String(id),
+                senderId: userId.toString(),
+                senderDisplayName: commenter.display_name,
+                senderAvatarUrl: commenter.avatar_url,
+                senderUsername: commenter.username,
+                isRead: 0,
+                createdAt: replyNotif.created_at
+            });
+        }
+
         // Notify other commenters
         const previousCommenters = await Comment.distinct('user_id', { post_id: id });
         for (const targetId of previousCommenters) {
             const tIdStr = targetId.toString();
-            if (tIdStr === userId.toString() || tIdStr === post.user_id.toString() || mentionedUserIds.has(tIdStr)) {
+            if (tIdStr === userId.toString()
+                || tIdStr === post.user_id.toString()
+                || mentionedUserIds.has(tIdStr)
+                || tIdStr === parentCommentAuthorId  // Already notified above
+            ) {
                 continue;
             }
 
             const cNotif = await Notification.create({
                 user_id: targetId,
                 sender_id: userId,
-                type: 'comment', // Using 'comment' type for reply notifications as well
+                type: 'comment',
                 title: 'New reply',
                 content: `${commenter.display_name} also commented on a post you follow`,
                 reference_id: String(id)

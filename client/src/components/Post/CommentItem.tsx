@@ -2,12 +2,16 @@
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { Comment } from '../../types';
+import { Reply, CornerDownRight } from 'lucide-react';
 
 interface CommentItemProps {
     comment: Comment;
+    isReply?: boolean;
+    onReply?: (comment: Comment) => void;
+    isLocked?: boolean;
 }
 
-function CommentItem({ comment }: CommentItemProps) {
+function CommentItem({ comment, isReply = false, onReply, isLocked }: CommentItemProps) {
     const cInitials = comment.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     const isOptimistic = comment.id.toString().startsWith('temp-');
 
@@ -32,7 +36,12 @@ function CommentItem({ comment }: CommentItemProps) {
     };
 
     return (
-        <div className={`comment-item ${isOptimistic ? 'optimistic' : ''} ${isRealtimeNew ? 'realtime-new' : ''}`}>
+        <div className={`comment-item ${isOptimistic ? 'optimistic' : ''} ${isRealtimeNew ? 'realtime-new' : ''} ${isReply ? 'comment-reply' : ''}`}>
+            {isReply && (
+                <span className="comment-reply-indicator">
+                    <CornerDownRight size={14} />
+                </span>
+            )}
             <Link to={`/users/${comment.userId}`} className="comment-avatar">
                 {comment.avatarUrl ? (
                     <img src={comment.avatarUrl} alt={comment.displayName} loading="lazy" />
@@ -45,9 +54,23 @@ function CommentItem({ comment }: CommentItemProps) {
                     <Link to={`/users/${comment.userId}`} className="comment-author">{comment.displayName}</Link>
                     <span className="comment-time">{getTimeAgo(createdAtDate)}</span>
                 </div>
+                {comment.parentDisplayName && (
+                    <span className="comment-replying-to">
+                        <Reply size={12} /> replying to <strong>{comment.parentDisplayName}</strong>
+                    </span>
+                )}
                 <p className="comment-text" dangerouslySetInnerHTML={{
                     __html: comment.content.replace(/@(\w+)/g, '<a href="/feed?search=$1" class="mention-link">@$1</a>')
                 }} />
+                {onReply && !isLocked && !isOptimistic && (
+                    <button
+                        className="comment-reply-btn"
+                        onClick={() => onReply(comment)}
+                        type="button"
+                    >
+                        <Reply size={13} /> Reply
+                    </button>
+                )}
             </div>
         </div>
     );

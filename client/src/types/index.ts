@@ -56,6 +56,7 @@ export interface Comment {
     userId: string;
     content: string;
     parentId: string | null;
+    parentDisplayName?: string;
     username: string;
     displayName: string;
     avatarUrl: string;

@@ -2402,6 +2402,169 @@ img {
   line-height: 1.5;
 }
 
+/* ── Comment Section Header ─────────────────────────────────── */
+.comments-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.comments-section-header h2 {
+  margin-bottom: 0;
+}
+
+.comment-search-toggle {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.comment-search-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ── Comment Search Bar ─────────────────────────────────────── */
+.comment-search-bar {
+  position: relative;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comment-search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.comment-search-input {
+  padding-left: 34px !important;
+  padding-right: 34px !important;
+  font-size: 0.88rem !important;
+  height: 38px;
+}
+
+.comment-search-clear {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.comment-search-clear:hover {
+  color: var(--red);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ── Reply Button ───────────────────────────────────────────── */
+.comment-reply-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  margin-top: 4px;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.comment-reply-btn:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ── Replying-To Banner ─────────────────────────────────────── */
+.comment-replying-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.comment-replying-banner strong {
+  font-weight: 700;
+}
+
+.cancel-reply-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.78rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.cancel-reply-btn:hover {
+  color: var(--red);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ── Replying-To Indicator on Comment ───────────────────────── */
+.comment-replying-to {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+  font-style: italic;
+}
+
+.comment-replying-to strong {
+  color: var(--accent);
+  font-style: normal;
+}
+
+/* ── Threaded Reply Indentation ─────────────────────────────── */
+.comment-item.comment-reply {
+  margin-left: 28px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border-color);
+}
+
+.comment-reply-indicator {
+  color: var(--text-muted);
+  display: flex;
+  align-items: flex-start;
+  padding-top: 16px;
+  flex-shrink: 0;
+}
+
 /* ── Auth Pages ────────────────────────────────────────────── */
 .auth-page {
   min-height: 100vh;
