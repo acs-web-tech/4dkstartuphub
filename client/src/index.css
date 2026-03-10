@@ -6700,22 +6700,13 @@ img {
 .post-detail-is-modal {
   position: fixed;
   inset: 0;
-  z-index: 999;
+  z-index: 2000;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-top: 70px;
-  padding-bottom: 20px;
-  padding-left: var(--sidebar-w);
   max-width: none !important;
   /* Override .post-detail-page max-width */
   margin: 0 !important;
-}
-
-@media (max-width: 768px) {
-  .post-detail-is-modal {
-    padding-left: 0;
-  }
 }
 
 .modal-backdrop {
