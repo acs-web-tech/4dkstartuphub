@@ -293,10 +293,16 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
             }
         }
 
+        const topLevelIds = new Set(topLevel.map(p => p.id));
+
         // Also add any orphan replies whose parents were filtered out
         const resultIds = new Set(result.map(r => r.comment.id));
         for (const c of filteredComments) {
             if (!resultIds.has(c.id)) {
+                // If it's a reply to a parent that IS in the list, then it's intentionally collapsed
+                if (c.parentId && topLevelIds.has(c.parentId)) {
+                    continue;
+                }
                 result.push({ comment: c, isReply: !!c.parentId });
             }
         }
@@ -444,7 +450,7 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
                                         isLocked={!!isLocked}
                                     />
                                     {/* Show "View N replies" button for parents with collapsed replies */}
-                                    {!isReplyItem && replyCount && replyCount > 0 && (
+                                    {!isReplyItem && typeof replyCount === 'number' && replyCount > 0 && (
                                         <button
                                             className="view-replies-btn"
                                             onClick={() => toggleReplies(comment.id)}
