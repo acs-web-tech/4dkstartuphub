@@ -2565,6 +2565,51 @@ img {
   flex-shrink: 0;
 }
 
+/* ── Comments Collapse Toggle ───────────────────────────────── */
+.comments-collapse-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-primary);
+  padding: 0;
+  flex: 1;
+}
+
+.comments-collapse-toggle h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.comments-collapse-toggle:hover {
+  color: var(--accent);
+}
+
+/* ── View Replies Button ────────────────────────────────────── */
+.view-replies-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  margin-left: 46px;
+  margin-top: -4px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.view-replies-btn:hover {
+  background: var(--accent-soft);
+}
+
 /* ── Auth Pages ────────────────────────────────────────────── */
 .auth-page {
   min-height: 100vh;
@@ -6655,10 +6700,12 @@ img {
 .post-detail-is-modal {
   position: fixed;
   inset: 0;
-  z-index: 2000;
+  z-index: 999;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-top: 70px;
+  padding-bottom: 20px;
   max-width: none !important;
   /* Override .post-detail-page max-width */
   margin: 0 !important;

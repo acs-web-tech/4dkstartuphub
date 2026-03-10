@@ -26,6 +26,22 @@ export async function initializeDatabase(): Promise<void> {
       }
     }
 
+    // Auto-heal User post counts
+    try {
+      const User = (await import('../models/User')).default;
+      const Post = (await import('../models/Post')).default;
+      const users = await User.find({}, '_id username post_count');
+      for (const u of users) {
+        const actualCount = await Post.countDocuments({ user_id: u._id });
+        if (u.post_count !== actualCount) {
+          await User.updateOne({ _id: u._id }, { $set: { post_count: actualCount } });
+          console.log(`✅ Auto-healed post count for ${u.username}: ${actualCount}`);
+        }
+      }
+    } catch (healErr) {
+      console.error('⚠️ Could not auto-heal post counts:', healErr);
+    }
+
     console.log('✅ Database initialized successfully');
   } catch (err) {
     console.error('❌ MongoDB Connection Error:', err);

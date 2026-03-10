@@ -318,13 +318,13 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
     return (
         <div className={`post-detail-page ${isModal ? 'post-detail-is-modal' : ''}`}>
             {isModal && (
-                <div className="modal-backdrop" onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/feed')} />
+                <div className="modal-backdrop" onClick={(e) => { e.stopPropagation(); window.history.length > 1 ? navigate(-1) : navigate('/feed'); }} />
             )}
-            <div className={`post-detail-wrapper ${isModal ? 'modal-wrapper' : ''}`}>
+            <div className={`post-detail-wrapper ${isModal ? 'modal-wrapper' : ''}`} onClick={(e) => e.stopPropagation()}>
                 <div className="post-detail-inner-scroll">
                     {isModal && (
                         <div className="modal-header-actions">
-                            <button className="modal-close-icon-btn" onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/feed')}>
+                            <button className="modal-close-icon-btn" onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.history.length > 1 ? navigate(-1) : navigate('/feed'); }}>
                                 <X size={24} />
                             </button>
                         </div>

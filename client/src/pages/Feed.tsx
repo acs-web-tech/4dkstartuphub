@@ -332,7 +332,7 @@ export default function Feed() {
                         <span className="feed-cat-icon"><Search size={48} /></span>
                         <div>
                             <h1>Search: "{search}"</h1>
-                            <p className="page-subtitle">{pagination?.total || 0} results found</p>
+                            <p className="page-subtitle">{(pagination?.total || 0) + searchUsers.length} results found</p>
                         </div>
                     </div>
                 ) : (

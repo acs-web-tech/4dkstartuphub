@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { postsApi, usersApi } from '../../services/api';
 import { Comment } from '../../types';
-import { Lock, Search, X } from 'lucide-react';
+import { Lock, Search, X, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
 import CommentItem from './CommentItem';
 import LinkPreview from '../Common/LinkPreview';
 import { useModal } from '../../context/ModalContext';
@@ -32,6 +32,12 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
     // Search state
     const [searchQuery, setSearchQuery] = useState('');
     const [showSearch, setShowSearch] = useState(false);
+
+    // Collapse state for the comment section
+    const [isCollapsed, setIsCollapsed] = useState(false);
+
+    // Expanded replies: track which parent IDs have their replies expanded
+    const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
 
     // @mention autocomplete state
     const [showMentionDropdown, setShowMentionDropdown] = useState(false);
@@ -119,6 +125,15 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
                     if (prev.find(c => c.id === comment.id)) return prev;
                     return [...prev, comment];
                 });
+
+                // Auto-expand replies when a new reply comes in for a parent
+                if (comment.parentId) {
+                    setExpandedReplies(prev => {
+                        const next = new Set(prev);
+                        next.add(comment.parentId!);
+                        return next;
+                    });
+                }
             };
             socket.on('newComment', handleNewComment);
             return () => { socket.off('newComment', handleNewComment); };
@@ -127,8 +142,8 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
 
     const handleReply = (comment: Comment) => {
         setReplyingTo(comment);
-        // Auto-prefix with @mention
         setNewComment(`@${comment.username} `);
+        setIsCollapsed(false);
         setTimeout(() => {
             commentInputRef.current?.focus();
             const len = `@${comment.username} `.length;
@@ -166,6 +181,16 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
         setNewComment('');
         setPreviewUrls([]);
         setShowMentionDropdown(false);
+
+        // Auto-expand replies for the parent we just replied to
+        if (parentId) {
+            setExpandedReplies(prev => {
+                const next = new Set(prev);
+                next.add(parentId);
+                return next;
+            });
+        }
+
         setReplyingTo(null);
         setCommenting(true);
 
@@ -254,19 +279,21 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
             }
         }
 
-        // Flatten: parent followed by its replies
-        const result: { comment: Comment; isReply: boolean }[] = [];
+        // Build structured result
+        const result: { comment: Comment; isReply: boolean; parentId?: string; replyCount?: number }[] = [];
         for (const parent of topLevel) {
-            result.push({ comment: parent, isReply: false });
             const replies = replyMap.get(parent.id);
-            if (replies) {
+            const replyCount = replies?.length || 0;
+            result.push({ comment: parent, isReply: false, replyCount });
+
+            if (replies && expandedReplies.has(parent.id)) {
                 for (const reply of replies) {
-                    result.push({ comment: reply, isReply: true });
+                    result.push({ comment: reply, isReply: true, parentId: parent.id });
                 }
             }
         }
 
-        // Also add any replies whose parents were filtered out (orphan replies)
+        // Also add any orphan replies whose parents were filtered out
         const resultIds = new Set(result.map(r => r.comment.id));
         for (const c of filteredComments) {
             if (!resultIds.has(c.id)) {
@@ -275,15 +302,35 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
         }
 
         return result;
-    }, [filteredComments]);
+    }, [filteredComments, expandedReplies]);
+
+    const toggleReplies = (parentId: string) => {
+        setExpandedReplies(prev => {
+            const next = new Set(prev);
+            if (next.has(parentId)) {
+                next.delete(parentId);
+            } else {
+                next.add(parentId);
+            }
+            return next;
+        });
+    };
 
     const totalCount = comments.length;
 
     return (
         <section className="card comments-section">
             <div className="comments-section-header">
-                <h2>Comments ({totalCount})</h2>
-                {totalCount > 0 && (
+                <button
+                    className="comments-collapse-toggle"
+                    onClick={() => setIsCollapsed(!isCollapsed)}
+                    type="button"
+                >
+                    <MessageSquare size={18} />
+                    <h2>Comments ({totalCount})</h2>
+                    {isCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+                </button>
+                {!isCollapsed && totalCount > 0 && (
                     <button
                         className="comment-search-toggle"
                         onClick={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); }}
@@ -295,109 +342,128 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
                 )}
             </div>
 
-            {showSearch && (
-                <div className="comment-search-bar">
-                    <Search size={14} className="comment-search-icon" />
-                    <input
-                        type="text"
-                        className="form-input comment-search-input"
-                        placeholder="Search by keyword or username..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        autoFocus
-                        id="comment-search-input"
-                    />
-                    {searchQuery && (
-                        <button className="comment-search-clear" onClick={() => setSearchQuery('')} type="button">
-                            <X size={14} />
-                        </button>
-                    )}
-                </div>
-            )}
-
-            {user && !isLocked && (
-                <form className="comment-form" onSubmit={handleComment} style={{ position: 'relative' }}>
-                    {replyingTo && (
-                        <div className="comment-replying-banner">
-                            <span>Replying to <strong>{replyingTo.displayName}</strong></span>
-                            <button type="button" className="cancel-reply-btn" onClick={cancelReply}>
-                                <X size={14} /> Cancel
-                            </button>
+            {!isCollapsed && (
+                <>
+                    {showSearch && (
+                        <div className="comment-search-bar">
+                            <Search size={14} className="comment-search-icon" />
+                            <input
+                                type="text"
+                                className="form-input comment-search-input"
+                                placeholder="Search by keyword or username..."
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                autoFocus
+                                id="comment-search-input"
+                            />
+                            {searchQuery && (
+                                <button className="comment-search-clear" onClick={() => setSearchQuery('')} type="button">
+                                    <X size={14} />
+                                </button>
+                            )}
                         </div>
                     )}
-                    <textarea
-                        ref={commentInputRef}
-                        className="form-input"
-                        placeholder={replyingTo ? `Reply to ${replyingTo.displayName}...` : 'Write a comment... (use @ to mention users)'}
-                        value={newComment}
-                        onChange={e => setNewComment(e.target.value)}
-                        maxLength={2000}
-                        rows={3}
-                        id="comment-input"
-                    />
 
-                    {/* @mention dropdown */}
-                    {showMentionDropdown && mentionUsers.length > 0 && (
-                        <div className="mention-dropdown">
-                            {mentionUsers.map(u => (
-                                <div
-                                    key={u.id}
-                                    className="mention-item"
-                                    onClick={() => handleMentionSelect(u.username)}
-                                >
-                                    <div className="mention-avatar">
-                                        {u.avatarUrl
-                                            ? <img src={u.avatarUrl} alt={u.displayName} />
-                                            : <span>{u.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}</span>
-                                        }
-                                    </div>
-                                    <div className="mention-info">
-                                        <strong>{u.displayName}</strong>
-                                        <span>@{u.username}</span>
-                                    </div>
+                    {user && !isLocked && (
+                        <form className="comment-form" onSubmit={handleComment} style={{ position: 'relative' }}>
+                            {replyingTo && (
+                                <div className="comment-replying-banner">
+                                    <span>Replying to <strong>{replyingTo.displayName}</strong></span>
+                                    <button type="button" className="cancel-reply-btn" onClick={cancelReply}>
+                                        <X size={14} /> Cancel
+                                    </button>
+                                </div>
+                            )}
+                            <textarea
+                                ref={commentInputRef}
+                                className="form-input"
+                                placeholder={replyingTo ? `Reply to ${replyingTo.displayName}...` : 'Write a comment... (use @ to mention users)'}
+                                value={newComment}
+                                onChange={e => setNewComment(e.target.value)}
+                                maxLength={2000}
+                                rows={3}
+                                id="comment-input"
+                            />
+
+                            {/* @mention dropdown */}
+                            {showMentionDropdown && mentionUsers.length > 0 && (
+                                <div className="mention-dropdown">
+                                    {mentionUsers.map(u => (
+                                        <div
+                                            key={u.id}
+                                            className="mention-item"
+                                            onClick={() => handleMentionSelect(u.username)}
+                                        >
+                                            <div className="mention-avatar">
+                                                {u.avatarUrl
+                                                    ? <img src={u.avatarUrl} alt={u.displayName} />
+                                                    : <span>{u.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}</span>
+                                                }
+                                            </div>
+                                            <div className="mention-info">
+                                                <strong>{u.displayName}</strong>
+                                                <span>@{u.username}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Live link preview */}
+                            {previewUrls.map(url => (
+                                <LinkPreview key={url} url={url} compact />
+                            ))}
+
+                            <button
+                                type="submit"
+                                className="btn btn-primary btn-sm"
+                                disabled={commenting || !newComment.trim()}
+                                id="submit-comment"
+                            >
+                                {commenting ? 'Posting...' : (replyingTo ? 'Reply' : 'Post Comment')}
+                            </button>
+                        </form>
+                    )}
+
+                    {!!isLocked && (
+                        <div className="alert alert-info"><Lock size={16} className="inline mr-1" /> Comments are locked on this post</div>
+                    )}
+
+                    {searchQuery && filteredComments.length === 0 ? (
+                        <p className="empty-comments">No comments match "{searchQuery}"</p>
+                    ) : threadedComments.length === 0 ? (
+                        <p className="empty-comments">No comments yet. Be the first to comment!</p>
+                    ) : (
+                        <div className="comments-list">
+                            {threadedComments.map(({ comment, isReply: isReplyItem, replyCount }) => (
+                                <div key={comment.id}>
+                                    <CommentItem
+                                        comment={comment}
+                                        isReply={isReplyItem}
+                                        onReply={user ? handleReply : undefined}
+                                        isLocked={!!isLocked}
+                                    />
+                                    {/* Show "View N replies" button for parents with collapsed replies */}
+                                    {!isReplyItem && replyCount && replyCount > 0 && (
+                                        <button
+                                            className="view-replies-btn"
+                                            onClick={() => toggleReplies(comment.id)}
+                                            type="button"
+                                        >
+                                            {expandedReplies.has(comment.id) ? (
+                                                <><ChevronUp size={14} /> Hide {replyCount} {replyCount === 1 ? 'reply' : 'replies'}</>
+                                            ) : (
+                                                <><ChevronDown size={14} /> View {replyCount} {replyCount === 1 ? 'reply' : 'replies'}</>
+                                            )}
+                                        </button>
+                                    )}
                                 </div>
                             ))}
+                            <div ref={observerTarget} style={{ height: '10px' }} />
+                            {loadingMore && <div className="loading-spinner-small" style={{ margin: '1rem auto' }} />}
                         </div>
                     )}
-
-                    {/* Live link preview */}
-                    {previewUrls.map(url => (
-                        <LinkPreview key={url} url={url} compact />
-                    ))}
-
-                    <button
-                        type="submit"
-                        className="btn btn-primary btn-sm"
-                        disabled={commenting || !newComment.trim()}
-                        id="submit-comment"
-                    >
-                        {commenting ? 'Posting...' : (replyingTo ? 'Reply' : 'Post Comment')}
-                    </button>
-                </form>
-            )}
-
-            {!!isLocked && (
-                <div className="alert alert-info"><Lock size={16} className="inline mr-1" /> Comments are locked on this post</div>
-            )}
-
-            {searchQuery && filteredComments.length === 0 ? (
-                <p className="empty-comments">No comments match "{searchQuery}"</p>
-            ) : threadedComments.length === 0 ? (
-                <p className="empty-comments">No comments yet. Be the first to comment!</p>
-            ) : (
-                <div className="comments-list">
-                    {threadedComments.map(({ comment, isReply: isReplyItem }) => (
-                        <CommentItem
-                            key={comment.id}
-                            comment={comment}
-                            isReply={isReplyItem}
-                            onReply={user ? handleReply : undefined}
-                            isLocked={!!isLocked}
-                        />
-                    ))}
-                    <div ref={observerTarget} style={{ height: '10px' }} />
-                    {loadingMore && <div className="loading-spinner-small" style={{ margin: '1rem auto' }} />}
-                </div>
+                </>
             )}
         </section>
     );
