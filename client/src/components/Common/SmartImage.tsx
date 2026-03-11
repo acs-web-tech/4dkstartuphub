@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { getSessionImage, getCachedUrl, isImageCached } from '../../utils/sessionCache';
+import { getSessionImage, getCachedUrl } from '../../utils/sessionCache';
 
 interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
     src: string;
@@ -9,38 +9,43 @@ interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
 
 /**
  * An image component that uses session-level blob caching.
- * Loads "lazy" on first visit but once loaded, stays in memory
- * for "immediate" display across the entire session.
+ * Once loaded, the blob URL stays in memory for "immediate"
+ * display across the entire session.
  */
 export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, ...props }) => {
     const initialCached = getCachedUrl(src);
     const [displaySrc, setDisplaySrc] = useState<string>(initialCached || '');
     const [loading, setLoading] = useState(!initialCached);
+    const [errored, setErrored] = useState(false);
 
     useEffect(() => {
-        let isMounted = true;
+        // If already cached synchronously, nothing to do
+        if (getCachedUrl(src)) {
+            const cached = getCachedUrl(src)!;
+            setDisplaySrc(cached);
+            setLoading(false);
+            setErrored(false);
+            return;
+        }
 
-        const load = async () => {
-            if (isImageCached(src)) {
-                const cachedUrl = await getSessionImage(src);
+        let isMounted = true;
+        setLoading(true);
+        setErrored(false);
+
+        getSessionImage(src)
+            .then(url => {
                 if (isMounted) {
-                    setDisplaySrc(cachedUrl);
+                    setDisplaySrc(url);
                     setLoading(false);
                 }
-                return;
-            }
-
-            // If not cached, we can either wait for the standard img tag to load 
-            // and then cache it, or fetch it now. Fetching now is better for "proper" 
-            // session caching control.
-            const url = await getSessionImage(src);
-            if (isMounted) {
-                setDisplaySrc(url);
-                setLoading(false);
-            }
-        };
-
-        load();
+            })
+            .catch(() => {
+                if (isMounted) {
+                    setDisplaySrc(src); // Fallback to original URL
+                    setLoading(false);
+                    setErrored(true);
+                }
+            });
 
         return () => { isMounted = false; };
     }, [src]);
@@ -49,6 +54,11 @@ export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, ...props 
         return <>{fallback}</>;
     }
 
+    if (errored && !displaySrc) {
+        return null;
+    }
+
+    // Use a transparent pixel while loading to avoid browser requesting the original URL
     const finalSrc = displaySrc || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
     return (

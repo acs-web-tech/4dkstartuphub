@@ -1,10 +1,11 @@
 
 const sessionBlobCache = new Map<string, string>();
+const pendingFetches = new Map<string, Promise<string>>();
 
 /**
  * Fetches an image and creates a local blob URL for the session.
- * This makes image loading "immediate" for subsequent renders and navigations,
- * but naturally clears from memory when the tab/website is closed.
+ * Uses deduplication to ensure only ONE fetch per unique URL, even across
+ * multiple simultaneous calls from different components.
  */
 export const getSessionImage = async (url: string): Promise<string> => {
     if (!url) return '';
@@ -13,19 +14,31 @@ export const getSessionImage = async (url: string): Promise<string> => {
     const cached = sessionBlobCache.get(url);
     if (cached) return cached;
 
-    try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Failed to fetch image');
+    // If already fetching this URL, reuse the same promise (dedup!)
+    const pending = pendingFetches.get(url);
+    if (pending) return pending;
 
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
+    // Start a single fetch and store the promise
+    const fetchPromise = (async () => {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch image');
 
-        sessionBlobCache.set(url, blobUrl);
-        return blobUrl;
-    } catch (err) {
-        console.warn(`Failed to session-cache image: ${url}`, err);
-        return url; // Fallback to original URL
-    }
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+
+            sessionBlobCache.set(url, blobUrl);
+            return blobUrl;
+        } catch (err) {
+            console.warn(`Failed to session-cache image: ${url}`, err);
+            return url; // Fallback to original URL
+        } finally {
+            pendingFetches.delete(url);
+        }
+    })();
+
+    pendingFetches.set(url, fetchPromise);
+    return fetchPromise;
 };
 
 /**
