@@ -98,6 +98,7 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
                                 throw new Error(errMessage);
                             }
                             // Silent backoff and retry for NETWORK_ERROR or fetch aborts
+                            if (error.name === 'AbortError') throw error;
                             await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); 
                         }
                     }
@@ -125,7 +126,8 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
                                 ...options,
                             });
                             break;
-                        } catch (e) {
+                        } catch (e: any) {
+                            if (e.name === 'AbortError') throw e;
                             await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
                         }
                     }
@@ -158,7 +160,8 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
                                             ...options,
                                         });
                                         break;
-                                    } catch (e) {
+                                    } catch (e: any) {
+                                        if (e.name === 'AbortError') { reject(e); return; }
                                         await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
                                     }
                                 }
@@ -257,7 +260,7 @@ export const paymentApi = {
 
 // ── Posts ────────────────────────────────────────────────────
 export const postsApi = {
-    getAll: (params?: { page?: number; limit?: number; category?: string; search?: string; trending?: boolean }) => {
+    getAll: (params?: { page?: number; limit?: number; category?: string; search?: string; trending?: boolean }, options?: RequestInit) => {
         const qs = new URLSearchParams();
         if (params?.page) qs.set('page', String(params.page));
         if (params?.limit) qs.set('limit', String(params.limit));
@@ -265,7 +268,8 @@ export const postsApi = {
         if (params?.search) qs.set('search', params.search);
         if (params?.trending) qs.set('trending', 'true');
         return request<{ posts: import('../types').Post[]; pagination: import('../types').Pagination }>(
-            `/posts?${qs.toString()}`
+            `/posts?${qs.toString()}`,
+            options
         );
     },
     getById: (id: string) =>
@@ -293,13 +297,14 @@ export const postsApi = {
 
 // ── Users ───────────────────────────────────────────────────
 export const usersApi = {
-    getAll: (params?: { page?: number; search?: string; filter?: string }) => {
+    getAll: (params?: { page?: number; search?: string; filter?: string }, options?: RequestInit) => {
         const qs = new URLSearchParams();
         if (params?.page) qs.set('page', String(params.page));
         if (params?.search) qs.set('search', params.search);
         if (params?.filter) qs.set('filter', params.filter);
         return request<{ users: import('../types').User[]; pagination: import('../types').Pagination }>(
-            `/users?${qs.toString()}`
+            `/users?${qs.toString()}`,
+            options
         );
     },
     getById: (id: string) => request<{ user: import('../types').User; recentPosts: any[] }>(`/users/${id}`),

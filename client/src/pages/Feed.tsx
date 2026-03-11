@@ -123,34 +123,34 @@ export default function Feed() {
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ─── Save to in-memory cache whenever posts/state change + on unmount ───
+    const cacheStateRef = useRef({ posts, searchUsers, page, pagination, category, search });
     useEffect(() => {
-        categoryRef.current = category;
-        searchRef.current = search;
-        pageRef.current = page;
-    }, [category, search, page]);
+        cacheStateRef.current = { posts, searchUsers, page, pagination, category, search };
+    }, [posts, searchUsers, page, pagination, category, search]);
 
-    // Save cache on unmount
+    // Save cache on unmount or category change cleanly
     useEffect(() => {
         return () => {
+            const state = cacheStateRef.current;
             const currentScroll = lastScrollY.current || window.scrollY;
-            if (posts.length > 0) {
+            if (state.posts.length > 0) {
                 const currentKey = JSON.stringify({
-                    category: categoryRef.current,
-                    search: searchRef.current
+                    category: state.category,
+                    search: state.search
                 });
                 feedCache.set(currentKey, {
-                    posts: posts,
-                    searchUsers: searchUsers,
-                    page: pageRef.current,
-                    totalPages: pagination?.totalPages || 1,
-                    category: categoryRef.current,
-                    search: searchRef.current,
+                    posts: state.posts,
+                    searchUsers: state.searchUsers,
+                    page: state.page,
+                    totalPages: state.pagination?.totalPages || 1,
+                    category: state.category,
+                    search: state.search,
                     scrollY: currentScroll,
                     timestamp: Date.now(),
                 });
             }
         };
-    }, [posts, pagination]);
+    }, []);
 
     // ─── Real-time socket updates ───
     useEffect(() => {
@@ -209,10 +209,29 @@ export default function Feed() {
     const prevFiltersRef = useRef({ category, search });
     useEffect(() => {
         const prev = prevFiltersRef.current;
-        prevFiltersRef.current = { category, search };
 
         // If filters changed, reset and fetch fresh (unless we have valid cache for the new filter)
         if (prev.category !== category || prev.search !== search) {
+            
+            // 💾 1. Save PREVIOUS category's cache perfectly before we switch!
+            const state = cacheStateRef.current;
+            if (state.posts.length > 0) {
+                const oldKey = JSON.stringify({ category: prev.category, search: prev.search });
+                feedCache.set(oldKey, {
+                    posts: state.posts,
+                    searchUsers: state.searchUsers,
+                    page: state.page,
+                    totalPages: state.pagination?.totalPages || 1,
+                    category: prev.category,
+                    search: prev.search,
+                    scrollY: lastScrollY.current || window.scrollY,
+                    timestamp: Date.now(),
+                });
+            }
+
+            // Update prev filters to new ones
+            prevFiltersRef.current = { category, search };
+
             const freshCache = getValidCache();
             if (freshCache) {
                 // Restore from cache immediately (vital for navigation updates)
@@ -238,6 +257,8 @@ export default function Feed() {
                 skipFetchRef.current = true;
                 return;
             }
+            
+            // 🧹 2. Empty everything for the new fetch
             setPosts([]);
             setSearchUsers([]);
             setPage(1);
@@ -254,12 +275,13 @@ export default function Feed() {
             return;
         }
 
+        const controller = new AbortController();
         let isCurrent = true;
         setError(null);
         if (page === 1) setLoading(true);
         else setLoadingMore(true);
 
-        postsApi.getAll({ page, limit: 10, category: category || undefined, search: search || undefined })
+        postsApi.getAll({ page, limit: 10, category: category || undefined, search: search || undefined }, { signal: controller.signal })
             .then(data => {
                 if (!isCurrent) return;
 
@@ -270,7 +292,7 @@ export default function Feed() {
                 });
 
                 if (search && page === 1 && !category) {
-                    usersApi.getAll({ search, page: 1 })
+                    usersApi.getAll({ search, page: 1 }, { signal: controller.signal })
                         .then(uData => {
                             if (isCurrent) setSearchUsers(uData.users || []);
                         })
@@ -280,8 +302,8 @@ export default function Feed() {
                 setPagination(data.pagination);
                 setHasMore(data.pagination.page < data.pagination.totalPages);
             })
-            .catch(() => {
-                if (isCurrent) {
+            .catch((err: any) => {
+                if (isCurrent && err.name !== 'AbortError') {
                     setHasMore(false);
                     if (page === 1) setError('Failed to load connection. Please check your network.');
                 }
@@ -293,7 +315,10 @@ export default function Feed() {
                 }
             });
 
-        return () => { isCurrent = false; };
+        return () => { 
+            isCurrent = false;
+            controller.abort();
+        };
     }, [page, category, search]);
 
     const currentCat = category ? CATEGORY_CONFIG[category as PostCategory] : null;
