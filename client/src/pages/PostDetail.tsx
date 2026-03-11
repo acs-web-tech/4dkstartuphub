@@ -160,13 +160,13 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
 
     useEffect(() => {
         loadPost();
-    }, [loadPost, location.key]);
+    }, [loadPost]);
 
     useEffect(() => {
         if (id && user) {
             postsApi.checkLiked(id).then(d => setLiked(d.liked)).catch(() => { });
         }
-    }, [id, user, location.key]);
+    }, [id, user?.id]);
 
     const handleLike = async () => {
         if (!user || !id) return;
