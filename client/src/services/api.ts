@@ -50,80 +50,130 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
                     isRefreshing = true;
                     // Try refresh regardless of localStorage (browser handles cookies for Web)
                     // This prevents logging out web users who use HttpOnly cookies
-                    try {
-                        const refreshRes = await fetch(`${BASE}/auth/refresh`, {
-                            method: 'POST',
-                            credentials: 'include',
-                        });
+                    let refreshSucceeded = false;
+                    let newToken = '';
 
-                        if (refreshRes.ok) {
-                            let newToken = '';
-                            try {
-                                const refreshData = await refreshRes.json();
-                                if (refreshData.accessToken) {
-                                    newToken = refreshData.accessToken;
-                                    localStorage.setItem('access_token', refreshData.accessToken);
-                                    // Update header for retry
-                                    (headers as Record<string, string>)['Authorization'] = `Bearer ${refreshData.accessToken}`;
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        try {
+                            const refreshRes = await fetch(`${BASE}/auth/refresh`, {
+                                method: 'POST',
+                                credentials: 'include',
+                            });
+
+                            if (refreshRes.ok) {
+                                refreshSucceeded = true;
+                                try {
+                                    const refreshData = await refreshRes.json();
+                                    if (refreshData.accessToken) {
+                                        newToken = refreshData.accessToken;
+                                        localStorage.setItem('access_token', refreshData.accessToken);
+                                        (headers as Record<string, string>)['Authorization'] = `Bearer ${refreshData.accessToken}`;
+                                    } else {
+                                        delete (headers as Record<string, string>)['Authorization'];
+                                    }
+                                    if (refreshData.refreshToken) {
+                                        localStorage.setItem('refresh_token', refreshData.refreshToken);
+                                    }
+                                } catch (e) { /* ignore parse error */ }
+                                break; // Succeeded, exit loop
+                            } else {
+                                if (refreshRes.status === 401 || refreshRes.status === 403) {
+                                    throw new Error('REFRESH_EXPIRED'); // Explicit signal to log out
                                 }
-                                if (refreshData.refreshToken) {
-                                    localStorage.setItem('refresh_token', refreshData.refreshToken);
+                                throw new Error('NETWORK_ERROR'); // Proceed to catch block to backoff/retry
+                            }
+                        } catch (error: any) {
+                            if (error.message === 'REFRESH_EXPIRED') {
+                                isRefreshing = false;
+                                refreshQueue.forEach(cb => cb(null));
+                                refreshQueue = [];
+
+                                const publicPages = ['/login', '/register', '/forgot-password', '/reset-password'];
+                                localStorage.removeItem('access_token');
+                                localStorage.removeItem('refresh_token');
+
+                                if (!publicPages.includes(window.location.pathname)) {
+                                    window.location.href = '/login';
                                 }
-                            } catch (e) { /* ignore parse error */ }
+                                throw new Error(errMessage);
+                            }
+                            // Silent backoff and retry for NETWORK_ERROR or fetch aborts
+                            await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); 
+                        }
+                    }
 
-                            isRefreshing = false;
+                    if (!refreshSucceeded) {
+                        isRefreshing = false;
+                        refreshQueue.forEach(cb => cb(null));
+                        refreshQueue = [];
+                        throw new Error(errMessage);
+                    }
 
-                            // Process queued requests
-                            refreshQueue.forEach(cb => cb(newToken));
-                            refreshQueue = [];
+                    isRefreshing = false;
 
-                            // Retry original request
-                            const retryRes = await fetch(`${BASE}${url}`, {
+                    // Process queued requests first
+                    refreshQueue.forEach(cb => cb(newToken));
+                    refreshQueue = [];
+
+                    // Retry original request independently (seamless retry logic)
+                    let retryRes: Response | null = null;
+                    for (let attempt = 0; attempt < 3; attempt++) {
+                        try {
+                            retryRes = await fetch(`${BASE}${url}`, {
                                 credentials: 'include',
                                 headers,
                                 ...options,
                             });
-                            if (!retryRes.ok) {
-                                const err = await retryRes.json().catch(() => ({ error: 'Request failed' }));
-                                throw new Error(err.error || 'Request failed');
-                            }
-                            return retryRes.json();
-                        } else {
-                            throw new Error('Refresh failed');
+                            break;
+                        } catch (e) {
+                            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
                         }
-                    } catch (error) {
-                        isRefreshing = false;
-                        refreshQueue.forEach(cb => cb(null));
-                        refreshQueue = [];
-
-                        // If we are here, refresh failed or no session was active
-                        const publicPages = ['/login', '/register', '/forgot-password', '/reset-password'];
-                        localStorage.removeItem('access_token');
-                        localStorage.removeItem('refresh_token');
-
-                        if (!publicPages.includes(window.location.pathname)) {
-                            window.location.href = '/login';
-                        }
-                        throw new Error(errMessage);
                     }
+                    
+                    if (!retryRes || !retryRes.ok) {
+                        if (retryRes) {
+                            const err = await retryRes.json().catch(() => ({ error: 'Request failed' }));
+                            throw new Error(err.error || 'Request failed');
+                        }
+                        throw new Error('Network error on retry');
+                    }
+                    return retryRes.json();
                 } else {
                     // Put in queue and wait for the current refresh to finish
                     return new Promise((resolve, reject) => {
                         refreshQueue.push(async (newToken: string | null) => {
-                            if (newToken) {
-                                (headers as Record<string, string>)['Authorization'] = `Bearer ${newToken}`;
-                                try {
-                                    const retryRes = await fetch(`${BASE}${url}`, {
-                                        credentials: 'include',
-                                        headers,
-                                        ...options,
-                                    });
-                                    if (!retryRes.ok) {
-                                        const err = await retryRes.json().catch(() => ({ error: 'Request failed' }));
-                                        reject(new Error(err.error || 'Request failed'));
-                                        return;
+                            if (newToken !== null) {
+                                if (newToken) {
+                                    (headers as Record<string, string>)['Authorization'] = `Bearer ${newToken}`;
+                                } else {
+                                    delete (headers as Record<string, string>)['Authorization'];
+                                }
+                                
+                                let queuedRes: Response | null = null;
+                                for (let attempt = 0; attempt < 3; attempt++) {
+                                    try {
+                                        queuedRes = await fetch(`${BASE}${url}`, {
+                                            credentials: 'include',
+                                            headers,
+                                            ...options,
+                                        });
+                                        break;
+                                    } catch (e) {
+                                        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
                                     }
-                                    resolve(retryRes.json());
+                                }
+
+                                if (!queuedRes || !queuedRes.ok) {
+                                    if (queuedRes) {
+                                        const err = await queuedRes.json().catch(() => ({ error: 'Request failed' }));
+                                        reject(new Error(err.error || 'Request failed'));
+                                    } else {
+                                        reject(new Error('Network error on retry'));
+                                    }
+                                    return;
+                                }
+                                try {
+                                    resolve(await queuedRes.json());
                                 } catch (e) {
                                     reject(e);
                                 }

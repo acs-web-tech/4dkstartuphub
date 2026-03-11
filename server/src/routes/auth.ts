@@ -45,7 +45,7 @@ function generateTokens(userId: string, role: string) {
 function setTokenCookies(res: Response, accessToken: string, refreshToken: string) {
     res.cookie('access_token', accessToken, {
         ...config.cookieOptions,
-        maxAge: 15 * 60 * 1000, // 15 minutes
+        maxAge: 60 * 60 * 1000, // 1 hour
     });
 
     res.cookie('refresh_token', refreshToken, {
