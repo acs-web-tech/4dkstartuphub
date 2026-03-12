@@ -30,6 +30,8 @@ export default function UserDetail() {
             .finally(() => setLoading(false));
     }, [id]);
 
+    const [showAvatarViewer, setShowAvatarViewer] = useState(false);
+
     useEffect(() => {
         loadUser();
     }, [loadUser]);
@@ -71,9 +73,34 @@ export default function UserDetail() {
 
             <div className="card profile-card">
                 <div className="profile-header">
-                    <div className="avatar avatar-xl">
+                    <div 
+                        className="avatar avatar-xl" 
+                        onClick={() => { if (user.avatarUrl) setShowAvatarViewer(true); }}
+                        style={{ cursor: user.avatarUrl ? 'pointer' : 'default' }}
+                    >
                         {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <span>{initials}</span>}
                     </div>
+
+                    {showAvatarViewer && user.avatarUrl && (
+                        <div 
+                            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            onClick={() => setShowAvatarViewer(false)}
+                        >
+                            <button 
+                                style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', color: 'white', padding: '10px', cursor: 'pointer' }}
+                                onClick={() => setShowAvatarViewer(false)}
+                            >
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                            <img 
+                                src={user.avatarUrl} 
+                                alt="Profile Avatar" 
+                                style={{ width: '300px', height: '300px', borderRadius: '50%', objectFit: 'cover', border: '4px solid white', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} 
+                                onClick={e => e.stopPropagation()}
+                            />
+                        </div>
+                    )}
+
                     <div className="profile-info">
                         <h2>{user.displayName}</h2>
                         <span className="profile-username">@{user.username}</span>

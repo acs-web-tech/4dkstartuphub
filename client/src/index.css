@@ -4678,7 +4678,7 @@ img {
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.18);
-  z-index: 100;
+  z-index: 9999;
   margin-bottom: 6px;
   backdrop-filter: blur(12px);
 }
@@ -5195,7 +5195,7 @@ img {
   box-shadow: var(--shadow-lg);
   max-height: 240px;
   overflow-y: auto;
-  z-index: 100;
+  z-index: 9999;
   margin-bottom: 8px;
   animation: slideUpIn 0.2s ease-out;
 }
@@ -5836,7 +5836,7 @@ img {
   border: 1px solid var(--border-color);
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
-  z-index: 100;
+  z-index: 9999;
   min-width: 200px;
   padding: 6px 0;
   animation: dropIn 0.15s ease-out;

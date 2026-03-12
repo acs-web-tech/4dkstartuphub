@@ -3,12 +3,13 @@ import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { usersApi, uploadApi, authApi } from '../services/api';
 import {
-    User, Camera, Pencil, Mail, MapPin, Globe, Briefcase, Twitter, Calendar, Save, CheckCircle, AlertCircle, Eye, EyeOff
+    User, Camera, Pencil, Mail, MapPin, Globe, Briefcase, Twitter, Calendar, Save, CheckCircle, AlertCircle, Eye, EyeOff, X
 } from 'lucide-react';
 import { validateFile } from '../utils/fileValidation';
 
 export default function Profile() {
     const { user, refreshUser } = useAuth();
+    const [showAvatarViewer, setShowAvatarViewer] = useState(false);
     const [editing, setEditing] = useState(false);
     const [form, setForm] = useState({
         displayName: user?.displayName || '',
@@ -171,9 +172,15 @@ export default function Profile() {
                 <div className="profile-header">
                     <div
                         className={`avatar avatar-xl ${editing ? 'avatar-editable' : ''}`}
-                        onClick={handleAvatarClick}
+                        onClick={() => {
+                            if (editing && !uploading && fileInputRef.current) {
+                                fileInputRef.current.click();
+                            } else if (!editing && user?.avatarUrl) {
+                                setShowAvatarViewer(true);
+                            }
+                        }}
                         title={editing ? "Click to change avatar" : ""}
-                        style={{ cursor: editing && !uploading ? 'pointer' : 'default', position: 'relative' }}
+                        style={{ cursor: (editing && !uploading) || (!editing && user?.avatarUrl) ? 'pointer' : 'default', position: 'relative' }}
                     >
                         {(editing ? form.avatarUrl : user.avatarUrl) ? <img src={editing ? form.avatarUrl : user.avatarUrl} alt="" style={uploading ? { opacity: 0.5 } : {}} /> : <span>{initials}</span>}
 
@@ -196,6 +203,26 @@ export default function Profile() {
                             onChange={handleFileChange}
                         />
                     </div>
+
+                    {showAvatarViewer && user?.avatarUrl && (
+                        <div 
+                            style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            onClick={() => setShowAvatarViewer(false)}
+                        >
+                            <button 
+                                style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', color: 'white', padding: '10px', cursor: 'pointer' }}
+                                onClick={() => setShowAvatarViewer(false)}
+                            >
+                                <X size={24} />
+                            </button>
+                            <img 
+                                src={user.avatarUrl} 
+                                alt="Profile Avatar" 
+                                style={{ width: '300px', height: '300px', borderRadius: '50%', objectFit: 'cover', border: '4px solid white', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} 
+                                onClick={e => e.stopPropagation()}
+                            />
+                        </div>
+                    )}
                     <div className="profile-info">
                         <h2>{user.displayName}</h2>
                         <span className="profile-username">@{user.username}</span>

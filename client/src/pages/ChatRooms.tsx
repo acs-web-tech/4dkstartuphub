@@ -51,8 +51,9 @@ export default function ChatRooms() {
         try {
             await chatApi.deleteMessage(roomId, messageId);
             setMessages(prev => prev.filter(m => m.id !== messageId));
-        } catch (err) {
+        } catch (err: any) {
             console.error('Failed to delete message:', err);
+            await alert(err.message || 'Failed to delete message.');
         }
     };
 
@@ -63,8 +64,10 @@ export default function ChatRooms() {
         try {
             await chatApi.deleteUserMessages(roomId, userActionsTarget.userId);
             setUserActionsTarget(null);
-        } catch (err) {
+            await alert('All messages from this user have been deleted.');
+        } catch (err: any) {
             console.error('Failed to delete user messages:', err);
+            await alert(err.message || 'Failed to delete user messages.');
         }
     };
 
