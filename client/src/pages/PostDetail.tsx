@@ -247,35 +247,54 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
 
     const [showCalendarOptions, setShowCalendarOptions] = useState(false);
 
+    const buildCalendarDesc = (forIcs = false) => {
+        if (!post) return '';
+        let raw = post.content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim().slice(0, 400);
+        if (raw.length === 400) raw += '...';
+        let n = forIcs ? '\\n' : '\n';
+        let desc = `Event: ${post.title}${n}Hosted by: ${post.displayName}${n}${n}Details:${n}${raw}${n}${n}`;
+        if (post.imageUrl) {
+            const imgUrl = post.imageUrl.startsWith('/') ? `${window.location.origin}${post.imageUrl}` : post.imageUrl;
+            desc += `Thumbnail Image: ${imgUrl}${n}${n}`;
+        }
+        desc += `View Post: ${window.location.href}`;
+        return forIcs ? desc.replace(/,/g, '\\,') : desc;
+    };
+
     const getGoogleCalendarUrl = () => {
         if (!post?.eventDate) return '';
         const start = new Date(post.eventDate).toISOString().replace(/-|:|\.\d+/g, '');
         const end = new Date(new Date(post.eventDate).getTime() + 60 * 60 * 1000).toISOString().replace(/-|:|\.\d+/g, '');
-        const details = post.content.replace(/<[^>]*>/g, '').slice(0, 500);
-        return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(post.title)}&dates=${start}/${end}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(window.location.href)}`;
+        return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(post.title)}&dates=${start}/${end}&details=${encodeURIComponent(buildCalendarDesc(false))}&location=${encodeURIComponent(window.location.href)}`;
     };
 
     const downloadIcs = () => {
         if (!post?.eventDate) return;
         const date = new Date(post.eventDate).toISOString().replace(/-|:|\.\d+/g, '');
         const end = new Date(new Date(post.eventDate).getTime() + 60 * 60 * 1000).toISOString().replace(/-|:|\.\d+/g, '');
-        const icsContent = [
+        
+        let icsContent = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
             'BEGIN:VEVENT',
             `DTSTART:${date}`,
             `DTEND:${end}`,
             `SUMMARY:${post.title}`,
-            `DESCRIPTION:${post.content.replace(/<[^>]*>/g, '').slice(0, 500)}`,
-            `LOCATION:${window.location.href}`,
-            'END:VEVENT',
-            'END:VCALENDAR'
-        ].join('\n');
+            `DESCRIPTION:${buildCalendarDesc(true)}`,
+            `LOCATION:${window.location.href}`
+        ];
 
-        const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+        if (post.imageUrl) {
+            const imgUrl = post.imageUrl.startsWith('/') ? `${window.location.origin}${post.imageUrl}` : post.imageUrl;
+            icsContent.push(`ATTACH;VALUE=URI:${imgUrl}`);
+        }
+
+        icsContent.push('END:VEVENT', 'END:VCALENDAR');
+
+        const blob = new Blob([icsContent.join('\n')], { type: 'text/calendar;charset=utf-8' });
         const link = document.createElement('a');
         link.href = window.URL.createObjectURL(blob);
-        link.setAttribute('download', 'event.ics');
+        link.setAttribute('download', `${post.title.replace(/\s+/g, '_').slice(0, 20)}.ics`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
