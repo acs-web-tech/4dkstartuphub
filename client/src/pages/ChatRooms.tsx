@@ -698,7 +698,7 @@ export default function ChatRooms() {
 
                         <form className="chat-input-form" onSubmit={handleSend} style={{ position: 'relative' }}>
                             {showMentionDropdown && filteredMentionMembers.length > 0 && (
-                                <div className="mention-dropdown">
+                                <div className="mention-dropdown below">
                                     {filteredMentionMembers.map((m, i) => (
                                         <div
                                             key={m.id}
