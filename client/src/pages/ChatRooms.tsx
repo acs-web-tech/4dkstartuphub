@@ -386,9 +386,8 @@ export default function ChatRooms() {
         const lastAtIndex = textBeforeCursor.lastIndexOf('@');
 
         if (lastAtIndex >= 0) {
-            const charBefore = lastAtIndex > 0 ? val[lastAtIndex - 1] : ' ';
             const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-            if ((charBefore === ' ' || lastAtIndex === 0) && !/\s/.test(textAfterAt)) {
+            if (!/\s/.test(textAfterAt)) {
                 setMentionQuery(textAfterAt);
                 setMentionStartPos(lastAtIndex);
                 setShowMentionDropdown(true);

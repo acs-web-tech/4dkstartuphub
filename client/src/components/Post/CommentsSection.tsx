@@ -215,8 +215,7 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
 
             if (lastAtIndex !== -1) {
                 const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-                if (textAfterAt.includes(' ')) { setShowMentionDropdown(false); return; }
-                if (textAfterAt.length >= 0) {
+                if (!/\s/.test(textAfterAt)) {
                     setMentionSearch(textAfterAt);
                     setMentionCursorPos(lastAtIndex);
                     try {
@@ -231,10 +230,10 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
                     } catch {
                         setShowMentionDropdown(false);
                     }
+                    return;
                 }
-            } else {
-                setShowMentionDropdown(false);
             }
+            setShowMentionDropdown(false);
         };
         handleMentionInput();
     }, [newComment]);

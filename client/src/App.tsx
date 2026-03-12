@@ -3,6 +3,7 @@ import React, { Suspense } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import Layout from './components/Layout/Layout';
 import ProtectedRoute from './components/Common/ProtectedRoute';
+import NetworkStatus from './components/Common/NetworkStatus';
 
 // Lazy-load all pages for code splitting — each page becomes its own JS chunk
 const Feed = React.lazy(() => import('./pages/Feed'));
@@ -130,6 +131,7 @@ const AppRoutes = () => {
 export default function App() {
     return (
         <BrowserRouter>
+            <NetworkStatus />
             <ScrollRestoration />
             <ErrorBoundary>
                 <ModalProvider>
