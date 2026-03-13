@@ -662,6 +662,18 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                 }
                             }
 
+                            const extractUrls = (html: string) => {
+                                const unique = new Set<string>();
+                                const regex = /(?:href="|src=")?(https?:\/\/[^\s<"]+)/g;
+                                let match;
+                                while ((match = regex.exec(html)) !== null) {
+                                    if (match[0].startsWith('src=')) continue;
+                                    unique.add(match[1]);
+                                }
+                                return Array.from(unique);
+                            };
+                            const contentUrls = extractUrls(content).filter(u => u !== selectedNotif.referenceId && u !== rawUrl);
+
                             return (
                                 <>
                                     <div className="notif-modal-content ql-editor-display" dangerouslySetInnerHTML={{ __html: content }} />
@@ -690,6 +702,11 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                             <LinkPreview url={selectedNotif.referenceId} compact={true} />
                                         </div>
                                     )}
+                                    {contentUrls.map(u => (
+                                        <div key={u} style={{ margin: '12px 0' }}>
+                                            <LinkPreview url={u} compact={true} />
+                                        </div>
+                                    ))}
                                 </>
                             );
                         })()}

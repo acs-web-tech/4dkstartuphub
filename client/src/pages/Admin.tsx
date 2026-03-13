@@ -12,6 +12,7 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { editorModules, editorFormats } from '../config/editor';
 import { useModal } from '../context/ModalContext';
+import LinkPreview from '../components/Common/LinkPreview';
 
 export default function Admin() {
     const { alert, confirm } = useModal();
@@ -1201,13 +1202,34 @@ export default function Admin() {
                                             <div className="font-bold">{broadcast.title || 'Notification Title'}</div>
                                             <div className="text-sm text-gray-400 ql-editor-display" style={{ padding: 0 }}
                                                 dangerouslySetInnerHTML={{ __html: broadcast.content || 'Your message will appear here...' }} />
-                                            {broadcast.previewUrl && (
-                                                <div style={{ marginTop: '8px' }}>
-                                                    <a href={broadcast.previewUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                                        🔗 {(() => { try { return new URL(broadcast.previewUrl).hostname; } catch { return 'Open Link'; } })()}
-                                                    </a>
-                                                </div>
-                                            )}
+                                            {(() => {
+                                                const extractUrls = (html: string) => {
+                                                    const unique = new Set<string>();
+                                                    const regex = /(?:href="|src=")?(https?:\/\/[^\s<"]+)/g;
+                                                    let match;
+                                                    while ((match = regex.exec(html)) !== null) {
+                                                        if (match[0].startsWith('src=')) continue;
+                                                        unique.add(match[1]);
+                                                    }
+                                                    return Array.from(unique);
+                                                };
+                                                const contentUrls = extractUrls(broadcast.content).filter(u => u !== broadcast.previewUrl && u !== broadcast.videoUrl);
+
+                                                return (
+                                                    <>
+                                                        {broadcast.previewUrl && (
+                                                            <div style={{ marginTop: '12px' }}>
+                                                                <LinkPreview url={broadcast.previewUrl} compact={true} />
+                                                            </div>
+                                                        )}
+                                                        {contentUrls.map(u => (
+                                                            <div key={u} style={{ marginTop: '12px' }}>
+                                                                <LinkPreview url={u} compact={true} />
+                                                            </div>
+                                                        ))}
+                                                    </>
+                                                )
+                                            })()}
                                             {broadcast.imageUrl && (
                                                 <div className="mt-2 rounded overflow-hidden border border-gray-700">
                                                     <img src={broadcast.imageUrl} alt="Notification Banner" className="w-full h-auto" />
