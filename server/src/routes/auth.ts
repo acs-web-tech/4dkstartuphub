@@ -1122,10 +1122,10 @@ router.post('/reset-password-otp', validate(resetPasswordSchema), async (req, re
     }
 });
 
-// Change Password (while logged in)
+// Change Password (while logged in) — 2-step OTP verification
 router.post('/change-password', authenticate, async (req: AuthRequest, res) => {
     try {
-        const { currentPassword, newPassword } = req.body;
+        const { currentPassword, newPassword, otp } = req.body;
 
         if (!currentPassword || !newPassword) {
             res.status(400).json({ error: 'Current and new password required' });
@@ -1155,7 +1155,50 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res) => {
             return;
         }
 
+        // ── STEP 1: No OTP provided → Send OTP to user's email ──
+        if (!otp) {
+            // Rate limiting
+            if (hasReachedOtpLimit(user)) {
+                res.status(429).json({ error: 'Daily OTP limit reached. Please try again tomorrow.' });
+                return;
+            }
+
+            const otpCode = crypto.randomInt(100000, 999999).toString();
+            user.reset_password_otp = otpCode;
+            user.reset_password_expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+            trackOtpRequest(user);
+            await user.save({ validateModifiedOnly: true });
+
+            // Send OTP email
+            await emailService.sendOTP(user.email, user.display_name, 'verification', otpCode);
+
+            res.json({ otpRequired: true, message: 'A verification code has been sent to your email.' });
+            return;
+        }
+
+        // ── STEP 2: OTP provided → Verify and change password ──
+        if (!user.reset_password_otp || !user.reset_password_expires) {
+            res.status(400).json({ error: 'No OTP was requested. Please try again.' });
+            return;
+        }
+
+        if (new Date() > user.reset_password_expires) {
+            user.reset_password_otp = undefined;
+            user.reset_password_expires = undefined;
+            await user.save({ validateModifiedOnly: true });
+            res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+            return;
+        }
+
+        if (user.reset_password_otp !== otp) {
+            res.status(400).json({ error: 'Invalid OTP. Please check and try again.' });
+            return;
+        }
+
+        // OTP verified — change password
         user.password_hash = bcrypt.hashSync(newPassword, config.bcryptRounds);
+        user.reset_password_otp = undefined;
+        user.reset_password_expires = undefined;
         // CRITICAL: Use validateModifiedOnly to bypass validation on other fields that might have legacy data
         await user.save({ validateModifiedOnly: true });
 

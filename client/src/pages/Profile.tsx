@@ -107,6 +107,26 @@ export default function Profile() {
         }
     };
 
+    // OTP verification state for password change
+    const [passwordOtpStep, setPasswordOtpStep] = useState(false); // true = OTP input shown
+    const [passwordOtp, setPasswordOtp] = useState('');
+    const [otpResendTimer, setOtpResendTimer] = useState(0);
+    const otpInputRef = useRef<HTMLInputElement>(null);
+
+    // OTP resend countdown
+    useEffect(() => {
+        if (otpResendTimer <= 0) return;
+        const t = setTimeout(() => setOtpResendTimer(prev => prev - 1), 1000);
+        return () => clearTimeout(t);
+    }, [otpResendTimer]);
+
+    // Auto-focus OTP input when step changes
+    useEffect(() => {
+        if (passwordOtpStep && otpInputRef.current) {
+            otpInputRef.current.focus();
+        }
+    }, [passwordOtpStep]);
+
     const handleChangePassword = async (e: React.FormEvent) => {
         e.preventDefault();
         const { newPassword, confirmPassword } = passwordForm;
@@ -139,14 +159,73 @@ export default function Profile() {
         setPasswordMessage({ text: '', type: '' });
 
         try {
-            await authApi.changePassword({
+            const result = await authApi.changePassword({
                 currentPassword: passwordForm.currentPassword,
                 newPassword: passwordForm.newPassword
             });
-            setPasswordMessage({ text: 'Password updated successfully!', type: 'success' });
-            setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+
+            if (result.otpRequired) {
+                // Step 1 response — OTP sent to email
+                setPasswordOtpStep(true);
+                setPasswordOtp('');
+                setOtpResendTimer(60); // 60s cooldown
+                setPasswordMessage({ text: result.message || 'A verification code has been sent to your email.', type: 'success' });
+            } else {
+                // Direct success (shouldn't happen with new flow, but handle gracefully)
+                setPasswordMessage({ text: 'Password updated successfully!', type: 'success' });
+                setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                setPasswordOtpStep(false);
+                setPasswordOtp('');
+            }
         } catch (err: any) {
             setPasswordMessage({ text: err.message || 'Failed to update password', type: 'error' });
+        } finally {
+            setPasswordSaving(false);
+        }
+    };
+
+    const handleVerifyOtpAndChange = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (passwordOtp.length !== 6) {
+            setPasswordMessage({ text: 'Please enter the 6-digit OTP from your email.', type: 'error' });
+            return;
+        }
+
+        setPasswordSaving(true);
+        setPasswordMessage({ text: '', type: '' });
+
+        try {
+            await authApi.changePassword({
+                currentPassword: passwordForm.currentPassword,
+                newPassword: passwordForm.newPassword,
+                otp: passwordOtp
+            });
+            setPasswordMessage({ text: 'Password updated successfully!', type: 'success' });
+            setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+            setPasswordOtpStep(false);
+            setPasswordOtp('');
+        } catch (err: any) {
+            setPasswordMessage({ text: err.message || 'OTP verification failed', type: 'error' });
+        } finally {
+            setPasswordSaving(false);
+        }
+    };
+
+    const handleResendOtp = async () => {
+        if (otpResendTimer > 0) return;
+        setPasswordSaving(true);
+        try {
+            const result = await authApi.changePassword({
+                currentPassword: passwordForm.currentPassword,
+                newPassword: passwordForm.newPassword
+            });
+            if (result.otpRequired) {
+                setOtpResendTimer(60);
+                setPasswordMessage({ text: 'A new verification code has been sent to your email.', type: 'success' });
+            }
+        } catch (err: any) {
+            setPasswordMessage({ text: err.message || 'Failed to resend OTP', type: 'error' });
         } finally {
             setPasswordSaving(false);
         }
@@ -362,106 +441,195 @@ export default function Profile() {
                 <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Save size={20} /> Security Settings
                 </h3>
-                <form className="profile-edit-form" onSubmit={handleChangePassword}>
-                    {passwordMessage.text && (
-                        <div className={`alert ${passwordMessage.type === 'success' ? 'alert-success' : 'alert-error'} flex items-center gap-2`} style={{ marginBottom: '20px' }}>
-                            {passwordMessage.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
-                            {passwordMessage.text}
+
+                {passwordMessage.text && (
+                    <div className={`alert ${passwordMessage.type === 'success' ? 'alert-success' : 'alert-error'} flex items-center gap-2`} style={{ marginBottom: '20px' }}>
+                        {passwordMessage.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+                        {passwordMessage.text}
+                    </div>
+                )}
+
+                {!passwordOtpStep ? (
+                    /* ── STEP 1: Password Form ── */
+                    <form className="profile-edit-form" onSubmit={handleChangePassword}>
+                        <div className="form-group">
+                            <label htmlFor="current-password">Current Password</label>
+                            <div className="relative" style={{ position: 'relative' }}>
+                                <input
+                                    id="current-password"
+                                    type={showPasswords.current ? "text" : "password"}
+                                    className="form-input"
+                                    value={passwordForm.currentPassword}
+                                    onChange={e => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    className="password-toggle absolute right-3 top-3"
+                                    onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
+                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-secondary)' }}
+                                >
+                                    {showPasswords.current ? <EyeOff size={20} /> : <Eye size={20} />}
+                                </button>
+                            </div>
                         </div>
-                    )}
-                    <div className="form-group">
-                        <label htmlFor="current-password">Current Password</label>
-                        <div className="relative" style={{ position: 'relative' }}>
-                            <input
-                                id="current-password"
-                                type={showPasswords.current ? "text" : "password"}
-                                className="form-input"
-                                value={passwordForm.currentPassword}
-                                onChange={e => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                                required
-                            />
-                            <button
-                                type="button"
-                                className="password-toggle absolute right-3 top-3"
-                                onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
-                                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-secondary)' }}
-                            >
-                                {showPasswords.current ? <EyeOff size={20} /> : <Eye size={20} />}
+                        <div className="form-row" style={{ gap: '20px' }}>
+                            <div className="form-group">
+                                <label htmlFor="new-password">New Password</label>
+                                <div className="relative" style={{ position: 'relative' }}>
+                                    <input
+                                        id="new-password"
+                                        type={showPasswords.new ? "text" : "password"}
+                                        className="form-input"
+                                        value={passwordForm.newPassword}
+                                        onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                                        minLength={8}
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        className="password-toggle absolute right-3 top-3"
+                                        onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
+                                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-secondary)' }}
+                                    >
+                                        {showPasswords.new ? <EyeOff size={20} /> : <Eye size={20} />}
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor="confirm-password">Confirm New Password</label>
+                                <div className="relative" style={{ position: 'relative' }}>
+                                    <input
+                                        id="confirm-password"
+                                        type={showPasswords.confirm ? "text" : "password"}
+                                        className="form-input"
+                                        value={passwordForm.confirmPassword}
+                                        onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                                        minLength={8}
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        className="password-toggle absolute right-3 top-3"
+                                        onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
+                                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-secondary)' }}
+                                    >
+                                        {showPasswords.confirm ? <EyeOff size={20} /> : <Eye size={20} />}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="password-rules" style={{
+                            fontSize: '12.5px',
+                            color: 'var(--text-muted)',
+                            marginTop: '8px',
+                            padding: '12px',
+                            background: 'var(--bg-secondary)',
+                            borderRadius: '8px',
+                            borderLeft: '3px solid var(--accent)'
+                        }}>
+                            <p style={{ fontWeight: '600', marginBottom: '4px', color: 'var(--text-secondary)' }}>Password Requirements:</p>
+                            <ul style={{ listStyle: 'none', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '4px' }}>
+                                <li style={{ color: passwordForm.newPassword.length >= 8 ? 'var(--green)' : '' }}>• Min 8 characters</li>
+                                <li style={{ color: /[A-Z]/.test(passwordForm.newPassword) ? 'var(--green)' : '' }}>• One uppercase</li>
+                                <li style={{ color: /[a-z]/.test(passwordForm.newPassword) ? 'var(--green)' : '' }}>• One lowercase</li>
+                                <li style={{ color: /[0-9]/.test(passwordForm.newPassword) ? 'var(--green)' : '' }}>• One number</li>
+                                <li style={{ color: /[^A-Za-z0-9]/.test(passwordForm.newPassword) ? 'var(--green)' : '' }}>• One special char</li>
+                            </ul>
+                        </div>
+
+                        <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: '24px' }}>
+                            <button type="submit" className="btn btn-primary" disabled={passwordSaving}>
+                                {passwordSaving ? 'Verifying...' : <><Mail size={16} className="inline mr-1" /> Verify & Update Password</>}
                             </button>
                         </div>
-                    </div>
-                    <div className="form-row" style={{ gap: '20px' }}>
-                        <div className="form-group">
-                            <label htmlFor="new-password">New Password</label>
-                            <div className="relative" style={{ position: 'relative' }}>
+
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '12px' }}>
+                            🔒 For security, a one-time verification code will be sent to your registered email before the password is changed.
+                        </p>
+                    </form>
+                ) : (
+                    /* ── STEP 2: OTP Verification ── */
+                    <form className="profile-edit-form" onSubmit={handleVerifyOtpAndChange}>
+                        <div style={{
+                            padding: '24px',
+                            background: 'var(--bg-secondary)',
+                            borderRadius: '12px',
+                            border: '1px solid var(--border-color)',
+                            textAlign: 'center'
+                        }}>
+                            <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                                <Mail size={28} color="white" />
+                            </div>
+                            <h4 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '8px' }}>Email Verification Required</h4>
+                            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '24px' }}>
+                                We've sent a 6-digit verification code to <strong>{user.email}</strong>. Enter it below to confirm your password change.
+                            </p>
+
+                            <div className="form-group" style={{ maxWidth: '260px', margin: '0 auto' }}>
                                 <input
-                                    id="new-password"
-                                    type={showPasswords.new ? "text" : "password"}
+                                    ref={otpInputRef}
+                                    id="password-change-otp"
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
                                     className="form-input"
-                                    value={passwordForm.newPassword}
-                                    onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                                    minLength={8}
+                                    style={{
+                                        textAlign: 'center',
+                                        fontSize: '1.8rem',
+                                        fontWeight: 800,
+                                        letterSpacing: '8px',
+                                        padding: '16px',
+                                        fontFamily: 'monospace',
+                                    }}
+                                    placeholder="••••••"
+                                    value={passwordOtp}
+                                    onChange={e => {
+                                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                        setPasswordOtp(val);
+                                    }}
+                                    maxLength={6}
+                                    autoComplete="one-time-code"
                                     required
                                 />
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '20px', flexWrap: 'wrap' }}>
+                                <button type="submit" className="btn btn-primary" disabled={passwordSaving || passwordOtp.length !== 6}>
+                                    {passwordSaving ? 'Verifying...' : <><CheckCircle size={16} className="inline mr-1" /> Confirm Change</>}
+                                </button>
                                 <button
                                     type="button"
-                                    className="password-toggle absolute right-3 top-3"
-                                    onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
-                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-secondary)' }}
+                                    className="btn btn-ghost"
+                                    onClick={() => {
+                                        setPasswordOtpStep(false);
+                                        setPasswordOtp('');
+                                        setPasswordMessage({ text: '', type: '' });
+                                    }}
                                 >
-                                    {showPasswords.new ? <EyeOff size={20} /> : <Eye size={20} />}
+                                    Cancel
                                 </button>
                             </div>
-                        </div>
-                        <div className="form-group">
-                            <label htmlFor="confirm-password">Confirm New Password</label>
-                            <div className="relative" style={{ position: 'relative' }}>
-                                <input
-                                    id="confirm-password"
-                                    type={showPasswords.confirm ? "text" : "password"}
-                                    className="form-input"
-                                    value={passwordForm.confirmPassword}
-                                    onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                                    minLength={8}
-                                    required
-                                />
-                                <button
-                                    type="button"
-                                    className="password-toggle absolute right-3 top-3"
-                                    onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
-                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-secondary)' }}
-                                >
-                                    {showPasswords.confirm ? <EyeOff size={20} /> : <Eye size={20} />}
-                                </button>
+
+                            <div style={{ marginTop: '16px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                Didn't receive the code?{' '}
+                                {otpResendTimer > 0 ? (
+                                    <span>Resend in <strong>{otpResendTimer}s</strong></span>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={handleResendOtp}
+                                        disabled={passwordSaving}
+                                        style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontWeight: 600, padding: 0, textDecoration: 'underline' }}
+                                    >
+                                        Resend Code
+                                    </button>
+                                )}
                             </div>
                         </div>
-                    </div>
-
-                    <div className="password-rules" style={{
-                        fontSize: '12.5px',
-                        color: 'var(--text-muted)',
-                        marginTop: '8px',
-                        padding: '12px',
-                        background: 'var(--bg-secondary)',
-                        borderRadius: '8px',
-                        borderLeft: '3px solid var(--accent)'
-                    }}>
-                        <p style={{ fontWeight: '600', marginBottom: '4px', color: 'var(--text-secondary)' }}>Password Requirements:</p>
-                        <ul style={{ listStyle: 'none', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '4px' }}>
-                            <li style={{ color: passwordForm.newPassword.length >= 8 ? 'var(--green)' : '' }}>• Min 8 characters</li>
-                            <li style={{ color: /[A-Z]/.test(passwordForm.newPassword) ? 'var(--green)' : '' }}>• One uppercase</li>
-                            <li style={{ color: /[a-z]/.test(passwordForm.newPassword) ? 'var(--green)' : '' }}>• One lowercase</li>
-                            <li style={{ color: /[0-9]/.test(passwordForm.newPassword) ? 'var(--green)' : '' }}>• One number</li>
-                            <li style={{ color: /[^A-Za-z0-9]/.test(passwordForm.newPassword) ? 'var(--green)' : '' }}>• One special char</li>
-                        </ul>
-                    </div>
-
-                    <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: '24px' }}>
-                        <button type="submit" className="btn btn-primary" disabled={passwordSaving}>
-                            {passwordSaving ? 'Updating...' : 'Update Password'}
-                        </button>
-                    </div>
-                </form>
+                    </form>
+                )}
             </div>
         </div>
     );

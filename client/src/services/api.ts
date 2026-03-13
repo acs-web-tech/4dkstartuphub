@@ -244,7 +244,7 @@ export const authApi = {
     checkAvailability: (data: { username?: string; email?: string }) =>
         request<{ available: boolean }>('/auth/check-availability', { method: 'POST', body: JSON.stringify(data) }),
     me: () => request<{ user: import('../types').User }>('/auth/me'),
-    changePassword: (data: any) => request<{ message: string }>('/auth/change-password', { method: 'POST', body: JSON.stringify(data) }),
+    changePassword: (data: any) => request<{ message: string; otpRequired?: boolean }>('/auth/change-password', { method: 'POST', body: JSON.stringify(data) }),
     sendVerificationOtp: () => request<{ message: string }>('/auth/send-verification-otp', { method: 'POST' }),
     verifyEmailOtp: (otp: string) => request<{ message: string, user: any, accessToken?: string, refreshToken?: string }>('/auth/verify-email-otp', { method: 'POST', body: JSON.stringify({ otp }) }),
 };

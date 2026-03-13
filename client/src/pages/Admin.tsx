@@ -32,7 +32,7 @@ export default function Admin() {
     const [reviewMessage, setReviewMessage] = useState('');
 
     // Broadcast State
-    const [broadcast, setBroadcast] = useState({ title: '', content: '', videoUrl: '', imageUrl: '' });
+    const [broadcast, setBroadcast] = useState({ title: '', content: '', videoUrl: '', imageUrl: '', previewUrl: '' });
     const [isBroadcasting, setIsBroadcasting] = useState(false);
     const broadcastQuillRef = useRef<ReactQuill>(null);
 
@@ -305,10 +305,10 @@ export default function Admin() {
         e.preventDefault();
         try {
             setIsBroadcasting(true);
-            await adminApi.broadcast(broadcast.title, broadcast.content, broadcast.videoUrl, undefined, broadcast.imageUrl);
+            await adminApi.broadcast(broadcast.title, broadcast.content, broadcast.videoUrl, broadcast.previewUrl || undefined, broadcast.imageUrl);
             setMessage('Broadcast sent successfully!');
             setMessageType('success');
-            setBroadcast({ title: '', content: '', videoUrl: '', imageUrl: '' });
+            setBroadcast({ title: '', content: '', videoUrl: '', imageUrl: '', previewUrl: '' });
         } catch (err: any) {
             setMessage(err.message || 'Failed to send broadcast');
             setMessageType('error');
@@ -1137,6 +1137,12 @@ export default function Admin() {
                                             />
                                         </div>
                                     </div>
+                                    <div className="form-group">
+                                        <label htmlFor="broadcast-preview-url">Preview / Redirect URL (Optional)</label>
+                                        <input id="broadcast-preview-url" type="url" className="form-input" placeholder="https://example.com/article-or-page..."
+                                            value={broadcast.previewUrl} onChange={e => setBroadcast(prev => ({ ...prev, previewUrl: e.target.value }))} />
+                                        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>Users will see an "Open Link" button in the notification to visit this URL.</span>
+                                    </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="form-group">
                                             <label htmlFor="broadcast-video">Video URL (Optional)</label>
@@ -1195,6 +1201,13 @@ export default function Admin() {
                                             <div className="font-bold">{broadcast.title || 'Notification Title'}</div>
                                             <div className="text-sm text-gray-400 ql-editor-display" style={{ padding: 0 }}
                                                 dangerouslySetInnerHTML={{ __html: broadcast.content || 'Your message will appear here...' }} />
+                                            {broadcast.previewUrl && (
+                                                <div style={{ marginTop: '8px' }}>
+                                                    <a href={broadcast.previewUrl} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                        🔗 {(() => { try { return new URL(broadcast.previewUrl).hostname; } catch { return 'Open Link'; } })()}
+                                                    </a>
+                                                </div>
+                                            )}
                                             {broadcast.imageUrl && (
                                                 <div className="mt-2 rounded overflow-hidden border border-gray-700">
                                                     <img src={broadcast.imageUrl} alt="Notification Banner" className="w-full h-auto" />

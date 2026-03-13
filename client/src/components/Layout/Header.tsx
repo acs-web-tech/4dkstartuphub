@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { markImageAsLoaded, isImageInSession } from '../../utils/imageCache';
 import { SmartImage } from '../Common/SmartImage';
+import LinkPreview from '../Common/LinkPreview';
 
 // ── Notification Sound (Web Audio API — no external file needed) ──
 let sharedAudioCtx: AudioContext | null = null;
@@ -629,28 +630,35 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                             let content = selectedNotif.content || '';
                             let embedUrl = null;
 
-                            // Extract video URL if present (similar to how we handle it in PostDetail but from content)
-                            const match = content.match(/href="([^"]+)"[^>]*>🎬 Watch Video/);
-                            if (match) {
-                                const url = match[1];
-                                content = content.replace(/<div class="broadcast-video">.*?<\/div>/, '');
+                            // Priority 1: Direct videoUrl from notification payload (e.g. Broadcasts)
+                            let rawUrl = selectedNotif.videoUrl;
 
+                            // Priority 2: Extract video URL from content (legacy approach for older announcements)
+                            if (!rawUrl) {
+                                const match = content.match(/href="([^"]+)"[^>]*>🎬 Watch Video/);
+                                if (match) {
+                                    rawUrl = match[1];
+                                    content = content.replace(/<div class="broadcast-video">.*?<\/div>/, '');
+                                }
+                            }
+
+                            if (rawUrl) {
                                 // Conversion logic from PostDetail
-                                if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                                if (rawUrl.includes('youtube.com') || rawUrl.includes('youtu.be')) {
                                     let videoId = '';
-                                    if (url.includes('youtube.com/watch')) {
-                                        try { videoId = new URL(url).searchParams.get('v') || ''; } catch { }
-                                    } else if (url.includes('youtu.be')) {
-                                        videoId = url.split('/').pop() || '';
-                                    } else if (url.includes('youtube.com/embed')) {
-                                        embedUrl = url;
+                                    if (rawUrl.includes('youtube.com/watch')) {
+                                        try { videoId = new URL(rawUrl).searchParams.get('v') || ''; } catch { }
+                                    } else if (rawUrl.includes('youtu.be')) {
+                                        videoId = rawUrl.split('/').pop() || '';
+                                    } else if (rawUrl.includes('youtube.com/embed')) {
+                                        embedUrl = rawUrl;
                                     }
                                     if (videoId && !embedUrl) embedUrl = `https://www.youtube.com/embed/${videoId}`;
-                                } else if (url.includes('vimeo.com')) {
-                                    const videoId = url.split('/').pop();
+                                } else if (rawUrl.includes('vimeo.com')) {
+                                    const videoId = rawUrl.split('/').pop();
                                     if (videoId) embedUrl = `https://player.vimeo.com/video/${videoId}`;
                                 } else {
-                                    embedUrl = url;
+                                    embedUrl = rawUrl;
                                 }
                             }
 
@@ -677,6 +685,11 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                             />
                                         </div>
                                     )}
+                                    {selectedNotif.type === 'broadcast' && selectedNotif.referenceId?.startsWith('http') && (
+                                        <div style={{ margin: '12px 0' }}>
+                                            <LinkPreview url={selectedNotif.referenceId} compact={true} />
+                                        </div>
+                                    )}
                                 </>
                             );
                         })()}
@@ -686,6 +699,13 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                 <button
                                     className="btn btn-primary btn-sm"
                                     onClick={() => {
+                                        // Broadcast with an external preview URL
+                                        if (selectedNotif.type === 'broadcast' && selectedNotif.referenceId?.startsWith('http')) {
+                                            window.open(selectedNotif.referenceId, '_blank', 'noopener,noreferrer');
+                                            setSelectedNotif(null);
+                                            return;
+                                        }
+
                                         // Specific handling for Pitch Requests
                                         const isPitch = selectedNotif.type === 'admin' &&
                                             (selectedNotif.title?.startsWith('Pitch') ||
@@ -705,7 +725,9 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                     }}
                                 >
                                     <ExternalLink size={14} />
-                                    {selectedNotif.type === 'admin' && (selectedNotif.title?.startsWith('Pitch') || selectedNotif.content?.toLowerCase().includes('pitch request'))
+                                    {selectedNotif.type === 'broadcast' && selectedNotif.referenceId?.startsWith('http')
+                                        ? 'Open Link'
+                                        : selectedNotif.type === 'admin' && (selectedNotif.title?.startsWith('Pitch') || selectedNotif.content?.toLowerCase().includes('pitch request'))
                                         ? 'View Pitch Request'
                                         : (selectedNotif.type === 'chat' || (selectedNotif.type === 'mention' && selectedNotif.title?.includes('in ')) ? 'View Chat' : 'View Post')}
                                 </button>
