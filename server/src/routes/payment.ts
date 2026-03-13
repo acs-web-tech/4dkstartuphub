@@ -67,7 +67,7 @@ router.post('/webhook', async (req, res) => {
                 user.is_email_verified = true;
                 user.email_verification_token = undefined;
 
-                await user.save();
+                await user.save({ validateModifiedOnly: true });
 
                 try {
                     await emailService.sendWelcomeEmail(user.email, user.display_name);

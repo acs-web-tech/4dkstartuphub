@@ -75,7 +75,7 @@ async function finalizeUserActivation(user: any, paymentId: string) {
     if (isVerificationRequired && !user.is_email_verified) {
         if (hasReachedOtpLimit(user)) {
             user.payment_status = 'completed'; // Ensure payment still shows as completed
-            await user.save();
+            await user.save({ validateModifiedOnly: true });
             return { requireVerification: true, limitExceeded: true };
         }
         user.is_active = false;
@@ -83,7 +83,7 @@ async function finalizeUserActivation(user: any, paymentId: string) {
         user.email_verification_otp = otp;
         user.email_verification_otp_expires = new Date(Date.now() + 10 * 60 * 1000);
         trackOtpRequest(user);
-        await user.save();
+        await user.save({ validateModifiedOnly: true });
         try {
             await emailService.sendOTP(user.email, user.display_name, 'verification', otp);
         } catch (e) { console.error('Sync activation OTP failed', e); }
@@ -91,7 +91,7 @@ async function finalizeUserActivation(user: any, paymentId: string) {
     } else {
         user.is_email_verified = true;
         user.is_active = true; // Payment done + no email verification required (or already verified)
-        await user.save();
+        await user.save({ validateModifiedOnly: true });
         await triggerWelcomeActions(user);
         return { requireVerification: false };
     }
@@ -176,7 +176,7 @@ async function rePromptPayment(res: Response, user: any) {
         // Update user with new order ID for future syncs
         user.razorpay_order_id = order.id;
         user.payment_status = 'pending';
-        await user.save();
+        await user.save({ validateModifiedOnly: true });
 
         console.log(`🔄 Re-prompting payment for user ${user.email}. New Order: ${order.id}`);
 
@@ -356,7 +356,7 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
             user.email_verification_otp = verificationOtp;
             user.email_verification_otp_expires = verificationOtpExpires;
             if (verificationOtp) trackOtpRequest(user);
-            await user.save();
+            await user.save({ validateModifiedOnly: true });
         } else {
             // Create new pending user
             user = await User.create({
@@ -373,7 +373,7 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
                 email_verification_otp_expires: verificationOtpExpires
             });
             if (verificationOtp) trackOtpRequest(user);
-            await user.save();
+            await user.save({ validateModifiedOnly: true });
         }
 
         if (!paymentRequired) {
@@ -569,7 +569,7 @@ router.post('/register', validate(registerSchema), async (req, res) => {
 
         if (verificationOtp) {
             trackOtpRequest(newUser);
-            await newUser.save();
+            await newUser.save({ validateModifiedOnly: true });
         }
 
         // Send welcome email / notification if not requiring verification
@@ -636,7 +636,7 @@ router.get('/verify-email', async (req, res) => {
         user.is_email_verified = true;
         user.is_active = true; // Ensure they are active
         user.email_verification_token = undefined;
-        await user.save();
+        await user.save({ validateModifiedOnly: true });
 
         await triggerWelcomeActions(user);
 
@@ -765,7 +765,7 @@ router.post('/login', validate(loginSchema), async (req, res) => {
                             // Sync completed but no captured payment found
                             user.payment_status = 'pending';
                             user.razorpay_order_id = ''; // Clear to force fresh order generation
-                            await user.save();
+                            await user.save({ validateModifiedOnly: true });
                             return await rePromptPayment(res, user);
                         }
                     } catch (err) {
@@ -773,7 +773,7 @@ router.post('/login', validate(loginSchema), async (req, res) => {
                         // Sync call itself failed (e.g. order expired or not found in RZP)
                         user.payment_status = 'pending';
                         user.razorpay_order_id = '';
-                        await user.save();
+                        await user.save({ validateModifiedOnly: true });
                         return await rePromptPayment(res, user);
                     }
                 } else {
@@ -919,7 +919,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
             if (user.premium_expiry < new Date()) {
 
                 user.payment_status = 'expired';
-                await user.save();
+                await user.save({ validateModifiedOnly: true });
             }
         }
 
@@ -953,7 +953,7 @@ router.post('/send-verification-otp', authenticatePending, async (req: AuthReque
         user.email_verification_otp = otp;
         user.email_verification_otp_expires = new Date(Date.now() + 10 * 60 * 1000);
         trackOtpRequest(user);
-        await user.save();
+        await user.save({ validateModifiedOnly: true });
 
         await emailService.sendOTP(user.email, user.display_name, 'verification', otp);
         res.json({ message: 'Verification code sent' });
@@ -1002,7 +1002,7 @@ router.post('/verify-email-otp', authenticatePending, async (req: AuthRequest, r
 
         user.email_verification_otp = undefined;
         user.email_verification_otp_expires = undefined;
-        await user.save();
+        await user.save({ validateModifiedOnly: true });
 
         if (user.is_active) {
             await triggerWelcomeActions(user);
@@ -1138,7 +1138,7 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res) => {
             return;
         }
 
-        if (!bcrypt.compareSync(currentPassword, user.password_hash)) {
+        if (!user.password_hash || !bcrypt.compareSync(currentPassword, user.password_hash)) {
             res.status(401).json({ error: 'Incorrect current password' });
             return;
         }
@@ -1156,7 +1156,8 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res) => {
         }
 
         user.password_hash = bcrypt.hashSync(newPassword, config.bcryptRounds);
-        await user.save();
+        // CRITICAL: Use validateModifiedOnly to bypass validation on other fields that might have legacy data
+        await user.save({ validateModifiedOnly: true });
 
         res.json({ message: 'Password changed successfully!' });
     } catch (err) {
