@@ -715,12 +715,12 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                         </div>
                                     )}
                                     {selectedNotif.type === 'broadcast' && selectedNotif.referenceId?.startsWith('http') && (
-                                        <div style={{ margin: '12px 0' }}>
+                                        <div style={{ padding: '0 24px 12px' }}>
                                             <LinkPreview url={selectedNotif.referenceId} compact={true} />
                                         </div>
                                     )}
                                     {contentUrls.map(u => (
-                                        <div key={u} style={{ margin: '12px 0' }}>
+                                        <div key={u} style={{ padding: '0 24px 12px' }}>
                                             <LinkPreview url={u} compact={true} />
                                         </div>
                                     ))}
