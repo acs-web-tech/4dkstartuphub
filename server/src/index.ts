@@ -239,21 +239,61 @@ async function start() {
     startEmailWorker();
 
     // Migration: Set existing users as verified and init preferences
-    try {
-        const User = (await import('./models/User')).default;
-        await User.updateMany(
-            { is_email_verified: { $exists: false } },
-            {
-                $set: {
-                    is_email_verified: true,
-                    email_preferences: { likes: true, comments: true, mentions: true, broadcasts: true }
+        // Migration: Repair direct S3 URLs back to proxy URLs
+        try {
+            const Post = (await import('./models/Post')).default;
+            const User = (await import('./models/User')).default;
+            
+            // 1. Fix Post image_url
+            // Matches: https://...s3...amazonaws.com/uploads/filename.ext
+            // Replaces with: /api/upload/file/filename.ext
+            const s3UrlPattern = /https:\/\/[a-zA-Z0-9.-]+\.s3\.[a-zA-Z0-9-]+\.amazonaws\.com\/uploads\/([a-zA-Z0-9.-_]+)/;
+            
+            const postsToFix = await Post.find({ image_url: { $regex: 's3\\.us-east-1\\.amazonaws\\.com/uploads/' } });
+            for (const post of postsToFix) {
+                const match = post.image_url.match(s3UrlPattern);
+                if (match && match[1]) {
+                    post.image_url = `/api/upload/file/${match[1]}`;
+                    await post.save();
                 }
             }
-        );
+
+            // 2. Fix User avatars
+            const usersToFix = await User.find({ avatar_url: { $regex: 's3\\.us-east-1\\.amazonaws\\.com/uploads/' } });
+            for (const user of usersToFix) {
+                const match = user.avatar_url.match(s3UrlPattern);
+                if (match && match[1]) {
+                    user.avatar_url = `/api/upload/file/${match[1]}`;
+                    await user.save();
+                }
+            }
+
+            // 3. Optional: Fix inline images in Post content
+            // (Only if needed, but let's do it for completeness)
+            for (const post of postsToFix) {
+                if (post.content.includes('amazonaws.com/uploads/')) {
+                    post.content = post.content.replace(/https:\/\/[a-zA-Z0-9.-]+\.s3\.[a-zA-Z0-9-]+\.amazonaws\.com\/uploads\/([a-zA-Z0-9.-_]+)/g, '/api/upload/file/$1');
+                    await post.save();
+                }
+            }
+            
+            // 4. Fix Notifications
+            const Notification = (await import('./models/Notification')).default;
+            const notifsToFix = await Notification.find({ image_url: { $regex: 's3\\.us-east-1\\.amazonaws\\.com/uploads/' } });
+            for (const notif of notifsToFix) {
+                const match = notif.image_url.match(s3UrlPattern);
+                if (match && match[1]) {
+                    notif.image_url = `/api/upload/file/${match[1]}`;
+                    await notif.save();
+                }
+            }
+            
+            console.log(`✅ S3 URL Migration complete. Fixed ${postsToFix.length} posts, ${usersToFix.length} users, and ${notifsToFix.length} notifications.`);
+        } catch (e) {
+            console.error('S3 migration failed:', e);
+        }
+
         console.log('✅ User migration check complete.');
-    } catch (e) {
-        console.error('Migration failed:', e);
-    }
 
     // Initialize WebSockets
     socketService.initialize(httpServer);

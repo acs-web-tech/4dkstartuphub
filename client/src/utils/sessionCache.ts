@@ -10,6 +10,11 @@ const pendingFetches = new Map<string, Promise<string>>();
 export const getSessionImage = async (url: string): Promise<string> => {
     if (!url) return '';
 
+    // Skip blob-caching for absolute external URLs to avoid CORS issues
+    if (url.startsWith('http') && !url.includes(window.location.host)) {
+        return url;
+    }
+
     // Return from cache if exists
     const cached = sessionBlobCache.get(url);
     if (cached) return cached;
