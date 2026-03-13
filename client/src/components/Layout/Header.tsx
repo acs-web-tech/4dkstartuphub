@@ -674,9 +674,26 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                             };
                             const contentUrls = extractUrls(content).filter(u => u !== selectedNotif.referenceId && u !== rawUrl);
 
+                            let displayContent = content;
+                            contentUrls.forEach(url => {
+                                try {
+                                    const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                    const regex = new RegExp(`(href=["']|src=["'])?(${escaped})`, 'g');
+                                    displayContent = displayContent.replace(regex, (match, prefix) => {
+                                        if (prefix) return match;
+                                        return '';
+                                    });
+                                } catch (e) { }
+                            });
+                            displayContent = displayContent
+                                .replace(/<a[^>]*>\s*<\/a>/g, '')
+                                .replace(/<p>\s*<\/p>/g, '')
+                                .replace(/<p><br><\/p>/g, '')
+                                .trim();
+
                             return (
                                 <>
-                                    <div className="notif-modal-content ql-editor-display" dangerouslySetInnerHTML={{ __html: content }} />
+                                    <div className="notif-modal-content ql-editor-display" dangerouslySetInnerHTML={{ __html: displayContent }} />
                                     {selectedNotif.imageUrl && (
                                         <div style={{ margin: '12px 0', borderRadius: '8px', overflow: 'hidden' }}>
                                             <img

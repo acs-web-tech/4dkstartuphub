@@ -1200,8 +1200,6 @@ export default function Admin() {
                                         </div>
                                         <div>
                                             <div className="font-bold">{broadcast.title || 'Notification Title'}</div>
-                                            <div className="text-sm text-gray-400 ql-editor-display" style={{ padding: 0 }}
-                                                dangerouslySetInnerHTML={{ __html: broadcast.content || 'Your message will appear here...' }} />
                                             {(() => {
                                                 const extractUrls = (html: string) => {
                                                     const unique = new Set<string>();
@@ -1215,8 +1213,27 @@ export default function Admin() {
                                                 };
                                                 const contentUrls = extractUrls(broadcast.content).filter(u => u !== broadcast.previewUrl && u !== broadcast.videoUrl);
 
+                                                let displayContent = broadcast.content || 'Your message will appear here...';
+                                                contentUrls.forEach(url => {
+                                                    try {
+                                                        const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                                        const regex = new RegExp(`(href=["']|src=["'])?(${escaped})`, 'g');
+                                                        displayContent = displayContent.replace(regex, (match, prefix) => {
+                                                            if (prefix) return match;
+                                                            return '';
+                                                        });
+                                                    } catch (e) { }
+                                                });
+                                                displayContent = displayContent
+                                                    .replace(/<a[^>]*>\s*<\/a>/g, '')
+                                                    .replace(/<p>\s*<\/p>/g, '')
+                                                    .replace(/<p><br><\/p>/g, '')
+                                                    .trim();
+
                                                 return (
                                                     <>
+                                                        <div className="text-sm text-gray-400 ql-editor-display" style={{ padding: 0 }}
+                                                            dangerouslySetInnerHTML={{ __html: displayContent }} />
                                                         {broadcast.previewUrl && (
                                                             <div style={{ marginTop: '12px' }}>
                                                                 <LinkPreview url={broadcast.previewUrl} compact={true} />
