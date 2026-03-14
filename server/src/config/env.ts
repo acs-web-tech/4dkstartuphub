@@ -38,6 +38,7 @@ export const config = {
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
         region: process.env.AWS_REGION || 'us-east-1',
         bucketName: process.env.AWS_BUCKET_NAME || '',
+        cloudfrontDomain: process.env.CLOUDFRONT_DOMAIN || '', // e.g. d1234abc.cloudfront.net
     },
     razorpay: {
         keyId: process.env.RAZORPAY_KEY_ID || '',

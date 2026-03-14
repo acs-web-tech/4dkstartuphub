@@ -1,10 +1,10 @@
-
 import { memo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Post } from '../../types';
 import { CATEGORY_CONFIG } from '../../config';
 import { Pin, Heart, MessageSquare, Eye, Video, MoreVertical, Calendar, Download, ArrowRight } from 'lucide-react';
 import { SmartImage } from '../Common/SmartImage';
+import { rewriteContentUrls } from '../../utils/cdn';
 import LinkPreview from '../Common/LinkPreview';
 
 interface Props {
@@ -331,7 +331,7 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
                         {hasContent && (
                             <div
                                 className="post-content-full ql-editor"
-                                dangerouslySetInnerHTML={{ __html: displayContent }}
+                                dangerouslySetInnerHTML={{ __html: rewriteContentUrls(displayContent) }}
                                 onClick={handleContentClick}
                             />
                         )}

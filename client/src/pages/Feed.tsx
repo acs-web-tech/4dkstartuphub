@@ -5,7 +5,12 @@ import { postsApi, usersApi } from '../services/api';
 import { Post, Pagination, PostCategory } from '../types';
 import { CATEGORY_CONFIG } from '../config';
 import { useAuth } from '../context/AuthContext';
-import { Search, Newspaper, Hand, CheckCircle, Circle, ArrowRight, Inbox, RefreshCw, X, User as UserIcon, Wifi } from 'lucide-react';
+import {
+    PlusCircle, MessageSquare, Heart, Video, Link as LinkIcon, AlertCircle, TrendingUp, CheckCircle, Flame, Eye, Edit, Trash2, Mic, X,
+    Search, Newspaper, Hand, Circle, ArrowRight, Inbox, RefreshCw, User as UserIcon, Wifi
+} from 'lucide-react';
+import { SmartImage } from '../components/Common/SmartImage';
+import { getCdnUrl } from '../utils/cdn';
 import { useSocket } from '../context/SocketContext';
 
 // ─── In-memory feed cache (persists across SPA navigations) ───
@@ -332,7 +337,7 @@ export default function Feed() {
                     <button className="lightbox-close-btn" onClick={() => setLightbox(null)}>
                         <X size={24} />
                     </button>
-                    <img src={lightbox} className="lightbox-content" alt="" onClick={e => e.stopPropagation()} />
+                    <img src={getCdnUrl(lightbox)} className="lightbox-content" alt="" onClick={e => e.stopPropagation()} />
                 </div>
             )}
             <div className="feed-header">

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 import { SmartImage } from '../components/Common/SmartImage';
+import { rewriteContentUrls, getCdnUrl } from '../utils/cdn';
 import CommentsSection from '../components/Post/CommentsSection';
 import LinkPreview from '../components/Common/LinkPreview';
 import { useModal } from '../context/ModalContext';
@@ -354,7 +355,7 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                             <button className="lightbox-close-btn" onClick={() => setLightbox(null)}>
                                 <X size={24} />
                             </button>
-                            <img src={lightbox} className="lightbox-content" alt="" onClick={e => e.stopPropagation()} />
+                            <img src={getCdnUrl(lightbox)} className="lightbox-content" alt="" onClick={e => e.stopPropagation()} />
                         </div>
                     )}
 
@@ -589,7 +590,7 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                                 <>
                                                     <div
                                                         className="post-detail-content ql-editor"
-                                                        dangerouslySetInnerHTML={{ __html: displayContent }}
+                                                        dangerouslySetInnerHTML={{ __html: rewriteContentUrls(displayContent) }}
                                                         onClick={handleContentClick}
                                                     />
                                                     {urls.map(url => <LinkPreview url={url} key={url} />)}

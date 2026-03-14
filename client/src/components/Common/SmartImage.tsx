@@ -1,5 +1,6 @@
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { getCdnUrl } from '../../utils/cdn';
 
 interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
     src: string;
@@ -45,6 +46,9 @@ function getGlobalObserver() {
  * - Priority flag for above-the-fold images
  */
 export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, priority = false, ...props }) => {
+    // Rewrite to CloudFront URL if CDN is configured
+    const cdnSrc = useMemo(() => getCdnUrl(src), [src]);
+
     const [isVisible, setIsVisible] = useState(priority); // Priority images visible immediately
     const [loaded, setLoaded] = useState(false);
     const [errored, setErrored] = useState(false);
@@ -81,7 +85,7 @@ export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, priority 
         if (imgRef.current?.complete && imgRef.current?.naturalWidth > 0) {
             setLoaded(true);
         }
-    }, [src]);
+    }, [cdnSrc]);
 
     const handleLoad = useCallback(() => {
         setLoaded(true);
@@ -135,7 +139,7 @@ export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, priority 
                 <img
                     {...props}
                     ref={imgRef}
-                    src={src}
+                    src={cdnSrc}
                     loading={priority ? 'eager' : 'lazy'}
                     decoding="async"
                     fetchPriority={priority ? 'high' : 'low'}

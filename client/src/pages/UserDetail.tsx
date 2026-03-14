@@ -4,6 +4,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { usersApi } from '../services/api';
 import { CATEGORY_CONFIG } from '../config';
 import { MapPin, Globe, FileText, Calendar, Heart, MessageSquare, ArrowLeft, Twitter, Briefcase, Mail, Wifi, RefreshCw } from 'lucide-react';
+import { getCdnUrl } from '../utils/cdn';
 
 export default function UserDetail() {
     const { id } = useParams<{ id: string }>();
@@ -78,7 +79,7 @@ export default function UserDetail() {
                         onClick={() => { if (user.avatarUrl) setShowAvatarViewer(true); }}
                         style={{ cursor: user.avatarUrl ? 'pointer' : 'default' }}
                     >
-                        {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : <span>{initials}</span>}
+                        {user.avatarUrl ? <img src={getCdnUrl(user.avatarUrl)} alt="" /> : <span>{initials}</span>}
                     </div>
 
                     {showAvatarViewer && user.avatarUrl && (
@@ -93,7 +94,7 @@ export default function UserDetail() {
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
                             <img 
-                                src={user.avatarUrl} 
+                                src={getCdnUrl(user.avatarUrl)} 
                                 alt="Profile Avatar" 
                                 style={{ width: '300px', height: '300px', borderRadius: '50%', objectFit: 'cover', border: '4px solid white', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} 
                                 onClick={e => e.stopPropagation()}

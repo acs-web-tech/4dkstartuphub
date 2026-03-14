@@ -7,6 +7,7 @@ import { CATEGORY_CONFIG } from '../config';
 import {
     Compass, Flame, Star, Users, MessageCircle, Mic, Heart, MessageSquare, ArrowRight, TrendingUp, Eye, Wifi, RefreshCw
 } from 'lucide-react';
+import { SmartImage } from '../components/Common/SmartImage';
 
 export default function Discovery() {
     const location = useLocation();
@@ -97,7 +98,7 @@ export default function Discovery() {
                                         </div>
                                         {post.imageUrl && (
                                             <div className="trending-card-thumb">
-                                                <img src={post.imageUrl} alt="" loading="lazy" />
+                                                <SmartImage src={post.imageUrl} alt="" priority={index < 3} />
                                             </div>
                                         )}
                                     </div>
@@ -105,7 +106,7 @@ export default function Discovery() {
                                         <div className="trending-author-info">
                                             <div className="trending-author-avatar">
                                                 {post.avatarUrl ? (
-                                                    <img src={post.avatarUrl} alt="" />
+                                                    <SmartImage src={post.avatarUrl} alt="" />
                                                 ) : (
                                                     <span>{initials}</span>
                                                 )}

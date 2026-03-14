@@ -6,6 +6,7 @@ import {
     User, Camera, Pencil, Mail, MapPin, Globe, Briefcase, Twitter, Calendar, Save, CheckCircle, AlertCircle, Eye, EyeOff, X
 } from 'lucide-react';
 import { validateFile } from '../utils/fileValidation';
+import { getCdnUrl } from '../utils/cdn';
 
 export default function Profile() {
     const { user, refreshUser } = useAuth();
@@ -261,7 +262,7 @@ export default function Profile() {
                         title={editing ? "Click to change avatar" : ""}
                         style={{ cursor: (editing && !uploading) || (!editing && user?.avatarUrl) ? 'pointer' : 'default', position: 'relative' }}
                     >
-                        {(editing ? form.avatarUrl : user.avatarUrl) ? <img src={editing ? form.avatarUrl : user.avatarUrl} alt="" style={uploading ? { opacity: 0.5 } : {}} /> : <span>{initials}</span>}
+                        {(editing ? form.avatarUrl : user.avatarUrl) ? <img src={getCdnUrl(editing ? form.avatarUrl : user.avatarUrl)} alt="" style={uploading ? { opacity: 0.5 } : {}} /> : <span>{initials}</span>}
 
                         {uploading && (
                             <div className="avatar-overlay" style={{ background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -295,7 +296,7 @@ export default function Profile() {
                                 <X size={24} />
                             </button>
                             <img 
-                                src={user.avatarUrl} 
+                                src={getCdnUrl(user.avatarUrl)} 
                                 alt="Profile Avatar" 
                                 style={{ width: '300px', height: '300px', borderRadius: '50%', objectFit: 'cover', border: '4px solid white', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} 
                                 onClick={e => e.stopPropagation()}
