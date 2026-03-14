@@ -245,7 +245,7 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
                                 onClick={() => onImageClick?.(displayImage!)}
                                 title="Click to enlarge"
                             >
-                                <SmartImage src={displayImage} alt={post.title} priority={priority} />
+                                <SmartImage src={displayImage} alt={post.title} priority={priority} objectFit="contain" />
                             </div>
                         )}
                         {post.videoUrl && (

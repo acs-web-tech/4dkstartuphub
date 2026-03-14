@@ -554,7 +554,7 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                                 onClick={() => setLightbox(post.imageUrl)}
                                                 title="Click to enlarge"
                                             >
-                                                <SmartImage src={post.imageUrl} alt={post.title} priority />
+                                                <SmartImage src={post.imageUrl} alt={post.title} priority objectFit="contain" />
                                             </div>
                                         )}
 

@@ -7,6 +7,7 @@ interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
     fallback?: React.ReactNode;
     /** If true, eagerly load (above-the-fold). Default: lazy */
     priority?: boolean;
+    objectFit?: 'cover' | 'contain' | 'fill' | 'none' | 'scale-down';
 }
 
 // ── Global observer for lazy-loading images ──────────────────
@@ -45,7 +46,7 @@ function getGlobalObserver() {
  * - Error fallback support
  * - Priority flag for above-the-fold images
  */
-export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, priority = false, ...props }) => {
+export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, priority = false, objectFit = 'cover', ...props }) => {
     // Rewrite to CloudFront URL if CDN is configured
     const cdnSrc = useMemo(() => getCdnUrl(src), [src]);
 
@@ -111,6 +112,7 @@ export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, priority 
                 display: props.style?.display || 'block',
                 backgroundColor: 'var(--bg-secondary, #1a1a2e)', // Placeholder color
             }}
+            className="smart-image-container"
         >
             {/* Show fallback/shimmer while not loaded */}
             {!loaded && (
@@ -134,7 +136,29 @@ export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, priority 
                 </div>
             )}
 
-            {/* Only render <img> when element is near viewport */}
+            {/* Blurred background layer when objectFit is contain matches premium UI */}
+            {isVisible && objectFit === 'contain' && (
+                <img
+                    src={cdnSrc}
+                    alt=""
+                    aria-hidden="true"
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        filter: 'blur(25px) brightness(0.6)',
+                        transform: 'scale(1.2)', // Prevent blurry edges bleeding in
+                        zIndex: 0,
+                        opacity: loaded ? 1 : 0,
+                        transition: 'opacity 0.4s ease-out',
+                    }}
+                />
+            )}
+
+            {/* Only render main <img> when element is near viewport */}
             {isVisible && (
                 <img
                     {...props}
@@ -153,7 +177,9 @@ export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, priority 
                         opacity: loaded ? 1 : 0.6,
                         width: '100%',
                         height: '100%',
-                        objectFit: (props.style?.objectFit as any) || 'cover',
+                        objectFit: objectFit,
+                        position: 'relative',
+                        zIndex: 1,
                     }}
                 />
             )}

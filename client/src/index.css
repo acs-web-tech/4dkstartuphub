@@ -1669,7 +1669,7 @@ img {
   overflow: hidden;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
-  max-height: 650px;
+  height: 400px;
   width: 100%;
   display: flex;
   align-items: center;
@@ -1678,9 +1678,9 @@ img {
 
 .post-detail-cover img {
   width: 100%;
-  height: auto;
-  max-height: 650px;
-  object-fit: contain;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
   display: block;
 }
 
@@ -6080,15 +6080,15 @@ img {
   display: flex;
   align-items: center;
   justify-content: center;
-  max-height: 650px;
+  height: 350px;
   width: 100%;
 }
 
 .post-card-media-thumb img {
   width: 100%;
-  height: auto;
-  max-height: 650px;
-  object-fit: contain;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
   display: block;
   border-radius: var(--radius);
 }
