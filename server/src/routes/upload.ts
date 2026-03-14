@@ -8,6 +8,7 @@ import { s3Client as s3 } from '../utils/s3';
 import { authenticate, requirePayment, AuthRequest } from '../middleware/auth';
 import { config } from '../config/env';
 import NodeCache from 'node-cache';
+import sharp from 'sharp';
 
 const router = Router();
 const fileCache = new NodeCache({ stdTTL: 3600, checkperiod: 600, maxKeys: 100 }); // Cache up to 100 files for 1 hour
@@ -132,18 +133,53 @@ router.post('/', authenticate, requirePayment, (req, res, next) => {
             throw new Error('AWS S3 is not configured on the server');
         }
 
+        let uploadBuffer = file.buffer;
+        let uploadMimeType = file.mimetype;
+
+        // Process images with sharp (compress and resize)
+        if (file.mimetype.startsWith('image/') && file.mimetype !== 'image/gif') {
+            try {
+                uploadBuffer = await sharp(file.buffer)
+                    .resize({
+                        width: 800,
+                        withoutEnlargement: true,
+                        fit: 'inside'
+                    })
+                    .jpeg({ quality: 80, progressive: true })
+                    .toBuffer();
+                
+                uploadMimeType = 'image/jpeg';
+                // Update filename if it wasn't jpeg already
+                const nameParts = filename.split('.');
+                if (nameParts.length > 1) {
+                    nameParts[nameParts.length - 1] = 'jpg';
+                } else {
+                    nameParts.push('jpg');
+                }
+            } catch (sharpError) {
+                console.error('[Sharp] Image processing failed, uploading original:', sharpError);
+                // Fall back to original buffer
+                uploadBuffer = file.buffer;
+                uploadMimeType = file.mimetype;
+            }
+        }
+
+        const processedFilename = (file.mimetype.startsWith('image/') && file.mimetype !== 'image/gif') 
+            ? (filename.endsWith('.jpg') || filename.endsWith('.jpeg') ? filename : `${filename.split('.').slice(0, -1).join('.')}.jpg`)
+            : filename;
+
         // Upload to S3
-        const key = `uploads/${filename}`;
+        const key = `uploads/${processedFilename}`;
         console.log(`[S3] Uploading to bucket: ${config.aws.bucketName}, Key: ${key}`);
 
         await s3.send(new PutObjectCommand({
             Bucket: config.aws.bucketName,
             Key: key,
-            Body: file.buffer,
-            ContentType: file.mimetype,
+            Body: uploadBuffer,
+            ContentType: uploadMimeType,
         }));
 
-        const url = `/api/upload/file/${filename}`;
+        const url = `/api/upload/file/${processedFilename}`;
         res.json({ url });
     } catch (err: any) {
         console.error('[S3] Upload error:', err.message);

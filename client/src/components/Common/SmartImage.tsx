@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-import { getSessionImage, getCachedUrl } from '../../utils/sessionCache';
 
 interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
     src: string;
@@ -8,69 +7,52 @@ interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
 }
 
 /**
- * An image component that uses session-level blob caching.
- * Once loaded, the blob URL stays in memory for "immediate"
- * display across the entire session.
+ * A simplified SmartImage component that uses native browser caching
+ * but provides a smooth fade-in effect for a premium feel.
  */
 export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, ...props }) => {
-    const initialCached = getCachedUrl(src);
-    const [displaySrc, setDisplaySrc] = useState<string>(initialCached || '');
-    const [loading, setLoading] = useState(!initialCached);
+    const [loading, setLoading] = useState(true);
     const [errored, setErrored] = useState(false);
 
     useEffect(() => {
-        // If already cached synchronously, nothing to do
-        if (getCachedUrl(src)) {
-            const cached = getCachedUrl(src)!;
-            setDisplaySrc(cached);
-            setLoading(false);
-            setErrored(false);
-            return;
-        }
-
-        let isMounted = true;
+        // Reset state when src changes
         setLoading(true);
         setErrored(false);
-
-        getSessionImage(src)
-            .then(url => {
-                if (isMounted) {
-                    setDisplaySrc(url);
-                    setLoading(false);
-                }
-            })
-            .catch(() => {
-                if (isMounted) {
-                    setDisplaySrc(src); // Fallback to original URL
-                    setLoading(false);
-                    setErrored(true);
-                }
-            });
-
-        return () => { isMounted = false; };
     }, [src]);
 
-    if (loading && fallback) {
-        return <>{fallback}</>;
-    }
+    const handleLoad = () => {
+        setLoading(false);
+    };
 
-    if (errored && !displaySrc) {
-        return null;
-    }
+    const handleError = () => {
+        setLoading(false);
+        setErrored(true);
+    };
 
-    // Use a transparent pixel while loading to avoid browser requesting the original URL
-    const finalSrc = displaySrc || 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    if (errored) {
+        return fallback ? <>{fallback}</> : null;
+    }
 
     return (
-        <img
-            {...props}
-            src={finalSrc}
-            className={`${props.className || ''} ${loading ? 'smart-image-loading' : 'smart-image-loaded'}`}
-            style={{
-                ...props.style,
-                opacity: loading ? 0 : 1,
-                transition: 'opacity 0.4s ease-out'
-            }}
-        />
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+            {loading && fallback && (
+                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
+                    {fallback}
+                </div>
+            )}
+            <img
+                {...props}
+                src={src}
+                onLoad={handleLoad}
+                onError={handleError}
+                className={`${props.className || ''} ${loading ? 'opacity-0' : 'opacity-100'}`}
+                style={{
+                    ...props.style,
+                    transition: 'opacity 0.4s ease-out',
+                    visibility: loading ? 'hidden' : 'visible'
+                }}
+            />
+        </div>
     );
 };
+
