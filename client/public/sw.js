@@ -33,10 +33,17 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+    // Skip cross-origin requests to avoid CORS / opaque response caching errors in SW
+    if (!event.request.url.startsWith(self.location.origin)) {
+        return;
+    }
+
     // Simple network-first strategy for dynamic content
     event.respondWith(
         fetch(event.request).catch(() => {
-            return caches.match(event.request);
+            return caches.match(event.request).then(response => {
+                return response || Response.error();
+            });
         })
     );
 });

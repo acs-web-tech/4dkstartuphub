@@ -3,11 +3,10 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import { PutObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client as s3 } from '../utils/s3';
 import { authenticate, requirePayment, AuthRequest } from '../middleware/auth';
 import { config } from '../config/env';
-import NodeCache from 'node-cache';
 import sharp from 'sharp';
 
 const router = Router();
@@ -19,14 +18,10 @@ function getCdnUrl(s3Key: string): string {
     if (cf) {
         return `https://${cf}/${s3Key}`;
     }
-    // Fallback: serve through Node.js proxy
+    // Fallback: serve through old path (will 404 if route is removed)
     const filename = s3Key.replace('uploads/', '');
     return `/api/upload/file/${filename}`;
 }
-
-// ── In-memory LRU-style cache for serving files ───────────────
-// Production: cache up to 200 files for 2 hours, check every 10 min
-const fileCache = new NodeCache({ stdTTL: 7200, checkperiod: 600, maxKeys: 200 });
 
 // ── Sharp processing presets (production-grade) ───────────────
 
@@ -130,103 +125,7 @@ router.get('/cdn-config', (req, res) => {
     });
 });
 
-// ── GET /api/upload/file/:filename — Fallback proxy (used when CloudFront is NOT configured) ──
-router.get('/file/:filename', async (req, res) => {
-    try {
-        const { filename } = req.params;
 
-        // Security: no path traversal
-        if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-            return res.status(400).send('Invalid filename');
-        }
-
-        // ── Generate ETag from filename (immutable content) ──
-        const etag = `"${Buffer.from(filename).toString('base64url')}"`;
-
-        // If-None-Match: browser already has this file cached
-        if (req.headers['if-none-match'] === etag) {
-            return res.status(304).end();
-        }
-
-        // ── Check in-memory cache (instant, no S3 round-trip) ──
-        const cached = fileCache.get<{ body: Buffer; contentType: string }>(filename);
-        if (cached) {
-            res.setHeader('Content-Type', cached.contentType);
-            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-            res.setHeader('ETag', etag);
-            res.setHeader('Vary', 'Accept-Encoding');
-            res.setHeader('Content-Length', cached.body.length);
-            return res.send(cached.body);
-        }
-
-        const key = `uploads/${filename}`;
-
-        if (!config.aws.bucketName) {
-            throw new Error('AWS S3 is not configured on the server');
-        }
-
-        const command = new GetObjectCommand({
-            Bucket: config.aws.bucketName,
-            Key: key,
-        });
-
-        const response = await s3.send(command);
-
-        if (response.Body) {
-            const contentType = response.ContentType || 'application/octet-stream';
-            const contentLength = response.ContentLength;
-
-            // Set headers IMMEDIATELY — browser starts preparing before bytes arrive
-            res.setHeader('Content-Type', contentType);
-            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-            res.setHeader('ETag', etag);
-            res.setHeader('Vary', 'Accept-Encoding');
-            if (contentLength) {
-                res.setHeader('Content-Length', contentLength);
-            }
-
-            // ── STREAM directly from S3 → Client ──
-            // Browser starts receiving bytes IMMEDIATELY instead of waiting
-            // for the entire file to buffer in Node.js memory
-            const cacheChunks: Buffer[] = [];
-            const shouldCache = !contentLength || contentLength < 2 * 1024 * 1024; // Cache files < 2MB
-
-            // @ts-ignore - S3 Body is an async iterable stream
-            for await (const chunk of response.Body) {
-                const buf = typeof chunk === 'string' ? Buffer.from(chunk) : chunk;
-
-                // Write to client immediately (streaming!)
-                res.write(buf);
-
-                // Collect for cache in background
-                if (shouldCache) {
-                    cacheChunks.push(buf);
-                }
-            }
-
-            // End the response
-            res.end();
-
-            // Cache the file for future requests (async, non-blocking)
-            if (shouldCache && cacheChunks.length > 0) {
-                const buffer = Buffer.concat(cacheChunks);
-                fileCache.set(filename, { body: buffer, contentType });
-            }
-        } else {
-            res.status(404).send('File not found in S3');
-        }
-    } catch (err: any) {
-        console.error('[S3] Download error detail:', {
-            message: err.message,
-            filename: req.params.filename,
-            bucket: config.aws.bucketName,
-            key: `uploads/${req.params.filename}`
-        });
-        if (!res.headersSent) {
-            res.status(404).send('File not found or access denied');
-        }
-    }
-});
 
 // ── POST /api/upload — Upload with production-grade image processing ──
 router.post('/', authenticate, requirePayment, (req, res, next) => {

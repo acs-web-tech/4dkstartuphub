@@ -1667,9 +1667,9 @@ img {
   margin-bottom: 24px;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  background: linear-gradient(135deg, var(--accent-soft) 0%, var(--bg-primary) 100%);
+  background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
-  height: 400px;
+  max-height: 650px;
   width: 100%;
   display: flex;
   align-items: center;
@@ -1678,7 +1678,8 @@ img {
 
 .post-detail-cover img {
   width: 100%;
-  height: 100%;
+  height: auto;
+  max-height: 650px;
   object-fit: contain;
   display: block;
 }
@@ -6075,17 +6076,18 @@ img {
 .post-card-media-thumb {
   border-radius: var(--radius);
   overflow: hidden;
-  background: linear-gradient(135deg, var(--accent-soft) 0%, var(--bg-primary) 100%);
+  background: var(--bg-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 320px;
+  max-height: 650px;
   width: 100%;
 }
 
 .post-card-media-thumb img {
   width: 100%;
-  height: 100%;
+  height: auto;
+  max-height: 650px;
   object-fit: contain;
   display: block;
   border-radius: var(--radius);
