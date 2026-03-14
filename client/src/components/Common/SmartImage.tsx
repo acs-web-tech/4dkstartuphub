@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 
 interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
     src: string;
@@ -7,25 +7,31 @@ interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
 }
 
 /**
- * A simplified SmartImage component that uses native browser caching
- * but provides a smooth fade-in effect for a premium feel.
+ * A simplified SmartImage component that behaves exactly like a native <img>
+ * but with a smooth fade-in and support for a loading fallback.
  */
 export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, ...props }) => {
-    const [loading, setLoading] = useState(true);
+    const [loaded, setLoaded] = useState(false);
     const [errored, setErrored] = useState(false);
+    const imgRef = useRef<HTMLImageElement>(null);
 
+    // If the image is already in browser cache, onLoad might not fire in some cases
+    // unless we check the .complete property on mount/src change.
     useEffect(() => {
-        // Reset state when src changes
-        setLoading(true);
+        if (imgRef.current?.complete) {
+            setLoaded(true);
+        } else {
+            setLoaded(false);
+        }
         setErrored(false);
     }, [src]);
 
     const handleLoad = () => {
-        setLoading(false);
+        setLoaded(true);
     };
 
     const handleError = () => {
-        setLoading(false);
+        setLoaded(false);
         setErrored(true);
     };
 
@@ -34,25 +40,27 @@ export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, ...props 
     }
 
     return (
-        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-            {loading && fallback && (
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
+        <>
+            {!loaded && fallback && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', minHeight: '100px' }}>
                     {fallback}
                 </div>
             )}
             <img
                 {...props}
+                ref={imgRef}
                 src={src}
                 onLoad={handleLoad}
                 onError={handleError}
-                className={`${props.className || ''} ${loading ? 'opacity-0' : 'opacity-100'}`}
                 style={{
                     ...props.style,
-                    transition: 'opacity 0.4s ease-out',
-                    visibility: loading ? 'hidden' : 'visible'
+                    display: loaded ? (props.style?.display || 'block') : 'none',
+                    opacity: loaded ? 1 : 0,
+                    transition: 'opacity 0.3s ease-in-out'
                 }}
             />
-        </div>
+        </>
     );
 };
+
 
