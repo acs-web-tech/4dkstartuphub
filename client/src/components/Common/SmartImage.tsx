@@ -7,16 +7,15 @@ interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
 }
 
 /**
- * A simplified SmartImage component that behaves exactly like a native <img>
- * but with a smooth fade-in and support for a loading fallback.
+ * A SmartImage component that implements a "blur-up" effect.
+ * It shows the image immediately (leveraging progressive JPEGs)
+ * and clears a blur filter as the image becomes fully ready.
  */
 export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, ...props }) => {
     const [loaded, setLoaded] = useState(false);
     const [errored, setErrored] = useState(false);
     const imgRef = useRef<HTMLImageElement>(null);
 
-    // If the image is already in browser cache, onLoad might not fire in some cases
-    // unless we check the .complete property on mount/src change.
     useEffect(() => {
         if (imgRef.current?.complete) {
             setLoaded(true);
@@ -40,9 +39,25 @@ export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, ...props 
     }
 
     return (
-        <>
+        <div style={{ 
+            position: 'relative', 
+            overflow: 'hidden', 
+            width: props.width || '100%', 
+            height: props.height || '100%',
+            display: props.style?.display || 'block'
+        }}>
             {!loaded && fallback && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', minHeight: '100px' }}>
+                <div style={{ 
+                    position: 'absolute', 
+                    top: 0, 
+                    left: 0, 
+                    width: '100%', 
+                    height: '100%', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    zIndex: 1
+                }}>
                     {fallback}
                 </div>
             )}
@@ -54,13 +69,17 @@ export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, ...props 
                 onError={handleError}
                 style={{
                     ...props.style,
-                    display: loaded ? (props.style?.display || 'block') : 'none',
-                    opacity: loaded ? 1 : 0,
-                    transition: 'opacity 0.3s ease-in-out'
+                    filter: loaded ? 'blur(0)' : 'blur(20px)',
+                    transform: loaded ? 'scale(1)' : 'scale(1.05)',
+                    transition: 'filter 0.5s ease-out, transform 0.5s ease-out',
+                    width: '100%',
+                    height: '100%',
+                    objectFit: (props.style?.objectFit as any) || 'cover',
                 }}
             />
-        </>
+        </div>
     );
 };
+
 
 
