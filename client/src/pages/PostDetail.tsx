@@ -384,7 +384,7 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                     <Link to={`/users/${post.userId}`} className="post-author-info">
                                         <div className="avatar avatar-lg">
                                             {post.avatarUrl ? (
-                                                <SmartImage src={post.avatarUrl} alt="" />
+                                                <SmartImage src={post.avatarUrl} alt="" priority />
                                             ) : (
                                                 <span>{initials}</span>
                                             )}
@@ -553,7 +553,7 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                                 onClick={() => setLightbox(post.imageUrl)}
                                                 title="Click to enlarge"
                                             >
-                                                <SmartImage src={post.imageUrl} alt={post.title} />
+                                                <SmartImage src={post.imageUrl} alt={post.title} priority />
                                             </div>
                                         )}
 

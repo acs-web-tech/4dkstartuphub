@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client as s3 } from '../utils/s3';
 import { authenticate, requirePayment, AuthRequest } from '../middleware/auth';
 import { config } from '../config/env';
@@ -11,9 +11,76 @@ import NodeCache from 'node-cache';
 import sharp from 'sharp';
 
 const router = Router();
-const fileCache = new NodeCache({ stdTTL: 3600, checkperiod: 600, maxKeys: 100 }); // Cache up to 100 files for 1 hour
 
-// Configure storage (Memory for processing manually)
+// ── In-memory LRU-style cache for serving files ───────────────
+// Production: cache up to 200 files for 2 hours, check every 10 min
+const fileCache = new NodeCache({ stdTTL: 7200, checkperiod: 600, maxKeys: 200 });
+
+// ── Sharp processing presets (production-grade) ───────────────
+
+interface ImagePreset {
+    width: number;
+    quality: number;
+    suffix: string;
+}
+
+const IMAGE_PRESETS: Record<string, ImagePreset> = {
+    full: { width: 1200, quality: 80, suffix: '' },           // Full size for detail view
+    thumb: { width: 400, quality: 70, suffix: '_thumb' },     // Thumbnail for feed cards
+    avatar: { width: 200, quality: 75, suffix: '_avatar' },   // Avatar size
+};
+
+/**
+ * Process an image with Sharp: resize, compress, convert to WebP
+ * Returns the processed buffer and the final content type
+ */
+async function processImage(
+    buffer: Buffer,
+    preset: ImagePreset,
+    originalMime: string
+): Promise<{ buffer: Buffer; contentType: string; extension: string }> {
+    const pipeline = sharp(buffer, { failOn: 'none', animated: false })
+        .rotate() // Auto-rotate based on EXIF
+        .resize({
+            width: preset.width,
+            withoutEnlargement: true,
+            fit: 'inside',
+        });
+
+    // Convert to WebP for best compression, fall back to JPEG for GIFs (keep original)
+    if (originalMime === 'image/gif') {
+        // Don't process GIFs – serve as-is
+        return { buffer, contentType: 'image/gif', extension: 'gif' };
+    }
+
+    // Try WebP first (best compression), fallback to JPEG
+    try {
+        const webpBuffer = await pipeline
+            .webp({
+                quality: preset.quality,
+                effort: 4,           // Balance between speed and compression
+                smartSubsample: true, // Better chroma subsampling
+            })
+            .toBuffer();
+
+        return { buffer: webpBuffer, contentType: 'image/webp', extension: 'webp' };
+    } catch {
+        // Fallback to progressive JPEG
+        const jpegBuffer = await sharp(buffer, { failOn: 'none' })
+            .rotate()
+            .resize({ width: preset.width, withoutEnlargement: true, fit: 'inside' })
+            .jpeg({
+                quality: preset.quality,
+                progressive: true,
+                mozjpeg: true,  // Use mozjpeg encoder for ~10% better compression
+            })
+            .toBuffer();
+
+        return { buffer: jpegBuffer, contentType: 'image/jpeg', extension: 'jpg' };
+    }
+}
+
+// ── Configure Multer ───────────────────────────────────────────
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: config.maxFileSize },
@@ -29,7 +96,6 @@ const upload = multer({
                 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
             ];
         } else {
-            // Default to image
             allowedMimes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
         }
 
@@ -41,21 +107,32 @@ const upload = multer({
     }
 });
 
-// Proxy download route for private S3 files
+// ── GET /api/upload/file/:filename — Proxy download with aggressive caching ──
 router.get('/file/:filename', async (req, res) => {
     try {
         const { filename } = req.params;
 
-        // Security check
+        // Security: no path traversal
         if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
             return res.status(400).send('Invalid filename');
         }
 
-        // Check Cache
-        const cached = fileCache.get<{ body: Buffer, contentType: string }>(filename);
+        // ── Generate ETag from filename (immutable content) ──
+        const etag = `"${Buffer.from(filename).toString('base64url')}"`;
+
+        // If-None-Match: browser already has this file cached
+        if (req.headers['if-none-match'] === etag) {
+            return res.status(304).end();
+        }
+
+        // ── Check in-memory cache ──
+        const cached = fileCache.get<{ body: Buffer; contentType: string }>(filename);
         if (cached) {
             res.setHeader('Content-Type', cached.contentType);
-            res.setHeader('Cache-Control', 'public, max-age=31536000');
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+            res.setHeader('ETag', etag);
+            res.setHeader('Vary', 'Accept-Encoding');
+            res.setHeader('Content-Length', cached.body.length);
             return res.send(cached.body);
         }
 
@@ -74,10 +151,8 @@ router.get('/file/:filename', async (req, res) => {
 
         if (response.Body) {
             const contentType = response.ContentType || 'application/octet-stream';
-            res.setHeader('Content-Type', contentType);
-            res.setHeader('Cache-Control', 'public, max-age=31536000');
 
-            // Collect stream to buffer for caching
+            // Collect stream into buffer
             const chunks: Buffer[] = [];
             // @ts-ignore
             for await (const chunk of response.Body) {
@@ -85,9 +160,17 @@ router.get('/file/:filename', async (req, res) => {
             }
             const buffer = Buffer.concat(chunks);
 
-            // Store in cache
-            fileCache.set(filename, { body: buffer, contentType });
+            // Store in cache (only images and small files < 2MB to protect memory)
+            if (buffer.length < 2 * 1024 * 1024) {
+                fileCache.set(filename, { body: buffer, contentType });
+            }
 
+            // Set aggressive caching headers (files are content-addressed by UUID)
+            res.setHeader('Content-Type', contentType);
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+            res.setHeader('ETag', etag);
+            res.setHeader('Vary', 'Accept-Encoding');
+            res.setHeader('Content-Length', buffer.length);
             res.send(buffer);
         } else {
             res.status(404).send('File not found in S3');
@@ -103,7 +186,7 @@ router.get('/file/:filename', async (req, res) => {
     }
 });
 
-// POST /api/upload
+// ── POST /api/upload — Upload with production-grade image processing ──
 router.post('/', authenticate, requirePayment, (req, res, next) => {
     upload.single('file')(req, res, (err) => {
         if (err) {
@@ -127,60 +210,77 @@ router.post('/', authenticate, requirePayment, (req, res, next) => {
         const file = req.file;
         const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
         const uniqueSuffix = `${Date.now()}-${uuidv4()}`;
-        const filename = `${uniqueSuffix}-${safeName}`;
+        const baseName = `${uniqueSuffix}-${safeName.split('.').slice(0, -1).join('.') || safeName}`;
 
         if (!config.aws.bucketName || !config.aws.accessKeyId || !config.aws.secretAccessKey) {
             throw new Error('AWS S3 is not configured on the server');
         }
 
-        let uploadBuffer = file.buffer;
-        let uploadMimeType = file.mimetype;
+        const isImage = file.mimetype.startsWith('image/') && file.mimetype !== 'image/gif';
+        const isGif = file.mimetype === 'image/gif';
 
-        // Process images with sharp (compress and resize)
-        if (file.mimetype.startsWith('image/') && file.mimetype !== 'image/gif') {
-            try {
-                uploadBuffer = await sharp(file.buffer)
-                    .resize({
-                        width: 800,
-                        withoutEnlargement: true,
-                        fit: 'inside'
-                    })
-                    .jpeg({ quality: 80, progressive: true })
-                    .toBuffer();
-                
-                uploadMimeType = 'image/jpeg';
-                // Update filename if it wasn't jpeg already
-                const nameParts = filename.split('.');
-                if (nameParts.length > 1) {
-                    nameParts[nameParts.length - 1] = 'jpg';
-                } else {
-                    nameParts.push('jpg');
-                }
-            } catch (sharpError) {
-                console.error('[Sharp] Image processing failed, uploading original:', sharpError);
-                // Fall back to original buffer
-                uploadBuffer = file.buffer;
-                uploadMimeType = file.mimetype;
-            }
+        if (isImage) {
+            // ── Process image: generate full + thumbnail in parallel ──
+            const startTime = Date.now();
+
+            const [fullResult, thumbResult] = await Promise.all([
+                processImage(file.buffer, IMAGE_PRESETS.full, file.mimetype),
+                processImage(file.buffer, IMAGE_PRESETS.thumb, file.mimetype),
+            ]);
+
+            const fullFilename = `${baseName}.${fullResult.extension}`;
+            const thumbFilename = `${baseName}_thumb.${thumbResult.extension}`;
+
+            // Upload both sizes to S3 in parallel
+            await Promise.all([
+                s3.send(new PutObjectCommand({
+                    Bucket: config.aws.bucketName,
+                    Key: `uploads/${fullFilename}`,
+                    Body: fullResult.buffer,
+                    ContentType: fullResult.contentType,
+                    CacheControl: 'public, max-age=31536000, immutable',
+                })),
+                s3.send(new PutObjectCommand({
+                    Bucket: config.aws.bucketName,
+                    Key: `uploads/${thumbFilename}`,
+                    Body: thumbResult.buffer,
+                    ContentType: thumbResult.contentType,
+                    CacheControl: 'public, max-age=31536000, immutable',
+                })),
+            ]);
+
+            const processingTime = Date.now() - startTime;
+            const originalSize = (file.buffer.length / 1024).toFixed(1);
+            const compressedSize = (fullResult.buffer.length / 1024).toFixed(1);
+            const thumbSize = (thumbResult.buffer.length / 1024).toFixed(1);
+            const savings = ((1 - fullResult.buffer.length / file.buffer.length) * 100).toFixed(0);
+
+            console.log(
+                `[Sharp] Processed ${file.originalname}: ${originalSize}KB → ${compressedSize}KB (${savings}% smaller) + ${thumbSize}KB thumb | ${processingTime}ms`
+            );
+
+            const url = `/api/upload/file/${fullFilename}`;
+            const thumbnailUrl = `/api/upload/file/${thumbFilename}`;
+            res.json({ url, thumbnailUrl });
+        } else {
+            // Non-image files or GIFs: upload as-is
+            const extension = isGif ? 'gif' : (safeName.split('.').pop() || 'bin');
+            const filename = `${baseName}.${extension}`;
+            const key = `uploads/${filename}`;
+
+            console.log(`[S3] Uploading ${isGif ? 'GIF' : 'document'} to bucket: ${config.aws.bucketName}, Key: ${key}`);
+
+            await s3.send(new PutObjectCommand({
+                Bucket: config.aws.bucketName,
+                Key: key,
+                Body: file.buffer,
+                ContentType: file.mimetype,
+                CacheControl: isGif ? 'public, max-age=31536000, immutable' : undefined,
+            }));
+
+            const url = `/api/upload/file/${filename}`;
+            res.json({ url });
         }
-
-        const processedFilename = (file.mimetype.startsWith('image/') && file.mimetype !== 'image/gif') 
-            ? (filename.endsWith('.jpg') || filename.endsWith('.jpeg') ? filename : `${filename.split('.').slice(0, -1).join('.')}.jpg`)
-            : filename;
-
-        // Upload to S3
-        const key = `uploads/${processedFilename}`;
-        console.log(`[S3] Uploading to bucket: ${config.aws.bucketName}, Key: ${key}`);
-
-        await s3.send(new PutObjectCommand({
-            Bucket: config.aws.bucketName,
-            Key: key,
-            Body: uploadBuffer,
-            ContentType: uploadMimeType,
-        }));
-
-        const url = `/api/upload/file/${processedFilename}`;
-        res.json({ url });
     } catch (err: any) {
         console.error('[S3] Upload error:', err.message);
         res.status(500).json({ error: err.message || 'File upload failed' });

@@ -10,9 +10,11 @@ import LinkPreview from '../Common/LinkPreview';
 interface Props {
     post: Post;
     onImageClick?: (url: string) => void;
+    /** If true, images in this card load eagerly (above-the-fold) */
+    priority?: boolean;
 }
 
-function PostCard({ post, onImageClick }: Props) {
+function PostCard({ post, onImageClick, priority = false }: Props) {
     const location = useLocation();
     const [showOptions, setShowOptions] = useState(false);
     const cat = CATEGORY_CONFIG[post.category];
@@ -100,6 +102,7 @@ function PostCard({ post, onImageClick }: Props) {
                             <SmartImage
                                 src={post.avatarUrl}
                                 alt={post.displayName}
+                                priority={priority}
                             />
                         ) : (
                             <span>{initials}</span>
@@ -242,7 +245,7 @@ function PostCard({ post, onImageClick }: Props) {
                                 onClick={() => onImageClick?.(displayImage!)}
                                 title="Click to enlarge"
                             >
-                                <SmartImage src={displayImage} alt={post.title} />
+                                <SmartImage src={displayImage} alt={post.title} priority={priority} />
                             </div>
                         )}
                         {post.videoUrl && (

@@ -61,7 +61,7 @@ export default function Feed() {
     const [page, setPage] = useState(cachedData?.page || 1);
     const [hasMore, setHasMore] = useState(cachedData ? cachedData.page < cachedData.totalPages : true);
     const [pagination, setPagination] = useState<Pagination | null>(
-        cachedData ? { page: cachedData.page, totalPages: cachedData.totalPages, total: cachedData.posts.length, limit: 10 } : null
+        cachedData ? { page: cachedData.page, totalPages: cachedData.totalPages, total: cachedData.posts.length, limit: 5 } : null
     );
 
     // Refs for socket handlers
@@ -242,7 +242,7 @@ export default function Feed() {
                     page: freshCache.page,
                     totalPages: freshCache.totalPages,
                     total: freshCache.posts.length,
-                    limit: 10
+                    limit: 5
                 });
                 setHasMore(freshCache.page < freshCache.totalPages);
                 setLoading(false);
@@ -281,7 +281,7 @@ export default function Feed() {
         if (page === 1) setLoading(true);
         else setLoadingMore(true);
 
-        postsApi.getAll({ page, limit: 10, category: category || undefined, search: search || undefined }, { signal: controller.signal })
+        postsApi.getAll({ page, limit: 5, category: category || undefined, search: search || undefined }, { signal: controller.signal })
             .then(data => {
                 if (!isCurrent) return;
 
@@ -451,14 +451,17 @@ export default function Feed() {
                                     userIsOnline: connected ? onlineUsers.has(post.userId) : false
                                 };
 
+                                // First 3 posts are above-the-fold — eagerly load their images
+                                const isPriority = index < 3;
+
                                 if (posts.length === index + 1) {
                                     return (
                                         <div ref={lastPostElementRef} key={post.id}>
-                                            <PostCard post={postWithStatus} onImageClick={setLightbox} />
+                                            <PostCard post={postWithStatus} onImageClick={setLightbox} priority={isPriority} />
                                         </div>
                                     );
                                 } else {
-                                    return <PostCard key={post.id} post={postWithStatus} onImageClick={setLightbox} />;
+                                    return <PostCard key={post.id} post={postWithStatus} onImageClick={setLightbox} priority={isPriority} />;
                                 }
                             })}
                     </div>

@@ -25,7 +25,7 @@ const router = Router();
 router.get('/', authenticate, async (req, res) => {
     try {
         const page = Math.max(1, parseInt(req.query.page as string) || 1);
-        const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
+        const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 5));
         const skip = (page - 1) * limit;
         const category = req.query.category as string;
         const search = req.query.search as string;
@@ -54,65 +54,67 @@ router.get('/', authenticate, async (req, res) => {
             match.view_count = { $gt: 0 };
         }
 
-        const posts = await Post.aggregate([
-            { $match: match },
-            { $sort: sort },
-            { $skip: skip },
-            { $limit: limit },
-            {
-                $lookup: {
-                    from: 'users',
-                    localField: 'user_id',
-                    foreignField: '_id',
-                    as: 'user'
+        // Run aggregate + count in parallel for faster response
+        const [posts, total] = await Promise.all([
+            Post.aggregate([
+                { $match: match },
+                { $sort: sort },
+                { $skip: skip },
+                { $limit: limit },
+                {
+                    $lookup: {
+                        from: 'users',
+                        localField: 'user_id',
+                        foreignField: '_id',
+                        as: 'user'
+                    }
+                },
+                { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+                {
+                    $lookup: {
+                        from: 'likes',
+                        localField: '_id',
+                        foreignField: 'post_id',
+                        as: 'likes'
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'comments',
+                        localField: '_id',
+                        foreignField: 'post_id',
+                        as: 'comments'
+                    }
+                },
+                {
+                    $project: {
+                        id: '$_id',
+                        userId: '$user_id',
+                        title: 1,
+                        content: 1,
+                        category: 1,
+                        imageUrl: '$image_url',
+                        videoUrl: '$video_url',
+                        isPinned: { $cond: ['$is_pinned', 1, 0] },
+                        isLocked: { $cond: ['$is_locked', 1, 0] },
+                        viewCount: '$view_count',
+                        likeCount: { $size: '$likes' },
+                        commentCount: { $size: '$comments' },
+                        username: { $ifNull: ['$user.username', 'deleted'] },
+                        displayName: { $ifNull: ['$user.display_name', 'Deleted User'] },
+                        avatarUrl: { $ifNull: ['$user.avatar_url', ''] },
+                        role: { $ifNull: ['$user.role', 'user'] },
+                        eventDate: '$event_date',
+                        userType: { $ifNull: ['$user.user_type', ''] },
+                        userPostCount: { $ifNull: ['$user.post_count', 0] },
+                        createdAt: '$created_at',
+                        updatedAt: '$updated_at',
+                        linkPreview: '$link_preview'
+                    }
                 }
-            },
-            { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
-            {
-                $lookup: {
-                    from: 'likes',
-                    localField: '_id',
-                    foreignField: 'post_id',
-                    as: 'likes'
-                }
-            },
-            {
-                $lookup: {
-                    from: 'comments',
-                    localField: '_id',
-                    foreignField: 'post_id',
-                    as: 'comments'
-                }
-            },
-            {
-                $project: {
-                    id: '$_id',
-                    userId: '$user_id',
-                    title: 1,
-                    content: 1,
-                    category: 1,
-                    imageUrl: '$image_url',
-                    videoUrl: '$video_url',
-                    isPinned: { $cond: ['$is_pinned', 1, 0] },
-                    isLocked: { $cond: ['$is_locked', 1, 0] },
-                    viewCount: '$view_count',
-                    likeCount: { $size: '$likes' },
-                    commentCount: { $size: '$comments' },
-                    username: { $ifNull: ['$user.username', 'deleted'] },
-                    displayName: { $ifNull: ['$user.display_name', 'Deleted User'] },
-                    avatarUrl: { $ifNull: ['$user.avatar_url', ''] },
-                    role: { $ifNull: ['$user.role', 'user'] },
-                    eventDate: '$event_date',
-                    userType: { $ifNull: ['$user.user_type', ''] },
-                    userPostCount: { $ifNull: ['$user.post_count', 0] },
-                    createdAt: '$created_at',
-                    updatedAt: '$updated_at',
-                    linkPreview: '$link_preview'
-                }
-            }
+            ]),
+            Post.countDocuments(match)
         ]);
-
-        const total = await Post.countDocuments(match);
 
         res.json({
             posts,
