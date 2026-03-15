@@ -193,9 +193,9 @@ export default function CreatePost() {
                     eventDate: eventDate ? new Date(eventDate).toISOString() : undefined
                 });
                 if (location.state?.previousBackground) {
-                    navigate(`/posts/${editId}`, { state: { background: location.state.previousBackground } });
+                    navigate(-1);
                 } else {
-                    navigate(`/posts/${editId}`);
+                    navigate(`/posts/${editId}`, { replace: true });
                 }
             } else {
                 const data = await postsApi.create({
@@ -396,13 +396,7 @@ export default function CreatePost() {
                 </div>
 
                 <div className="form-actions">
-                    <button type="button" className="btn btn-ghost" onClick={() => {
-                        if (location.state?.previousBackground) {
-                            navigate(`/posts/${editId}`, { state: { background: location.state.previousBackground } });
-                        } else {
-                            navigate(-1);
-                        }
-                    }}>Cancel</button>
+                    <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>Cancel</button>
                     <button type="submit" className="btn btn-primary" disabled={loading || imageUploading || thumbnailUploading} id="submit-post-btn">
                         {loading ? (isEditing ? 'Saving...' : 'Publishing...') : (
                             (imageUploading || thumbnailUploading) ? 'Uploading Image...' : (isEditing ? <><Save size={18} className="inline mr-1" /> Save Changes</> : <><Rocket size={18} className="inline mr-1" /> Publish Post</>)
