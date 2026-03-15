@@ -1,6 +1,6 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { editorModules, editorFormats } from '../../config/editor';
@@ -17,6 +17,7 @@ import { getCdnUrl } from '../../utils/cdn';
 export default function CreatePost() {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const { id: editId } = useParams();
     const [searchParams] = useSearchParams();
     const isEditing = !!editId;
@@ -190,7 +191,11 @@ export default function CreatePost() {
                     imageUrl: imageUrl || undefined,
                     eventDate: eventDate ? new Date(eventDate).toISOString() : undefined
                 });
-                navigate(`/posts/${editId}`);
+                if (location.state?.previousBackground) {
+                    navigate(`/posts/${editId}`, { state: { background: location.state.previousBackground } });
+                } else {
+                    navigate(`/posts/${editId}`);
+                }
             } else {
                 const data = await postsApi.create({
                     title: title.trim(),
@@ -390,7 +395,13 @@ export default function CreatePost() {
                 </div>
 
                 <div className="form-actions">
-                    <button type="button" className="btn btn-ghost" onClick={() => navigate(-1)}>Cancel</button>
+                    <button type="button" className="btn btn-ghost" onClick={() => {
+                        if (location.state?.previousBackground) {
+                            navigate(`/posts/${editId}`, { state: { background: location.state.previousBackground } });
+                        } else {
+                            navigate(-1);
+                        }
+                    }}>Cancel</button>
                     <button type="submit" className="btn btn-primary" disabled={loading || imageUploading || thumbnailUploading} id="submit-post-btn">
                         {loading ? (isEditing ? 'Saving...' : 'Publishing...') : (
                             (imageUploading || thumbnailUploading) ? 'Uploading Image...' : (isEditing ? <><Save size={18} className="inline mr-1" /> Save Changes</> : <><Rocket size={18} className="inline mr-1" /> Publish Post</>)

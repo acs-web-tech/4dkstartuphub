@@ -754,7 +754,7 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                     </div>
 
                                     {isAuthor && (
-                                        <Link to={`/edit-post/${id}`} className="action-btn" id="edit-post-btn">
+                                        <Link to={`/edit-post/${id}`} state={{ previousBackground: location.state?.background }} className="action-btn" id="edit-post-btn">
                                             <Pencil size={18} /> Edit
                                         </Link>
                                     )}
