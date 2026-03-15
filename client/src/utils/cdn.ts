@@ -16,7 +16,7 @@ async function fetchCdnConfig(): Promise<void> {
     if (cdnFetched) return;
     cdnFetched = true; // prevent multiple fetches
     try {
-        const res = await fetch('/api/upload/cdn-config');
+        const res = await fetch(`/api/upload/cdn-config?t=${Date.now()}`);
         if (res.ok) {
             const data = await res.json();
             if (data.enabled && data.cdnBaseUrl) {

@@ -162,6 +162,7 @@
     background: #10b981;
     border: 3px solid #0f0f0f;
     border-radius: 50%;
+    z-index: 10;
 }
 
 .member-row-card:hover .online-indicator-dot {
