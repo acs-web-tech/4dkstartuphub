@@ -3,11 +3,12 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import { PutObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, HeadObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client as s3 } from '../utils/s3';
 import { authenticate, requirePayment, AuthRequest } from '../middleware/auth';
 import { config } from '../config/env';
 import sharp from 'sharp';
+import { Readable } from 'stream';
 
 const router = Router();
 
@@ -22,6 +23,47 @@ function getCdnUrl(s3Key: string): string {
     const filename = s3Key.replace('uploads/', '');
     return `/api/upload/file/${filename}`;
 }
+
+// ── GET /api/upload/file/:filename — Proxy S3 files for legacy support ──
+/**
+ * Serves files from S3 bucket via the server.
+ * This is used for:
+ * 1. Backwards compatibility for old URLs in the database.
+ * 2. Fallback when CloudFront is not yet configured.
+ */
+router.get('/file/:filename', async (req, res) => {
+    try {
+        const { filename } = req.params;
+        const key = `uploads/${filename}`;
+
+        const response = await s3.send(new GetObjectCommand({
+            Bucket: config.aws.bucketName,
+            Key: key
+        }));
+
+        if (!response.Body) {
+            return res.status(404).json({ error: 'File not found' });
+        }
+
+        // Set headers from S3 response
+        res.setHeader('Content-Type', response.ContentType || 'application/octet-stream');
+        res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours at edge/browser
+        
+        // If content length is available, set it
+        if (response.ContentLength) {
+            res.setHeader('Content-Length', response.ContentLength);
+        }
+
+        // Stream from S3 to client
+        (response.Body as Readable).pipe(res);
+    } catch (err: any) {
+        if (err.name === 'NoSuchKey' || err.$metadata?.httpStatusCode === 404) {
+            return res.status(404).json({ error: 'File not found' });
+        }
+        console.error('[S3 Proxy] Error fetching file:', err.message);
+        res.status(500).json({ error: 'Failed to fetch file' });
+    }
+});
 
 // ── Sharp processing presets (production-grade) ───────────────
 
