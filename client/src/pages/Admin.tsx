@@ -960,7 +960,7 @@ export default function Admin() {
                                                                 onClick={() => handleAddMember(user.id)}
                                                             >
                                                                 <div className="flex items-center gap-2">
-                                                                    <img src={user.avatarUrl || '/default-avatar.png'} alt="" className="w-6 h-6 rounded-full" />
+                                                                    <img src={getCdnUrl(user.avatarUrl) || '/default-avatar.png'} alt="" className="w-6 h-6 rounded-full" />
                                                                     <span>{user.displayName}</span>
                                                                     <span className="text-xs text-gray-400">@{user.username}</span>
                                                                 </div>
@@ -977,7 +977,7 @@ export default function Admin() {
                                             {roomMembers.map(member => (
                                                 <div key={member.id} className="flex items-center justify-between p-3 bg-dark-lighter rounded">
                                                     <div className="flex items-center gap-3">
-                                                        <img src={member.avatarUrl || '/default-avatar.png'} alt="" className="w-8 h-8 rounded-full" />
+                                                        <img src={getCdnUrl(member.avatarUrl) || '/default-avatar.png'} alt="" className="w-8 h-8 rounded-full" />
                                                         <div>
                                                             <div className="font-medium">{member.displayName}</div>
                                                             <div className="text-xs text-gray-400">@{member.username}</div>
@@ -1052,7 +1052,7 @@ export default function Admin() {
                                         </div>
 
                                         <div className="flex items-center gap-4 mb-6 p-4 bg-dark-lighter rounded-lg">
-                                            <img src={selectedPitch.userAvatarUrl || '/default-avatar.png'} alt="" className="w-12 h-12 rounded-full" />
+                                            <img src={getCdnUrl(selectedPitch.userAvatarUrl) || '/default-avatar.png'} alt="" className="w-12 h-12 rounded-full" />
                                             <div>
                                                 <div className="font-bold">{selectedPitch.userDisplayName}</div>
                                                 <div className="text-gray-400">@{selectedPitch.username}</div>
@@ -1068,7 +1068,7 @@ export default function Admin() {
                                             <div className="mb-8">
                                                 <h3 className="text-lg font-semibold mb-2">Pitch Deck</h3>
                                                 <a
-                                                    href={selectedPitch.deckUrl}
+                                                    href={getCdnUrl(selectedPitch.deckUrl)}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="btn btn-secondary inline-flex items-center"
@@ -1252,7 +1252,7 @@ export default function Admin() {
                                             })()}
                                             {broadcast.imageUrl && (
                                                 <div className="mt-2 rounded overflow-hidden border border-gray-700">
-                                                    <img src={broadcast.imageUrl} alt="Notification Banner" className="w-full h-auto" />
+                                                    <img src={getCdnUrl(broadcast.imageUrl)} alt="Notification Banner" className="w-full h-auto" />
                                                 </div>
                                             )}
                                         </div>
@@ -1322,7 +1322,7 @@ export default function Admin() {
                                     </div>
                                     {welcomeImageUrl && (
                                         <div style={{ marginTop: '8px' }}>
-                                            <img src={welcomeImageUrl} alt="Welcome Banner Preview" style={{ maxWidth: '100%', height: 'auto', borderRadius: '4px' }} />
+                                            <img src={getCdnUrl(welcomeImageUrl)} alt="Welcome Banner Preview" style={{ maxWidth: '100%', height: 'auto', borderRadius: '4px' }} />
                                         </div>
                                     )}
                                 </div>
