@@ -179,14 +179,14 @@ router.post('/', authenticate, requirePayment, (req, res, next) => {
                     Key: `uploads/${fullFilename}`,
                     Body: fullResult.buffer,
                     ContentType: fullResult.contentType,
-                    CacheControl: 'public, max-age=31536000, immutable',
+                    CacheControl: 'public, max-age=18000',
                 })),
                 s3.send(new PutObjectCommand({
                     Bucket: config.aws.bucketName,
                     Key: `uploads/${thumbFilename}`,
                     Body: thumbResult.buffer,
                     ContentType: thumbResult.contentType,
-                    CacheControl: 'public, max-age=31536000, immutable',
+                    CacheControl: 'public, max-age=18000',
                 })),
             ]);
 
@@ -216,7 +216,7 @@ router.post('/', authenticate, requirePayment, (req, res, next) => {
                 Key: key,
                 Body: file.buffer,
                 ContentType: file.mimetype,
-                CacheControl: isGif ? 'public, max-age=31536000, immutable' : undefined,
+                CacheControl: isGif ? 'public, max-age=18000' : undefined,
             }));
 
             const url = getCdnUrl(`uploads/${filename}`);
