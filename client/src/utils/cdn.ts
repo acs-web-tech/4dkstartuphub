@@ -21,8 +21,6 @@ async function fetchCdnConfig(): Promise<void> {
             const data = await res.json();
             if (data.enabled && data.cdnBaseUrl) {
                 cdnBaseUrl = data.cdnBaseUrl; 
-                // Notify the app that CDN config is ready
-                window.dispatchEvent(new CustomEvent('cdnConfigLoaded'));
             }
         }
     } catch {

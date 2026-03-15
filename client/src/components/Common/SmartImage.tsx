@@ -47,21 +47,12 @@ function getGlobalObserver() {
  * - Priority flag for above-the-fold images
  */
 export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, priority = false, objectFit = 'cover', ...props }) => {
-    // Track CDN config load to trigger re-calculation of cdnSrc
-    const [tick, setTick] = useState(0); 
-    useEffect(() => {
-        const handler = () => setTick(t => t + 1);
-        window.addEventListener('cdnConfigLoaded', handler);
-        return () => window.removeEventListener('cdnConfigLoaded', handler);
-    }, []);
-
     // Rewrite to CloudFront URL if CDN is configured
-    const cdnSrc = useMemo(() => getCdnUrl(src), [src, tick]);
+    const cdnSrc = useMemo(() => getCdnUrl(src), [src]);
 
     const [isVisible, setIsVisible] = useState(priority); // Priority images visible immediately
     const [loaded, setLoaded] = useState(false);
     const [errored, setErrored] = useState(false);
-
     const containerRef = useRef<HTMLDivElement>(null);
     const imgRef = useRef<HTMLImageElement>(null);
 

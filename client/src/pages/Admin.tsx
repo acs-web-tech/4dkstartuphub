@@ -13,7 +13,8 @@ import 'react-quill/dist/quill.snow.css';
 import { editorModules, editorFormats } from '../config/editor';
 import { useModal } from '../context/ModalContext';
 import LinkPreview from '../components/Common/LinkPreview';
-import { getCdnUrl } from '../utils/cdn';
+import { SmartImage } from '../components/Common/SmartImage';
+import { rewriteContentUrls, getCdnUrl } from '../utils/cdn';
 
 export default function Admin() {
     const { alert, confirm } = useModal();
@@ -960,7 +961,9 @@ export default function Admin() {
                                                                 onClick={() => handleAddMember(user.id)}
                                                             >
                                                                 <div className="flex items-center gap-2">
-                                                                    <img src={getCdnUrl(user.avatarUrl) || '/default-avatar.png'} alt="" className="w-6 h-6 rounded-full" />
+                                                                    <div className="w-6 h-6 rounded-full overflow-hidden">
+                                                                        <SmartImage src={user.avatarUrl} alt="" fallback={<span>{user.displayName.charAt(0)}</span>} />
+                                                                    </div>
                                                                     <span>{user.displayName}</span>
                                                                     <span className="text-xs text-gray-400">@{user.username}</span>
                                                                 </div>
@@ -977,7 +980,9 @@ export default function Admin() {
                                             {roomMembers.map(member => (
                                                 <div key={member.id} className="flex items-center justify-between p-3 bg-dark-lighter rounded">
                                                     <div className="flex items-center gap-3">
-                                                        <img src={getCdnUrl(member.avatarUrl) || '/default-avatar.png'} alt="" className="w-8 h-8 rounded-full" />
+                                                        <div className="w-8 h-8 rounded-full overflow-hidden">
+                                                            <SmartImage src={member.avatarUrl} alt="" fallback={<span>{member.displayName.charAt(0)}</span>} />
+                                                        </div>
                                                         <div>
                                                             <div className="font-medium">{member.displayName}</div>
                                                             <div className="text-xs text-gray-400">@{member.username}</div>
@@ -1052,7 +1057,9 @@ export default function Admin() {
                                         </div>
 
                                         <div className="flex items-center gap-4 mb-6 p-4 bg-dark-lighter rounded-lg">
-                                            <img src={getCdnUrl(selectedPitch.userAvatarUrl) || '/default-avatar.png'} alt="" className="w-12 h-12 rounded-full" />
+                                            <div className="w-12 h-12 rounded-full overflow-hidden">
+                                                <SmartImage src={selectedPitch.userAvatarUrl || ''} alt="" fallback={<span>{(selectedPitch.userDisplayName || 'U').charAt(0)}</span>} />
+                                            </div>
                                             <div>
                                                 <div className="font-bold">{selectedPitch.userDisplayName}</div>
                                                 <div className="text-gray-400">@{selectedPitch.username}</div>
