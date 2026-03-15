@@ -2031,7 +2031,7 @@ img {
   color: var(--text-primary);
   line-height: 1.7;
   margin-bottom: 24px;
-  max-height: 320px;
+  max-height: 150px;
   overflow: hidden;
   position: relative;
 }

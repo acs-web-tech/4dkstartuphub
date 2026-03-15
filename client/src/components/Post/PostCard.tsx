@@ -335,7 +335,7 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
                                 onClick={handleContentClick}
                             />
                         )}
-                        {urls.map((url, i) => (
+                        {urls.slice(0, 1).map((url, i) => (
                             <LinkPreview
                                 key={url}
                                 url={url}

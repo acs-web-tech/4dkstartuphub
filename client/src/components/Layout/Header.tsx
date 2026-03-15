@@ -281,8 +281,13 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
     };
 
     const handleLogout = async () => {
-        await logout();
-        navigate('/login');
+        try {
+            await logout();
+        } catch (e) {
+            console.warn('Logout non-critical error:', e);
+        } finally {
+            navigate('/login', { replace: true });
+        }
     };
 
     const handleNotifClick = (n: AppNotification) => {

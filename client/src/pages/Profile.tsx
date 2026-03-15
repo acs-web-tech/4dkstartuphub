@@ -254,24 +254,27 @@ export default function Profile() {
                         className={`avatar avatar-xl ${editing ? 'avatar-editable' : ''}`}
                         onClick={() => {
                             if (editing && !uploading && fileInputRef.current) {
+                                // Direct toggle to open file picker avoiding mobile "double-tap to hover" issue
                                 fileInputRef.current.click();
                             } else if (!editing && user?.avatarUrl) {
                                 setShowAvatarViewer(true);
                             }
                         }}
                         title={editing ? "Click to change avatar" : ""}
+                        // Use cursor pointer to show it's clickable
                         style={{ cursor: (editing && !uploading) || (!editing && user?.avatarUrl) ? 'pointer' : 'default', position: 'relative' }}
                     >
                         {(editing ? form.avatarUrl : user.avatarUrl) ? <img src={getCdnUrl(editing ? form.avatarUrl : user.avatarUrl)} alt="" style={uploading ? { opacity: 0.5 } : {}} /> : <span>{initials}</span>}
 
                         {uploading && (
-                            <div className="avatar-overlay" style={{ background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div className="avatar-overlay" style={{ background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 1 }}>
                                 <div className="spinner" style={{ width: '24px', height: '24px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff' }} />
                             </div>
                         )}
 
+                        {/* Always visible overlay on mobile/desktop whilst editing to avoid double-tap */}
                         {editing && !uploading && (
-                            <div className="avatar-overlay">
+                            <div className="avatar-overlay" style={{ background: 'rgba(0,0,0,0.4)', opacity: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <Camera size={24} color="white" />
                             </div>
                         )}

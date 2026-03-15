@@ -1,10 +1,11 @@
 
 import express from 'express';
 import { getLinkPreview } from '../services/metadata';
+import { authenticate, requirePayment } from '../middleware/auth';
 
 const router = express.Router();
 
-router.get('/preview', async (req, res) => {
+router.get('/preview', authenticate, requirePayment, async (req, res) => {
     const urlString = req.query.url as string;
     if (!urlString) {
         return res.status(400).json({ error: 'URL is required' });
