@@ -350,7 +350,7 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
             user.display_name = sanitizedName;
             user.user_type = userType || 'startup';
             user.razorpay_order_id = orderId;
-            user.payment_status = paymentRequired ? 'pending' : 'completed';
+            user.payment_status = paymentRequired ? 'pending' : 'free';
             user.is_active = !paymentRequired && !isVerificationRequired;
             user.is_email_verified = emailVerified;
             user.email_verification_otp = verificationOtp;
@@ -365,7 +365,7 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
                 password_hash: passwordHash,
                 display_name: sanitizedName,
                 user_type: userType || 'startup',
-                payment_status: paymentRequired ? 'pending' : 'completed',
+                payment_status: paymentRequired ? 'pending' : 'free',
                 razorpay_order_id: orderId,
                 is_active: !paymentRequired && !isVerificationRequired,
                 is_email_verified: emailVerified,
