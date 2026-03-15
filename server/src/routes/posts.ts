@@ -47,29 +47,18 @@ router.get('/', authenticate, async (req, res) => {
         }
 
         const sort: any = trending
-            ? { view_count: -1, created_at: -1 }
+            ? { score: -1, created_at: -1 }
             : { is_pinned: -1, created_at: -1 };
 
         if (trending) {
             match.view_count = { $gt: 0 };
         }
 
-        // Run aggregate + count in parallel for faster response
-        const [posts, total] = await Promise.all([
-            Post.aggregate([
-                { $match: match },
-                { $sort: sort },
-                { $skip: skip },
-                { $limit: limit },
-                {
-                    $lookup: {
-                        from: 'users',
-                        localField: 'user_id',
-                        foreignField: '_id',
-                        as: 'user'
-                    }
-                },
-                { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+        const pipeline: any[] = [{ $match: match }];
+
+        if (trending) {
+            // For trending, we lookup likes and comments FIRST, compute score, THEN sort and limit
+            pipeline.push(
                 {
                     $lookup: {
                         from: 'likes',
@@ -87,32 +76,87 @@ router.get('/', authenticate, async (req, res) => {
                     }
                 },
                 {
-                    $project: {
-                        id: '$_id',
-                        userId: '$user_id',
-                        title: 1,
-                        content: 1,
-                        category: 1,
-                        imageUrl: '$image_url',
-                        videoUrl: '$video_url',
-                        isPinned: { $cond: ['$is_pinned', 1, 0] },
-                        isLocked: { $cond: ['$is_locked', 1, 0] },
-                        viewCount: '$view_count',
-                        likeCount: { $size: '$likes' },
-                        commentCount: { $size: '$comments' },
-                        username: { $ifNull: ['$user.username', 'deleted'] },
-                        displayName: { $ifNull: ['$user.display_name', 'Deleted User'] },
-                        avatarUrl: { $ifNull: ['$user.avatar_url', ''] },
-                        role: { $ifNull: ['$user.role', 'user'] },
-                        eventDate: '$event_date',
-                        userType: { $ifNull: ['$user.user_type', ''] },
-                        userPostCount: { $ifNull: ['$user.post_count', 0] },
-                        createdAt: '$created_at',
-                        updatedAt: '$updated_at',
-                        linkPreview: '$link_preview'
+                    $addFields: {
+                        score: {
+                            $add: [
+                                { $multiply: [{ $size: '$comments' }, 3] },
+                                { $multiply: [{ $size: '$likes' }, 2] },
+                                { $multiply: ['$view_count', 1] }
+                            ]
+                        }
+                    }
+                },
+                { $sort: sort },
+                { $skip: skip },
+                { $limit: limit }
+            );
+        } else {
+            // Standard feed: sort and limit FIRST, then lookup likes/comments
+            pipeline.push(
+                { $sort: sort },
+                { $skip: skip },
+                { $limit: limit },
+                {
+                    $lookup: {
+                        from: 'likes',
+                        localField: '_id',
+                        foreignField: 'post_id',
+                        as: 'likes'
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'comments',
+                        localField: '_id',
+                        foreignField: 'post_id',
+                        as: 'comments'
                     }
                 }
-            ]),
+            );
+        }
+
+        // Apply remaining projections for both paths
+        pipeline.push(
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'user_id',
+                    foreignField: '_id',
+                    as: 'user'
+                }
+            },
+            { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+            {
+                $project: {
+                    id: '$_id',
+                    userId: '$user_id',
+                    title: 1,
+                    content: 1,
+                    category: 1,
+                    imageUrl: '$image_url',
+                    videoUrl: '$video_url',
+                    isPinned: { $cond: ['$is_pinned', 1, 0] },
+                    isLocked: { $cond: ['$is_locked', 1, 0] },
+                    viewCount: '$view_count',
+                    likeCount: { $size: '$likes' },
+                    commentCount: { $size: '$comments' },
+                    username: { $ifNull: ['$user.username', 'deleted'] },
+                    displayName: { $ifNull: ['$user.display_name', 'Deleted User'] },
+                    avatarUrl: { $ifNull: ['$user.avatar_url', ''] },
+                    role: { $ifNull: ['$user.role', 'user'] },
+                    eventDate: '$event_date',
+                    userType: { $ifNull: ['$user.user_type', ''] },
+                    userPostCount: { $ifNull: ['$user.post_count', 0] },
+                    createdAt: '$created_at',
+                    updatedAt: '$updated_at',
+                    linkPreview: '$link_preview'
+                }
+            }
+        );
+
+        // Run aggregate + count in parallel for faster response
+        const [posts, total] = await Promise.all([
+            Post.aggregate(pipeline),
             Post.countDocuments(match)
         ]);
 

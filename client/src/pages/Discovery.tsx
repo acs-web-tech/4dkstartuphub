@@ -18,7 +18,7 @@ export default function Discovery() {
     const loadTrending = useCallback(() => {
         setLoading(true);
         setError(false);
-        postsApi.getAll({ limit: 12, trending: true })
+        postsApi.getAll({ limit: 10, trending: true })
             .then(data => setTrending(data.posts))
             .catch((err) => {
                 console.error('Failed to load discovery trending:', err);
@@ -81,7 +81,7 @@ export default function Discovery() {
                     </div>
                 ) : (
                     <div className="trending-grid">
-                        {trending.slice(0, 6).map((post, index) => {
+                        {trending.slice(0, 10).map((post, index) => {
                             const cat = CATEGORY_CONFIG[post.category];
                             const CatIcon = cat.icon;
                             const initials = post.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
