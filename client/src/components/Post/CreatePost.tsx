@@ -146,12 +146,13 @@ export default function CreatePost() {
             setError('');
             const data = await uploadApi.upload(file, 'image');
             const range = quillRef.current?.getEditor().getSelection();
+            const embedUrl = getCdnUrl(data.url);
             if (range) {
-                quillRef.current?.getEditor().insertEmbed(range.index, 'image', data.url);
+                quillRef.current?.getEditor().insertEmbed(range.index, 'image', embedUrl);
                 quillRef.current?.getEditor().setSelection(range.index + 1, 0);
             } else {
                 const length = quillRef.current?.getEditor().getLength() || 0;
-                quillRef.current?.getEditor().insertEmbed(length, 'image', data.url);
+                quillRef.current?.getEditor().insertEmbed(length, 'image', embedUrl);
             }
         } catch (err: any) {
             console.error('Image upload failed:', err);

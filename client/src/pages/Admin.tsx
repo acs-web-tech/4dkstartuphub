@@ -13,6 +13,7 @@ import 'react-quill/dist/quill.snow.css';
 import { editorModules, editorFormats } from '../config/editor';
 import { useModal } from '../context/ModalContext';
 import LinkPreview from '../components/Common/LinkPreview';
+import { getCdnUrl } from '../utils/cdn';
 
 export default function Admin() {
     const { alert, confirm } = useModal();
@@ -371,11 +372,12 @@ export default function Admin() {
             try {
                 setIsImageUploading(true);
                 const { url } = await uploadApi.upload(file, 'image');
+                const embedUrl = getCdnUrl(url);
                 const quill = broadcastQuillRef.current?.getEditor();
                 if (quill) {
                     const range = quill.getSelection();
                     if (range) {
-                        quill.insertEmbed(range.index, 'image', url);
+                        quill.insertEmbed(range.index, 'image', embedUrl);
                     }
                 }
             } catch (err) {
@@ -664,9 +666,10 @@ export default function Admin() {
                 try {
                     setIsImageUploading(true);
                     const data = await uploadApi.upload(file);
+                    const embedUrl = getCdnUrl(data.url);
                     const range = welcomeQuillRef.current?.getEditor().getSelection();
                     if (range) {
-                        welcomeQuillRef.current?.getEditor().insertEmbed(range.index, 'image', data.url);
+                        welcomeQuillRef.current?.getEditor().insertEmbed(range.index, 'image', embedUrl);
                     }
                 } catch (err) {
                     console.error('Image upload failed:', err);

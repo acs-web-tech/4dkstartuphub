@@ -120,9 +120,10 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                 try {
                     setImageUploading(true);
                     const data = await uploadApi.upload(input.files[0]);
+                    const embedUrl = getCdnUrl(data.url);
                     const range = quillRef.current?.getEditor().getSelection();
                     if (range) {
-                        quillRef.current?.getEditor().insertEmbed(range.index, 'image', data.url);
+                        quillRef.current?.getEditor().insertEmbed(range.index, 'image', embedUrl);
                     }
                 } catch {
                     await alert('Image upload failed');
