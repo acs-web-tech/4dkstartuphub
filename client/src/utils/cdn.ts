@@ -21,7 +21,6 @@ async function fetchCdnConfig(): Promise<void> {
             const data = await res.json();
             if (data.enabled && data.cdnBaseUrl) {
                 cdnBaseUrl = data.cdnBaseUrl; // e.g. "https://d1234abc.cloudfront.net/uploads"
-                console.log(`[CDN] CloudFront enabled: ${cdnBaseUrl}`);
             }
         }
     } catch {

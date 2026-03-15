@@ -59,7 +59,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
                 // If it's an authentication error, try to refresh the session
                 if (err.message.includes('Authentication error') || err.message.includes('No token')) {
-                    console.log('🔄 Socket Auth failed, attempting session refresh...');
                     refreshUser().then(() => {
                         // After refreshUser, the localStorage and cookies should be updated
                         const newToken = localStorage.getItem('access_token');
@@ -120,7 +119,6 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             });
 
             newSocket.on('accountStatusUpdate', (data: any) => {
-                console.log('🔄 Account status updated via socket:', data);
                 // Refresh user state to reflect premium, activation, or role changes
                 refreshUser();
 

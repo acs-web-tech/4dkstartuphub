@@ -78,7 +78,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             sentTokens.add(token);
             try {
                 await notificationsApi.registerDevice(token);
-                console.log('✅ Native FCM Token registered with server');
                 // Keep in localStorage so it survives page reloads
                 // The server uses $addToSet so re-sending is harmless
             } catch (err) {
@@ -95,7 +94,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Method 2: Direct handler — called by native app via injectJavaScript
         (window as any).handleNativeToken = (token: string) => {
-            console.log('📲 Received Native FCM Token via handler');
             localStorage.setItem('fcm_native_token', token);
             registerNativeToken(token);
         };
@@ -104,7 +102,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const onFcmToken = (e: Event) => {
             const token = (e as CustomEvent<{ token: string }>).detail?.token;
             if (token) {
-                console.log('📲 Received Native FCM Token via event');
                 localStorage.setItem('fcm_native_token', token);
                 registerNativeToken(token);
             }

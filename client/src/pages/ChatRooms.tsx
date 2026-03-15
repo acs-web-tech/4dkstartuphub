@@ -248,7 +248,6 @@ export default function ChatRooms() {
         });
 
         socket.on('roomAccessChanged', ({ roomId: changeRoomId, accessType }: { roomId: string, accessType: 'open' | 'invite' }) => {
-            console.log(`[Socket] Room ${changeRoomId} access changed to ${accessType}`);
             setRooms(prev => prev.map(r => r.id === changeRoomId ? { ...r, accessType } : r));
 
             if (changeRoomId === roomId) {

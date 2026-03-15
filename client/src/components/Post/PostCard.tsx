@@ -254,7 +254,7 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
                                     <iframe
                                         src={embedUrl}
                                         title="Video"
-                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; compute-pressure"
                                         allowFullScreen
                                         loading="lazy"
                                     />

@@ -41,7 +41,6 @@ export default function Layout() {
 
         if (prevPath.current !== location.pathname) {
             if (user?.id && socketState !== 'connected') {
-                console.log(`[Sync] Navigation detected while disconnected. Verifying account...`);
                 setIsSyncing(true);
 
                 Promise.all([
@@ -65,7 +64,6 @@ export default function Layout() {
     useEffect(() => {
         if (user?.id && socketState === 'connected') {
             if (hasConnectedOnce.current && prevSocketState.current !== 'connected') {
-                console.log('[Sync] Socket reconnected. Re-verifying account status...');
                 refreshUser();
                 settingsApi.getPublic().then((data: any) => {
                     setGlobalLock(data.global_payment_lock || false);
