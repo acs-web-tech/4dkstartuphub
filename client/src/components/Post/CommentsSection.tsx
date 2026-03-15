@@ -7,6 +7,7 @@ import { Lock, Search, X, ChevronDown, ChevronUp, MessageSquare } from 'lucide-r
 import CommentItem from './CommentItem';
 import LinkPreview from '../Common/LinkPreview';
 import { useModal } from '../../context/ModalContext';
+import { getCdnUrl } from '../../utils/cdn';
 
 interface CommentsSectionProps {
     postId: string;
@@ -401,7 +402,7 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
                                         >
                                             <div className="mention-avatar">
                                                 {u.avatarUrl
-                                                    ? <img src={u.avatarUrl} alt={u.displayName} />
+                                                    ? <img src={getCdnUrl(u.avatarUrl)} alt={u.displayName} />
                                                     : <span>{u.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}</span>
                                                 }
                                             </div>

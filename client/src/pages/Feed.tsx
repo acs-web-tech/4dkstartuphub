@@ -425,7 +425,7 @@ export default function Feed() {
                                     <Link key={u.id} to={`/users/${u.id}`} className="card" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', textDecoration: 'none', color: 'inherit', transition: 'transform 0.2s', margin: 0 }}>
                                         <div style={{ width: '56px', height: '56px', flexShrink: 0, borderRadius: '50%', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid var(--border)' }}>
                                             {u.avatarUrl ? (
-                                                <img src={u.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                <img src={getCdnUrl(u.avatarUrl)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                             ) : (
                                                 <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>{u.displayName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}</span>
                                             )}

@@ -11,6 +11,7 @@ import {
 import { markImageAsLoaded, isImageInSession } from '../../utils/imageCache';
 import { SmartImage } from '../Common/SmartImage';
 import LinkPreview from '../Common/LinkPreview';
+import { getCdnUrl } from '../../utils/cdn';
 
 // ── Notification Sound (Web Audio API — no external file needed) ──
 let sharedAudioCtx: AudioContext | null = null;
@@ -415,7 +416,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                                 >
                                                     <div className="search-result-avatar">
                                                         {u.avatarUrl ? (
-                                                            <img src={u.avatarUrl} alt="" />
+                                                            <img src={getCdnUrl(u.avatarUrl)} alt="" />
                                                         ) : (
                                                             <span>{getInitials(u.displayName)}</span>
                                                         )}

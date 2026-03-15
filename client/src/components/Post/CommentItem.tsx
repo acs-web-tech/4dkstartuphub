@@ -3,6 +3,7 @@ import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { Comment } from '../../types';
 import { Reply, CornerDownRight } from 'lucide-react';
+import { getCdnUrl } from '../../utils/cdn';
 
 interface CommentItemProps {
     comment: Comment;
@@ -44,7 +45,7 @@ function CommentItem({ comment, isReply = false, onReply, isLocked }: CommentIte
             )}
             <Link to={`/users/${comment.userId}`} className="comment-avatar">
                 {comment.avatarUrl ? (
-                    <img src={comment.avatarUrl} alt={comment.displayName} loading="lazy" />
+                    <img src={getCdnUrl(comment.avatarUrl)} alt={comment.displayName} loading="lazy" />
                 ) : (
                     <span>{cInitials}</span>
                 )}
