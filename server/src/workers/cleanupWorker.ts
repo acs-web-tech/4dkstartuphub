@@ -13,7 +13,7 @@ import Bookmark from '../models/Bookmark';
 import PostView from '../models/PostView';
 import ChatRoomMember from '../models/ChatRoomMember';
 import CleanupJob from '../models/CleanupJob';
-import { s3Client, getS3KeyFromUrl } from '../utils/s3';
+import { s3Client, getS3KeyFromUrl, extractS3KeysFromHtml } from '../utils/s3';
 import { DeleteObjectsCommand } from '@aws-sdk/client-s3';
 
 async function connectDB() {
@@ -55,10 +55,18 @@ async function performUserCleanup(userId: string, jobId: string) {
             if (post.image_url) {
                 const key = getS3KeyFromUrl(post.image_url);
                 if (key) s3Keys.push(key);
+                
+                const thumbUrl = post.image_url.replace(/(\.[a-zA-Z0-9]+)$/i, '_thumb$1');
+                const thumbKey = getS3KeyFromUrl(thumbUrl);
+                if (thumbKey) s3Keys.push(thumbKey);
             }
             if (post.video_url && !post.video_url.includes('youtube') && !post.video_url.includes('vimeo')) {
                 const key = getS3KeyFromUrl(post.video_url);
                 if (key) s3Keys.push(key);
+            }
+            if (post.content) {
+                const embeddedKeys = extractS3KeysFromHtml(post.content);
+                s3Keys.push(...embeddedKeys);
             }
         }
 

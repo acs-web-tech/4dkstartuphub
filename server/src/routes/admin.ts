@@ -17,7 +17,7 @@ import PitchRequest from '../models/PitchRequest';
 import Bookmark from '../models/Bookmark';
 import PostView from '../models/PostView';
 import Like from '../models/Like';
-import { deleteFileByUrl } from '../utils/s3';
+import { deleteFileByUrl, deleteHtmlImagesFromS3 } from '../utils/s3';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 import { escapeRegExp } from '../utils/regex';
@@ -419,8 +419,19 @@ router.delete('/posts/:id', async (req: AuthRequest, res) => {
         const postToDelete = await Post.findById(id);
         if (postToDelete) {
             if (postToDelete.image_url) {
-                await deleteFileByUrl(postToDelete.image_url);
+                await deleteFileByUrl(postToDelete.image_url).catch(() => {});
+                const thumbUrl = postToDelete.image_url.replace(/(\.[a-zA-Z0-9]+)$/i, '_thumb$1');
+                await deleteFileByUrl(thumbUrl).catch(() => {});
             }
+
+            if (postToDelete.video_url && !postToDelete.video_url.includes('youtube') && !postToDelete.video_url.includes('vimeo')) {
+                await deleteFileByUrl(postToDelete.video_url).catch(() => {});
+            }
+
+            if (postToDelete.content) {
+                await deleteHtmlImagesFromS3(postToDelete.content).catch(() => {});
+            }
+
             await Post.deleteOne({ _id: id });
 
             // Cleanup related data

@@ -17,7 +17,7 @@ import mongoose from 'mongoose';
 import { escapeRegExp } from '../utils/regex';
 import { getLinkPreview } from '../services/metadata';
 import { emailService } from '../services/email';
-import { deleteFileByUrl } from '../utils/s3';
+import { deleteFileByUrl, deleteHtmlImagesFromS3 } from '../utils/s3';
 
 const router = Router();
 
@@ -485,7 +485,17 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
 
         // Delete image from S3 if exists
         if (post.image_url) {
-            await deleteFileByUrl(post.image_url);
+            await deleteFileByUrl(post.image_url).catch(() => {});
+            const thumbUrl = post.image_url.replace(/(\.[a-zA-Z0-9]+)$/i, '_thumb$1');
+            await deleteFileByUrl(thumbUrl).catch(() => {});
+        }
+
+        if (post.video_url && !post.video_url.includes('youtube') && !post.video_url.includes('vimeo')) {
+            await deleteFileByUrl(post.video_url).catch(() => {});
+        }
+
+        if (post.content) {
+            await deleteHtmlImagesFromS3(post.content).catch(() => {});
         }
 
         // Decrement user post count

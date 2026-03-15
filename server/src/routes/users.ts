@@ -12,6 +12,7 @@ import Like from '../models/Like';
 import Comment from '../models/Comment';
 import mongoose from 'mongoose';
 import { escapeRegExp } from '../utils/regex';
+import { deleteFileByUrl } from '../utils/s3';
 
 const router = Router();
 
@@ -185,6 +186,11 @@ router.put('/profile', authenticate, validate(updateProfileSchema), async (req: 
                 return res.status(400).json({ error: 'Profile photo must be uploaded via the application.' });
             }
             updateData.avatar_url = body.avatarUrl;
+
+            // Silently delete the old avatar from S3 if it changed
+            if (user.avatar_url && user.avatar_url !== body.avatarUrl) {
+                deleteFileByUrl(user.avatar_url).catch(err => console.error('[Cleanup] Failed to delete old avatar:', err));
+            }
         }
         if (body.bio !== undefined) updateData.bio = sanitizePlainText(body.bio);
         if (body.location !== undefined) updateData.location = sanitizePlainText(body.location);
