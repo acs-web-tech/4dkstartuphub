@@ -12,6 +12,7 @@ import LinkPreview from '../Common/LinkPreview';
 import { useAuth } from '../../context/AuthContext';
 import { clearFeedCache } from '../../pages/Feed';
 import { validateFile } from '../../utils/fileValidation';
+import { getCdnUrl } from '../../utils/cdn';
 
 export default function CreatePost() {
     const { user } = useAuth();
@@ -269,7 +270,7 @@ export default function CreatePost() {
                     <div className="thumbnail-upload-area">
                         {imageUrl ? (
                             <div className="thumbnail-preview-container">
-                                <img src={imageUrl} alt="Thumbnail preview" className="thumbnail-preview" />
+                                <img src={getCdnUrl(imageUrl)} alt="Thumbnail preview" className="thumbnail-preview" />
                                 <button
                                     type="button"
                                     className="remove-thumbnail-btn"

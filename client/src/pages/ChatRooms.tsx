@@ -8,6 +8,7 @@ import { ChatRoom, ChatMessage } from '../types';
 import { MessageCircle, Trash2, Send, Plus, Lock, Shield, Users, Volume2, VolumeX, LogOut, Wifi, RefreshCw } from 'lucide-react';
 import LinkPreview from '../components/Common/LinkPreview';
 import { useModal } from '../context/ModalContext';
+import { getCdnUrl } from '../utils/cdn';
 
 export default function ChatRooms() {
     const { user } = useAuth();
@@ -631,7 +632,7 @@ export default function ChatRooms() {
                                                 onClick={() => navigate(`/users/${msg.userId}`)}
                                                 title="View Profile"
                                             >
-                                                {msg.avatarUrl ? <img src={msg.avatarUrl} alt="" /> : <span>{getInitials(msg.displayName)}</span>}
+                                                {msg.avatarUrl ? <img src={getCdnUrl(msg.avatarUrl)} alt="" /> : <span>{getInitials(msg.displayName)}</span>}
                                             </div>
                                         )}
                                         <div className="chat-msg-body">
@@ -708,7 +709,7 @@ export default function ChatRooms() {
                                         >
                                             <div className="mention-avatar">
                                                 {m.avatarUrl
-                                                    ? <img src={m.avatarUrl} alt="" />
+                                                    ? <img src={getCdnUrl(m.avatarUrl)} alt="" />
                                                     : <span>{getInitials(m.displayName)}</span>
                                                 }
                                             </div>
@@ -760,7 +761,7 @@ export default function ChatRooms() {
                         <div className="mb-6">
                             <div className="avatar avatar-xl mx-auto mb-3" style={{ margin: '0 auto 12px' }}>
                                 {userActionsTarget.avatarUrl
-                                    ? <img src={userActionsTarget.avatarUrl} alt="" />
+                                    ? <img src={getCdnUrl(userActionsTarget.avatarUrl)} alt="" />
                                     : <span>{getInitials(userActionsTarget.displayName)}</span>
                                 }
                             </div>
