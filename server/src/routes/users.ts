@@ -177,9 +177,11 @@ router.put('/profile', authenticate, validate(updateProfileSchema), async (req: 
 
         if (body.displayName !== undefined) updateData.display_name = sanitizePlainText(body.displayName);
         if (body.avatarUrl !== undefined) {
-            const isInternalUpload = body.avatarUrl.startsWith('/api/upload/file/');
+            const isOldProxyUrl = body.avatarUrl.startsWith('/api/upload/file/');
+            const isCdnUrl = process.env.CLOUDFRONT_DOMAIN && body.avatarUrl.startsWith(`https://${process.env.CLOUDFRONT_DOMAIN}/uploads/`);
             const isEmpty = body.avatarUrl === '';
-            if (!isInternalUpload && !isEmpty) {
+            
+            if (!isOldProxyUrl && !isCdnUrl && !isEmpty) {
                 return res.status(400).json({ error: 'Profile photo must be uploaded via the application.' });
             }
             updateData.avatar_url = body.avatarUrl;
