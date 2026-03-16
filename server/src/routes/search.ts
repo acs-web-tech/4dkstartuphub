@@ -15,10 +15,11 @@ const router = Router();
 router.get('/', authenticate, async (req: AuthRequest, res) => {
     try {
         const q = (req.query.q as string || '').trim();
-        const limit = Math.min(10, Math.max(1, parseInt(req.query.limit as string) || 5));
+        const limit = Math.min(20, Math.max(1, parseInt(req.query.limit as string) || 5));
+        const page = Math.max(1, parseInt(req.query.page as string) || 1);
 
         if (!q || q.length < 1) {
-            return res.json({ users: [], posts: [] });
+            return res.json({ users: [], posts: [], usersHasMore: false, postsHasMore: false });
         }
 
         const escaped = escapeRegExp(q);
@@ -40,7 +41,7 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
 
         const rawUsers = await User.aggregate([
             { $match: userMatch },
-            { $limit: 50 }, // Fetch more for scoring
+            { $limit: 200 }, // Fetch more for scoring
             {
                 $project: {
                     _id: 0,
@@ -94,7 +95,10 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
 
         // Sort by score desc, then by displayName asc
         scoredUsers.sort((a, b) => b.score - a.score || a.displayName.localeCompare(b.displayName));
-        const topUsers = scoredUsers.slice(0, limit);
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const topUsers = scoredUsers.slice(startIndex, endIndex);
+        const usersHasMore = scoredUsers.length > endIndex;
 
         // ── POSTS SEARCH ────────────────────────────────────
         const postMatch: any = {
@@ -107,7 +111,7 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
 
         const rawPosts = await Post.aggregate([
             { $match: postMatch },
-            { $limit: 50 },
+            { $limit: 200 },
             {
                 $lookup: {
                     from: 'users',
@@ -195,11 +199,14 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
         });
 
         scoredPosts.sort((a, b) => b.score - a.score || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        const topPosts = scoredPosts.slice(0, limit);
+        const topPosts = scoredPosts.slice(startIndex, endIndex);
+        const postsHasMore = scoredPosts.length > endIndex;
 
         res.json({
             users: topUsers.map(({ score, bio, location, ...rest }) => rest),
-            posts: topPosts.map(({ score, ...rest }) => rest)
+            posts: topPosts.map(({ score, ...rest }) => rest),
+            usersHasMore,
+            postsHasMore
         });
     } catch (err) {
         console.error('Search error:', err);

@@ -76,6 +76,10 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
     const [searchLoading, setSearchLoading] = useState(false);
     const [showSearchDropdown, setShowSearchDropdown] = useState(false);
     const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [searchPage, setSearchPage] = useState(1);
+    const [searchHasMore, setSearchHasMore] = useState(false);
+    const [searchLoadingMore, setSearchLoadingMore] = useState(false);
+    const searchObserverRef = useRef<HTMLDivElement>(null);
 
     // Track previous state to detect NEW notifications
     const isFirstFetchRef = useRef(true);
@@ -245,26 +249,69 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
         if (!search.trim() || search.trim().length < 1) {
             setSearchResults({ users: [], posts: [] });
             setShowSearchDropdown(false);
+            setSearchHasMore(false);
             return;
         }
         setSearchLoading(true);
         setShowSearchDropdown(true);
+        setSearchPage(1);
         searchTimerRef.current = setTimeout(() => {
-            searchApi.query(search.trim(), 5)
+            searchApi.query(search.trim(), 5, 1)
                 .then(data => {
                     setSearchResults({
                         users: data.users || [],
                         posts: data.posts || []
                     });
+                    setSearchHasMore(data.usersHasMore || data.postsHasMore);
                     setShowSearchDropdown(true);
                 })
                 .catch(() => {
                     setSearchResults({ users: [], posts: [] });
+                    setSearchHasMore(false);
                 })
                 .finally(() => setSearchLoading(false));
         }, 300);
         return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
     }, [search]);
+
+    const loadMoreSearch = useCallback(() => {
+        if (!search.trim() || searchLoading || searchLoadingMore || !searchHasMore) return;
+        setSearchLoadingMore(true);
+        const nextPage = searchPage + 1;
+        setSearchPage(nextPage);
+        searchApi.query(search.trim(), 5, nextPage)
+            .then(data => {
+                setSearchResults(prev => {
+                    const existingUserIds = new Set(prev.users.map(u => u.id));
+                    const existingPostIds = new Set(prev.posts.map(p => p.id));
+                    return {
+                        users: [...prev.users, ...(data.users || []).filter(u => !existingUserIds.has(u.id))],
+                        posts: [...prev.posts, ...(data.posts || []).filter(p => !existingPostIds.has(p.id))]
+                    };
+                });
+                setSearchHasMore(data.usersHasMore || data.postsHasMore);
+            })
+            .catch(() => {})
+            .finally(() => setSearchLoadingMore(false));
+    }, [search, searchPage, searchLoading, searchLoadingMore, searchHasMore]);
+
+    // Search infinite scroll observer
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            entries => {
+                if (entries[0].isIntersecting && showSearchDropdown) {
+                    loadMoreSearch();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (searchObserverRef.current) {
+            observer.observe(searchObserverRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, [loadMoreSearch, showSearchDropdown]);
 
     // Close search dropdown on outside click
     useEffect(() => {
@@ -451,6 +498,11 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                                     </div>
                                                 </Link>
                                             ))}
+                                        </div>
+                                    )}
+                                    {searchHasMore && (
+                                        <div ref={searchObserverRef} style={{ height: '20px', display: 'flex', justifyContent: 'center' }}>
+                                            {searchLoadingMore && <div className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px' }} />}
                                         </div>
                                     )}
                                     <Link

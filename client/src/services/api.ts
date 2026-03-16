@@ -431,6 +431,6 @@ export const uploadApi = {
 
 // ── Smart Search ────────────────────────────────────────────
 export const searchApi = {
-    query: (q: string, limit = 5) =>
-        request<{ users: any[]; posts: any[] }>(`/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+    query: (q: string, limit = 5, page = 1) =>
+        request<{ users: any[]; posts: any[]; usersHasMore: boolean; postsHasMore: boolean }>(`/search?q=${encodeURIComponent(q)}&limit=${limit}&page=${page}`),
 };
