@@ -5,9 +5,10 @@ import Sidebar from './Sidebar';
 import BackToTop from '../Common/BackToTop';
 import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
+import { useModal } from '../../context/ModalContext';
 import Pricing from '../../pages/Pricing';
-import { WifiOff, RefreshCw, Download, Rocket } from 'lucide-react';
-import { settingsApi } from '../../services/api';
+import { WifiOff, RefreshCw, Download, Mail, CheckCircle, ArrowRight } from 'lucide-react';
+import { settingsApi, authApi } from '../../services/api';
 
 type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
 
@@ -25,6 +26,13 @@ export default function Layout() {
     const [appUrls, setAppUrls] = useState<{ android?: string, ios?: string }>({});
     const [globalLock, setGlobalLock] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
+    const { alert } = useModal();
+
+    // Verification state
+    const [otp, setOtp] = useState('');
+    const [verifying, setVerifying] = useState(false);
+    const [resendLoading, setResendLoading] = useState(false);
+    const [verifyError, setVerifyError] = useState('');
 
     const toggleSidebar = useCallback(() => {
         setSidebarOpen(prev => !prev);
@@ -145,16 +153,46 @@ export default function Layout() {
         }
     };
 
+    const handleVerifyOtp = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setVerifyError('');
+        setVerifying(true);
+        try {
+            const res = await authApi.verifyEmailOtp(otp);
+            if (res.accessToken) localStorage.setItem('access_token', res.accessToken);
+            if (res.refreshToken) localStorage.setItem('refresh_token', res.refreshToken);
+            await refreshUser();
+            setOtp('');
+        } catch (err: any) {
+            setVerifyError(err.message || 'Verification failed');
+        } finally {
+            setVerifying(false);
+        }
+    };
+
+    const handleResendOtp = async () => {
+        setResendLoading(true);
+        try {
+            await authApi.sendVerificationOtp();
+            await alert('A new verification code has been sent to your email.');
+        } catch (err: any) {
+            setVerifyError(err.message || 'Failed to resend code');
+        } finally {
+            setResendLoading(false);
+        }
+    };
+
     const isPremium = user?.paymentStatus === 'completed' && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
+    const isUnverified = user && !user.isEmailVerified;
 
     // Lock out if:
     // 1. Platform is globally locked and user is NOT premium (Free or Expired)
-    // 2. OR user account has been deactivated (isActive: false)
+    // 2. OR user account has been deactivated (isActive: false) AND they aren't just pending verification
     // 3. OR user payment status is explicitly 'expired' or 'free' (forced payment gate)
     // 4. (Always allow Admin and Pricing page)
     const isLockedOut = user && user.role !== 'admin' && location.pathname !== '/pricing' && (
         (globalLock && !isPremium) ||
-        (user.isActive === false) ||
+        (user.isActive === false && !isUnverified) || 
         (user.paymentStatus === 'expired') ||
         (user.paymentStatus === 'free')
     );
@@ -234,6 +272,62 @@ export default function Layout() {
                         }}>
                             <RefreshCw size={40} className="connection-spinner" style={{ color: 'var(--accent)', opacity: 0.5 }} />
                             <p style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Verifying account status...</p>
+                        </div>
+                    ) : isUnverified ? (
+                        <div className="verification-locked-screen p-6 md:p-12 flex flex-col items-center justify-center min-h-[70vh]">
+                            <div className="card max-w-md w-full p-8 text-center shadow-2xl" style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)' }}>
+                                <div className="w-20 h-20 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                                    <Mail size={40} className="text-accent" />
+                                </div>
+                                <h2 className="text-2xl font-bold mb-3">Verify Your Email</h2>
+                                <p className="text-muted mb-8">
+                                    A 6-digit verification code has been sent to <br />
+                                    <strong className="text-secondary">{user.email}</strong>. <br />
+                                    Please enter it below to activate your account.
+                                </p>
+
+                                {verifyError && <div className="alert alert-error mb-6">{verifyError}</div>}
+
+                                <form onSubmit={handleVerifyOtp} className="space-y-6">
+                                    <div className="form-group">
+                                        <input
+                                            type="text"
+                                            className="form-input text-center text-3xl tracking-[0.5em] font-bold py-4 h-auto"
+                                            placeholder="000000"
+                                            maxLength={6}
+                                            value={otp}
+                                            onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
+                                            required
+                                            disabled={verifying}
+                                        />
+                                    </div>
+
+                                    <button 
+                                        type="submit" 
+                                        className="btn btn-primary btn-full py-4 text-lg" 
+                                        disabled={verifying || otp.length !== 6}
+                                    >
+                                        {verifying ? (
+                                            <><RefreshCw className="animate-spin mr-2" size={20} /> Verifying...</>
+                                        ) : (
+                                            <><CheckCircle className="mr-2" size={20} /> Verify & Continue</>
+                                        )}
+                                    </button>
+                                </form>
+
+                                <div className="mt-8 pt-8 border-t border-gray-800">
+                                    <p className="text-sm text-gray-400 mb-3">Didn't receive the code?</p>
+                                    <button 
+                                        className="btn btn-ghost btn-sm text-accent font-semibold hover:bg-accent/5"
+                                        onClick={handleResendOtp}
+                                        disabled={resendLoading}
+                                    >
+                                        {resendLoading ? (
+                                            <><RefreshCw className="animate-spin mr-2" size={14} /> Sending...</>
+                                        ) : 'Resend Verification Code'}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     ) : isLockedOut ? (
                         <Pricing />

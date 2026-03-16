@@ -99,8 +99,6 @@ const UserSchema: Schema = new Schema({
             ret.displayName = ret.display_name;
             ret.avatarUrl = ret.avatar_url;
             ret.role = ret.role;
-            ret.isActive = ret.is_active ? 1 : 0;
-            ret.profileCompleted = ret.profile_completed ? 1 : 0;
             ret.userType = (ret.user_type === 'invester' ? 'investor' : ret.user_type);
             ret.paymentStatus = ret.payment_status;
             ret.premiumExpiry = ret.premium_expiry;
@@ -120,6 +118,7 @@ const UserSchema: Schema = new Schema({
             delete ret.display_name;
             delete ret.avatar_url;
             delete ret.is_active;
+            delete ret.is_email_verified;
             delete ret.profile_completed;
             delete ret.user_type;
             delete ret.payment_status;

@@ -474,16 +474,32 @@ export default function Admin() {
 
     const handleUpdatePremium = async (userId: string, status: string, options?: { days?: number; months?: number }) => {
         try {
-            let expiry: string | null = null;
+            const data: any = { paymentStatus: status };
+            let newExpiry: string | null | undefined = undefined;
+
             if (options) {
                 const date = new Date();
-                if (options.days) date.setDate(date.getDate() + options.days);
-                if (options.months) date.setMonth(date.getMonth() + options.months);
-                expiry = date.toISOString();
+                if (options.days !== undefined) date.setDate(date.getDate() + options.days);
+                if (options.months !== undefined) date.setMonth(date.getMonth() + options.months);
+                newExpiry = date.toISOString();
+                data.premiumExpiry = newExpiry;
+            } else if (status === 'free') {
+                newExpiry = null;
+                data.premiumExpiry = null;
             }
 
-            await adminApi.updateUserPremium(userId, { paymentStatus: status, premiumExpiry: expiry });
-            setUsers(prev => prev.map(u => u.id === userId ? { ...u, paymentStatus: status, premiumExpiry: expiry } : u));
+            await adminApi.updateUserPremium(userId, data);
+            
+            setUsers(prev => prev.map(u => {
+                if (u.id === userId) {
+                    const updated = { ...u, paymentStatus: status };
+                    if (newExpiry !== undefined) {
+                        updated.premiumExpiry = newExpiry;
+                    }
+                    return updated;
+                }
+                return u;
+            }));
             setMessage(`Premium status updated to ${status}`);
             setMessageType('success');
         } catch (err: any) {
