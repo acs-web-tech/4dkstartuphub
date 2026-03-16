@@ -381,23 +381,24 @@ export default function Feed() {
 
             {/* Welcome card for new users */}
             {(() => {
-                if (!user || page !== 1) return null;
-                const isProfileDone = !!user.profileCompleted;
-                const isIntroDone = (user.postCount || 0) > 0;
-                const isBrowseDone = true; // Always done since they are on the feed
+                if (!user || user.profileCompleted || page !== 1) return null;
+                
+                // If the card is shown, they haven't "saved" their profile yet.
+                // We'll evaluate their progress organically!
+                const isProfileDone = !!(user.avatarUrl && !user.avatarUrl.includes('ui-avatars') && user.avatarUrl.trim().length > 0);
+                const isIntroDone = !!(user.bio && user.bio.trim().length > 0) || (user.postCount || 0) > 0;
+                const isBrowseDone = true; // Always on feed
 
                 const completedSteps = (isProfileDone ? 1 : 0) + (isIntroDone ? 1 : 0) + (isBrowseDone ? 1 : 0);
                 const progressPercent = Math.round((completedSteps / 3) * 100);
 
-                if (completedSteps === 3) return null; // Hide completely when all are done
-
                 return (
                     <div className="card welcome-card">
-                        <h2>Welcome back, {user.displayName}! <Hand className="inline-icon" size={24} /></h2>
+                        <h2>Welcome! <Hand className="inline-icon" size={24} /></h2>
                         
                         <div style={{ marginBottom: '16px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}>
-                                <span>Profile Progress</span>
+                                <span>Onboarding Progress</span>
                                 <span>{progressPercent}%</span>
                             </div>
                             <div style={{ width: '100%', height: '6px', background: 'var(--bg-secondary)', borderRadius: '3px', overflow: 'hidden' }}>
@@ -408,22 +409,20 @@ export default function Feed() {
                         <div className="checklist">
                             <div className={`checklist-item ${isProfileDone ? 'done' : ''}`}>
                                 {isProfileDone ? <CheckCircle size={16} className="inline mr-2" /> : <Circle size={16} className="inline mr-2" />}
-                                Fill Out Your Profile
+                                Add a Profile Photo
                             </div>
                             <div className={`checklist-item ${isIntroDone ? 'done' : ''}`}>
                                 {isIntroDone ? <CheckCircle size={16} className="inline mr-2" /> : <Circle size={16} className="inline mr-2" />}
-                                Introduce Yourself
+                                Add a Bio or Introduce Yourself
                             </div>
                             <div className={`checklist-item ${isBrowseDone ? 'done' : ''}`}>
                                 {isBrowseDone ? <CheckCircle size={16} className="inline mr-2" /> : <Circle size={16} className="inline mr-2" />}
                                 Browse the Community
                             </div>
                         </div>
-                        {!isProfileDone && (
-                            <Link to="/profile" className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
-                                Complete Profile <ArrowRight size={16} />
-                            </Link>
-                        )}
+                        <Link to="/profile" className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                            Complete Profile <ArrowRight size={16} />
+                        </Link>
                     </div>
                 );
             })()}
