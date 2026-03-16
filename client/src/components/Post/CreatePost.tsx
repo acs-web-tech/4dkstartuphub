@@ -59,16 +59,17 @@ export default function CreatePost() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const thumbnailInputRef = useRef<HTMLInputElement>(null);
     const [extractedUrls, setExtractedUrls] = useState<string[]>([]);
+    const [pendingUploads, setPendingUploads] = useState<Record<string, File>>({});
 
-    // Extract URLs for preview
+    // Extract URLs for preview (only raw pasted URLs, not editor link/image embeds)
     useEffect(() => {
         const unique = new Set<string>();
         const regex = /(?:href="|src=")?(https?:\/\/[^\s<"]+)/g;
         let match;
         // Search in content string
         while ((match = regex.exec(content)) !== null) {
-            // Ignore src="..." (images)
-            if (match[0].startsWith('src=')) continue;
+            // Ignore src="..." (images) and href="..." (editor links) — only preview raw pasted URLs
+            if (match[0].startsWith('src=') || match[0].startsWith('href=')) continue;
             unique.add(match[1]);
         }
         setExtractedUrls(Array.from(unique));
@@ -116,16 +117,10 @@ export default function CreatePost() {
             return;
         }
 
-        try {
-            setThumbnailUploading(true);
-            const data = await uploadApi.upload(file, 'image');
-            setImageUrl(data.url);
-        } catch (err: any) {
-            setError('Thumbnail upload failed');
-        } finally {
-            setThumbnailUploading(false);
-            if (e.target) e.target.value = '';
-        }
+        const objectUrl = URL.createObjectURL(file);
+        setPendingUploads(prev => ({ ...prev, [objectUrl]: file }));
+        setImageUrl(objectUrl);
+        if (e.target) e.target.value = '';
     };
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,26 +136,18 @@ export default function CreatePost() {
             return;
         }
 
-        try {
-            setImageUploading(true);
-            setError('');
-            const data = await uploadApi.upload(file, 'image');
-            const range = quillRef.current?.getEditor().getSelection();
-            const embedUrl = getCdnUrl(data.url);
-            if (range) {
-                quillRef.current?.getEditor().insertEmbed(range.index, 'image', embedUrl);
-                quillRef.current?.getEditor().setSelection(range.index + 1, 0);
-            } else {
-                const length = quillRef.current?.getEditor().getLength() || 0;
-                quillRef.current?.getEditor().insertEmbed(length, 'image', embedUrl);
-            }
-        } catch (err: any) {
-            console.error('Image upload failed:', err);
-            setError(err.message || 'Image upload failed');
-        } finally {
-            setImageUploading(false);
-            e.target.value = '';
+        const objectUrl = URL.createObjectURL(file);
+        setPendingUploads(prev => ({ ...prev, [objectUrl]: file }));
+        
+        const range = quillRef.current?.getEditor().getSelection();
+        if (range) {
+            quillRef.current?.getEditor().insertEmbed(range.index, 'image', objectUrl);
+            quillRef.current?.getEditor().setSelection(range.index + 1, 0);
+        } else {
+            const length = quillRef.current?.getEditor().getLength() || 0;
+            quillRef.current?.getEditor().insertEmbed(length, 'image', objectUrl);
         }
+        e.target.value = '';
     };
 
     const modules = useMemo(() => ({
@@ -183,13 +170,37 @@ export default function CreatePost() {
 
         setLoading(true);
         try {
+            let finalImageUrl = imageUrl;
+            let finalContent = content;
+            
+            // Upload pending files if they exist in the content or as a thumbnail
+            const urlsToUpload = Object.keys(pendingUploads).filter(url => 
+                finalImageUrl === url || finalContent.includes(url)
+            );
+
+            if (urlsToUpload.length > 0) {
+                setImageUploading(true);
+                for (const url of urlsToUpload) {
+                    const file = pendingUploads[url];
+                    try {
+                        const data = await uploadApi.upload(file, 'image');
+                        const cdnUrl = getCdnUrl(data.url);
+                        if (finalImageUrl === url) finalImageUrl = cdnUrl;
+                        if (finalContent.includes(url)) finalContent = finalContent.split(url).join(cdnUrl);
+                    } catch (err: any) {
+                        throw new Error(`Failed to upload an image: ${err.message}`);
+                    }
+                }
+                setImageUploading(false);
+            }
+
             if (isEditing) {
                 await postsApi.update(editId!, {
                     title: title.trim(),
-                    content: content.trim(),
+                    content: finalContent.trim(),
                     category,
                     videoUrl: videoUrl.trim() || undefined,
-                    imageUrl: imageUrl || undefined,
+                    imageUrl: finalImageUrl || undefined,
                     eventDate: eventDate ? new Date(eventDate).toISOString() : undefined
                 });
                 if (location.state?.previousBackground) {
@@ -200,10 +211,10 @@ export default function CreatePost() {
             } else {
                 const data = await postsApi.create({
                     title: title.trim(),
-                    content: content.trim(),
+                    content: finalContent.trim(),
                     category,
                     videoUrl: videoUrl.trim() || undefined,
-                    imageUrl: imageUrl || undefined,
+                    imageUrl: finalImageUrl || undefined,
                     eventDate: eventDate ? new Date(eventDate).toISOString() : undefined
                 });
                 clearFeedCache(); // Invalidate cache so Feed fetches new post
@@ -213,6 +224,7 @@ export default function CreatePost() {
             setError(err.message || `Failed to ${isEditing ? 'update' : 'create'} post`);
         } finally {
             setLoading(false);
+            setImageUploading(false);
         }
     };
 

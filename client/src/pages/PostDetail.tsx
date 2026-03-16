@@ -90,6 +90,7 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
     const [lightbox, setLightbox] = useState<string | null>(null);
     const [showShare, setShowShare] = useState(false);
     const [linkCopied, setLinkCopied] = useState(false);
+    const [pendingUploads, setPendingUploads] = useState<Record<string, File>>({});
     const quillRef = useRef<ReactQuill>(null);
     const shareRef = useRef<HTMLDivElement>(null);
 
@@ -113,22 +114,16 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
         input.click();
         input.onchange = async () => {
             if (input.files && input.files[0]) {
-                if (input.files[0].size > 5 * 1024 * 1024) {
+                const file = input.files[0];
+                if (file.size > 5 * 1024 * 1024) {
                     await alert('Image size exceeds 5MB limit');
                     return;
                 }
-                try {
-                    setImageUploading(true);
-                    const data = await uploadApi.upload(input.files[0]);
-                    const embedUrl = getCdnUrl(data.url);
-                    const range = quillRef.current?.getEditor().getSelection();
-                    if (range) {
-                        quillRef.current?.getEditor().insertEmbed(range.index, 'image', embedUrl);
-                    }
-                } catch {
-                    await alert('Image upload failed');
-                } finally {
-                    setImageUploading(false);
+                const objectUrl = URL.createObjectURL(file);
+                setPendingUploads(prev => ({ ...prev, [objectUrl]: file }));
+                const range = quillRef.current?.getEditor().getSelection();
+                if (range) {
+                    quillRef.current?.getEditor().insertEmbed(range.index, 'image', objectUrl);
                 }
             }
         };
@@ -226,9 +221,28 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
         if (!id || !editForm.title.trim() || !editForm.content.trim()) return;
         setSaving(true);
         try {
+            let finalContent = editForm.content.trim();
+            const urlsToUpload = Object.keys(pendingUploads).filter(url => 
+                finalContent.includes(url)
+            );
+
+            if (urlsToUpload.length > 0) {
+                setImageUploading(true);
+                for (const url of urlsToUpload) {
+                    try {
+                        const data = await uploadApi.upload(pendingUploads[url], 'image');
+                        const cdnUrl = getCdnUrl(data.url);
+                        if (finalContent.includes(url)) finalContent = finalContent.split(url).join(cdnUrl);
+                    } catch (err: any) {
+                        throw new Error(`Failed to upload an image: ${err.message}`);
+                    }
+                }
+                setImageUploading(false);
+            }
+
             await postsApi.update(id, {
                 title: editForm.title.trim(),
-                content: editForm.content.trim(),
+                content: finalContent,
                 category: editForm.category,
                 videoUrl: editForm.videoUrl.trim() || undefined
             });

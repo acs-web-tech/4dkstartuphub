@@ -68,6 +68,7 @@ export default function Admin() {
     const [pitchRequestAmount, setPitchRequestAmount] = useState('950');
     const [welcomeImageUrl, setWelcomeImageUrl] = useState('');
     const [settingsLoading, setSettingsLoading] = useState(false);
+    const [pendingUploads, setPendingUploads] = useState<Record<string, File>>({});
 
     const loadStats = useCallback(() => {
         setLoading(true);
@@ -251,15 +252,36 @@ export default function Admin() {
 
     const handleSaveWelcomeNotif = async () => {
         try {
+            let finalWelcomeContent = welcomeContent;
+            let finalWelcomeImage = welcomeImageUrl;
+
+            const urlsToUpload = Object.keys(pendingUploads).filter(url => 
+                finalWelcomeContent.includes(url) || finalWelcomeImage === url
+            );
+
+            if (urlsToUpload.length > 0) {
+                setIsImageUploading(true);
+                for (const url of urlsToUpload) {
+                    const data = await uploadApi.upload(pendingUploads[url], 'image');
+                    const cdnUrl = getCdnUrl(data.url);
+                    if (finalWelcomeContent.includes(url)) finalWelcomeContent = finalWelcomeContent.split(url).join(cdnUrl);
+                    if (finalWelcomeImage === url) finalWelcomeImage = cdnUrl;
+                }
+                setIsImageUploading(false);
+            }
+
             await adminApi.updateSetting('welcome_notification_title', welcomeTitle);
-            await adminApi.updateSetting('welcome_notification_content', welcomeContent);
+            await adminApi.updateSetting('welcome_notification_content', finalWelcomeContent);
             await adminApi.updateSetting('welcome_notification_video_url', welcomeVideoUrl);
-            await adminApi.updateSetting('welcome_notification_image_url', welcomeImageUrl);
+            await adminApi.updateSetting('welcome_notification_image_url', finalWelcomeImage);
+            setWelcomeContent(finalWelcomeContent);
+            setWelcomeImageUrl(finalWelcomeImage);
             setMessage('Welcome notification updated successfully');
             setMessageType('success');
         } catch (err: any) {
             setMessage(err.message || 'Failed to update welcome notification');
             setMessageType('error');
+            setIsImageUploading(false);
         }
     };
 
@@ -294,16 +316,9 @@ export default function Admin() {
                 return;
             }
 
-            try {
-                setIsImageUploading(true);
-                const { url } = await uploadApi.upload(file, 'image');
-                setWelcomeImageUrl(url);
-            } catch (err) {
-                await alert('Image upload failed');
-                console.error('Welcome image upload failed:', err);
-            } finally {
-                setIsImageUploading(false);
-            }
+            const objectUrl = URL.createObjectURL(file);
+            setPendingUploads(prev => ({ ...prev, [objectUrl]: file }));
+            setWelcomeImageUrl(objectUrl);
         };
     };
 
@@ -311,7 +326,23 @@ export default function Admin() {
         e.preventDefault();
         try {
             setIsBroadcasting(true);
-            await adminApi.broadcast(broadcast.title, broadcast.content, broadcast.videoUrl, broadcast.previewUrl || undefined, broadcast.imageUrl);
+            let finalBroadcastContent = broadcast.content;
+            let finalBroadcastImage = broadcast.imageUrl;
+
+            const urlsToUpload = Object.keys(pendingUploads).filter(url => 
+                finalBroadcastContent.includes(url) || finalBroadcastImage === url
+            );
+
+            if (urlsToUpload.length > 0) {
+                for (const url of urlsToUpload) {
+                    const data = await uploadApi.upload(pendingUploads[url], 'image');
+                    const cdnUrl = getCdnUrl(data.url);
+                    if (finalBroadcastContent.includes(url)) finalBroadcastContent = finalBroadcastContent.split(url).join(cdnUrl);
+                    if (finalBroadcastImage === url) finalBroadcastImage = cdnUrl;
+                }
+            }
+
+            await adminApi.broadcast(broadcast.title, finalBroadcastContent, broadcast.videoUrl, broadcast.previewUrl || undefined, finalBroadcastImage);
             setMessage('Broadcast sent successfully!');
             setMessageType('success');
             setBroadcast({ title: '', content: '', videoUrl: '', imageUrl: '', previewUrl: '' });
@@ -342,16 +373,9 @@ export default function Admin() {
                 return;
             }
 
-            try {
-                setIsImageUploading(true);
-                const { url } = await uploadApi.upload(file, 'image');
-                setBroadcast(prev => ({ ...prev, imageUrl: url }));
-            } catch (err) {
-                await alert('Image upload failed');
-                console.error('Notification image upload failed:', err);
-            } finally {
-                setIsImageUploading(false);
-            }
+            const objectUrl = URL.createObjectURL(file);
+            setPendingUploads(prev => ({ ...prev, [objectUrl]: file }));
+            setBroadcast(prev => ({ ...prev, imageUrl: objectUrl }));
         };
     };
 
@@ -373,22 +397,14 @@ export default function Admin() {
                 return;
             }
 
-            try {
-                setIsImageUploading(true);
-                const { url } = await uploadApi.upload(file, 'image');
-                const embedUrl = getCdnUrl(url);
-                const quill = broadcastQuillRef.current?.getEditor();
-                if (quill) {
-                    const range = quill.getSelection();
-                    if (range) {
-                        quill.insertEmbed(range.index, 'image', embedUrl);
-                    }
+            const objectUrl = URL.createObjectURL(file);
+            setPendingUploads(prev => ({ ...prev, [objectUrl]: file }));
+            const quill = broadcastQuillRef.current?.getEditor();
+            if (quill) {
+                const range = quill.getSelection();
+                if (range) {
+                    quill.insertEmbed(range.index, 'image', objectUrl);
                 }
-            } catch (err) {
-                await alert('Image upload failed');
-                console.error('Image upload failed:', err);
-            } finally {
-                setIsImageUploading(false);
             }
         };
     };
@@ -669,7 +685,6 @@ export default function Admin() {
         }
     };
 
-    // Welcome Notification Editor Helpers
     const welcomeImageHandler = () => {
         const input = document.createElement('input');
         input.setAttribute('type', 'file');
@@ -683,19 +698,11 @@ export default function Admin() {
                     await alert('Image size exceeds 5MB limit');
                     return;
                 }
-                try {
-                    setIsImageUploading(true);
-                    const data = await uploadApi.upload(file);
-                    const embedUrl = getCdnUrl(data.url);
-                    const range = welcomeQuillRef.current?.getEditor().getSelection();
-                    if (range) {
-                        welcomeQuillRef.current?.getEditor().insertEmbed(range.index, 'image', embedUrl);
-                    }
-                } catch (err) {
-                    console.error('Image upload failed:', err);
-                    await alert('Image upload failed');
-                } finally {
-                    setIsImageUploading(false);
+                const objectUrl = URL.createObjectURL(file);
+                setPendingUploads(prev => ({ ...prev, [objectUrl]: file }));
+                const range = welcomeQuillRef.current?.getEditor().getSelection();
+                if (range) {
+                    welcomeQuillRef.current?.getEditor().insertEmbed(range.index, 'image', objectUrl);
                 }
             }
         };

@@ -3673,9 +3673,19 @@ img {
 }
 
 .rich-editor .ql-editor img {
-  max-width: 100%;
+  max-width: 200px;
+  max-height: 150px;
+  object-fit: cover;
   border-radius: var(--radius-sm);
-  margin: 12px 0;
+  margin: 8px 4px;
+  border: 2px solid var(--border-color);
+  cursor: pointer;
+  transition: outline 0.2s;
+}
+
+.rich-editor .ql-editor img:hover {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .rich-editor .ql-snow .ql-tooltip {
@@ -3684,6 +3694,24 @@ img {
   color: var(--text-primary);
   box-shadow: var(--shadow-md);
   border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  z-index: 100;
+}
+
+.rich-editor .ql-snow .ql-tooltip::before {
+  color: var(--text-secondary);
+}
+
+.rich-editor .ql-snow .ql-tooltip a.ql-action,
+.rich-editor .ql-snow .ql-tooltip a.ql-remove {
+  color: var(--accent);
+}
+
+.rich-editor .ql-snow .ql-tooltip a.ql-preview {
+  color: var(--accent);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rich-editor .ql-snow .ql-tooltip input[type="text"] {
@@ -3691,6 +3719,13 @@ img {
   border: 1px solid var(--border-color);
   color: var(--text-primary);
   border-radius: var(--radius-xs);
+  padding: 6px 10px;
+  font-size: 0.9rem;
+  width: 200px;
+}
+
+.rich-editor .ql-snow .ql-tooltip.ql-editing input[type="text"] {
+  width: 250px;
 }
 
 /* ── Rendered Post Content (HTML from rich editor) ─────────── */

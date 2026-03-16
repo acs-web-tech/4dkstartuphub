@@ -33,7 +33,7 @@ export const editorModules = {
             [{ 'size': ['small', false, 'large', 'huge'] }],
             [{ 'color': [] }, { 'background': [] }],
             [{ 'align': [] }],
-            ['image', 'video'],
+            ['link', 'image', 'video'],
             ['emoji'],
             ['clean']
         ]

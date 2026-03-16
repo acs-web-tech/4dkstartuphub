@@ -29,6 +29,7 @@ export default function Profile() {
     const [passwordMessage, setPasswordMessage] = useState({ text: '', type: '' });
     const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [pendingAvatar, setPendingAvatar] = useState<File | null>(null);
 
     // Sync form state with user prop changes
     useEffect(() => {
@@ -68,21 +69,14 @@ export default function Profile() {
             }
 
 
-            setUploading(true);
-            setMessage('');
-
             try {
-                // Uploading file...
-                const data = await uploadApi.upload(file, 'image');
-                // Upload response logged
-                updateField('avatarUrl', data.url);
-                // Avatar URL updated
+                const objectUrl = URL.createObjectURL(file);
+                updateField('avatarUrl', objectUrl);
+                setPendingAvatar(file);
             } catch (err: any) {
-                console.error('❌ Avatar upload failed:', err);
-                setMessage(err.message || 'Failed to upload avatar image');
+                console.error('❌ Avatar selection failed:', err);
+                setMessage(err.message || 'Failed to select avatar image');
             } finally {
-                setUploading(false);
-                // Crucial fix: Reset the file input value so selecting the same file again triggers onChange
                 if (fileInputRef.current) fileInputRef.current.value = '';
             }
         }
@@ -94,15 +88,24 @@ export default function Profile() {
         setMessage('');
         // Saving profile data
         try {
+            if (pendingAvatar) {
+                setUploading(true);
+                const data = await uploadApi.upload(pendingAvatar, 'image');
+                form.avatarUrl = data.url;
+                setUploading(false);
+            }
+
             await usersApi.updateProfile(form);
 
             await refreshUser();
 
+            setPendingAvatar(null);
             setEditing(false);
             setMessage('Profile updated successfully!');
         } catch (err: any) {
             console.error('❌ Profile update failed:', err);
             setMessage(err.message || 'Failed to update profile');
+            setUploading(false);
         } finally {
             setSaving(false);
         }
@@ -331,7 +334,13 @@ export default function Profile() {
                             )}
                         </div>
                     </div>
-                    <button className="btn btn-ghost" onClick={() => setEditing(!editing)} id="edit-profile-btn">
+                    <button className="btn btn-ghost" onClick={() => {
+                        if (editing) {
+                            setPendingAvatar(null);
+                            if (user?.avatarUrl) updateField('avatarUrl', user.avatarUrl);
+                        }
+                        setEditing(!editing);
+                    }} id="edit-profile-btn">
                         {editing ? 'Cancel' : <><Pencil size={16} /> Edit Profile</>}
                     </button>
                 </div>
@@ -432,7 +441,11 @@ export default function Profile() {
                                 value={form.twitter} onChange={e => updateField('twitter', e.target.value)} />
                         </div>
                         <div className="form-actions">
-                            <button type="button" className="btn btn-ghost" onClick={() => setEditing(false)}>Cancel</button>
+                            <button type="button" className="btn btn-ghost" onClick={() => {
+                                setEditing(false);
+                                setPendingAvatar(null);
+                                if (user?.avatarUrl) updateField('avatarUrl', user.avatarUrl);
+                            }}>Cancel</button>
                             <button type="submit" className="btn btn-primary" disabled={saving || uploading} id="save-profile-btn">
                                 {(saving || uploading) ? (uploading ? 'Uploading...' : 'Saving...') : <><Save size={18} className="inline mr-1" /> Save Changes</>}
                             </button>
