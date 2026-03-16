@@ -256,6 +256,10 @@ export const paymentApi = {
 
     verifyUpgrade: (data: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) =>
         request<{ success: boolean; message: string }>('/payment/upgrade', { method: 'POST', body: JSON.stringify(data) }),
+
+    // Server-side safety net: checks Razorpay directly using the order ID stored in DB
+    verifyPaymentStatus: () =>
+        request<{ status: 'completed' | 'failed' | 'pending' | 'no_order'; message: string; paymentId?: string }>('/payment/verify-status', { method: 'POST' }),
 };
 
 // ── Posts ────────────────────────────────────────────────────

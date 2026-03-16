@@ -97,7 +97,7 @@ router.post('/webhook', async (req, res) => {
 });
 
 // POST /api/payment/create-order
-router.post('/create-order', async (req, res) => {
+router.post('/create-order', authenticate, async (req: AuthRequest, res) => {
     try {
         if (!razorpay) {
             return res.status(503).json({ error: 'Payment gateway not configured' });
@@ -124,6 +124,13 @@ router.post('/create-order', async (req, res) => {
 
         const order = await razorpay.orders.create(options);
 
+        // For upgrade orders, save the order_id on the user so verify-status can find it later
+        if (type === 'upgrade' && req.user?.userId) {
+            await User.findByIdAndUpdate(req.user.userId, {
+                razorpay_order_id: order.id,
+            });
+        }
+
         res.json({
             id: order.id,
             currency: order.currency,
@@ -146,6 +153,31 @@ router.post('/upgrade', authenticate, async (req: AuthRequest, res) => {
             return res.status(400).json({ error: 'Missing payment details' });
         }
 
+        // SECURITY 1: Verify the order_id matches the one WE created for THIS user
+        const user = await User.findById(req.user!.userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (user.razorpay_order_id !== razorpay_order_id) {
+            console.warn(`⚠️ Upgrade blocked: User ${user.email} sent order_id ${razorpay_order_id} but DB has ${user.razorpay_order_id}`);
+            return res.status(400).json({ error: 'Order ID mismatch. Please initiate a new payment.' });
+        }
+
+        // SECURITY 2: Check if this payment_id has already been used (prevent replay)
+        const existingUser = await User.findOne({ razorpay_payment_id });
+        if (existingUser) {
+            // If it's the same user and already completed, just return success
+            if (existingUser._id.toString() === req.user!.userId && existingUser.payment_status === 'completed') {
+                return res.json({ success: true, message: 'Payment already verified' });
+            }
+            // If it's a different user or suspicious replay, block it
+            if (existingUser._id.toString() !== req.user!.userId) {
+                console.warn(`⚠️ Upgrade blocked: Payment ${razorpay_payment_id} already used by user ${existingUser.email}`);
+                return res.status(400).json({ error: 'This payment has already been used' });
+            }
+        }
+
         // Verify signature
         const hmac = crypto.createHmac('sha256', config.razorpay.keySecret || '');
         hmac.update(razorpay_order_id + '|' + razorpay_payment_id);
@@ -155,8 +187,25 @@ router.post('/upgrade', authenticate, async (req: AuthRequest, res) => {
             return res.status(400).json({ error: 'Invalid payment signature' });
         }
 
+        // SECURITY 3: Double-verify with Razorpay API that payment is actually captured
+        if (razorpay) {
+            try {
+                const fetchedPayment = await razorpay.payments.fetch(razorpay_payment_id);
+                if (fetchedPayment.status !== 'captured') {
+                    console.warn(`⚠️ Upgrade blocked: Payment ${razorpay_payment_id} status is ${fetchedPayment.status}, not captured`);
+                    return res.status(400).json({ error: 'Payment not captured. Please complete the payment.' });
+                }
+                if (fetchedPayment.order_id !== razorpay_order_id) {
+                    console.warn(`⚠️ Upgrade blocked: Payment ${razorpay_payment_id} belongs to order ${fetchedPayment.order_id}, not ${razorpay_order_id}`);
+                    return res.status(400).json({ error: 'Payment-order mismatch' });
+                }
+            } catch (fetchErr) {
+                console.error('Razorpay payment fetch failed during upgrade:', fetchErr);
+                // Don't block if Razorpay API is temporarily down — signature is already verified
+            }
+        }
+
         // Securely update user status
-        // Fetch membership validity setting
         const validitySetting = await Setting.findOne({ key: 'membership_validity_months' });
         const validityMonths = parseInt(validitySetting?.value || '12', 10);
 
@@ -171,12 +220,87 @@ router.post('/upgrade', authenticate, async (req: AuthRequest, res) => {
             pitch_limit_reset_date: new Date()
         });
 
-        console.log(`✅ User ${req.user!.userId} upgraded to Premium`);
+        console.log(`✅ User ${req.user!.userId} upgraded to Premium (Payment: ${razorpay_payment_id})`);
 
         res.json({ success: true, message: 'Upgraded to Premium successfully' });
     } catch (error) {
         console.error('Upgrade error:', error);
         res.status(500).json({ error: 'Failed to process upgrade' });
+    }
+});
+
+// POST /api/payment/verify-status — Server-side safety net
+// When Razorpay payment completed but client-side verify failed,
+// this endpoint checks directly with Razorpay and activates the user.
+router.post('/verify-status', authenticate, async (req: AuthRequest, res) => {
+    try {
+        if (!razorpay) {
+            return res.status(503).json({ error: 'Payment gateway not configured' });
+        }
+
+        const user = await User.findById(req.user!.userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Already completed — no action needed
+        if (user.payment_status === 'completed') {
+            return res.json({ status: 'completed', message: 'Payment already verified' });
+        }
+
+        // SECURITY: Only use the order ID from the user's OWN database record.
+        // Never accept orderId from the request body — an attacker could pass
+        // someone else's captured order ID to get their account activated for free.
+        const orderId = user.razorpay_order_id;
+        if (!orderId) {
+            return res.json({ status: 'no_order', message: 'No pending order found' });
+        }
+
+        // Fetch payments for this order directly from Razorpay
+        const payments = await razorpay.orders.fetchPayments(orderId) as any;
+        const items = payments.items || [];
+        const successfulPayment = items.find((p: any) => p.status === 'captured');
+
+        if (successfulPayment) {
+            // Payment was captured — activate user
+            const validitySetting = await Setting.findOne({ key: 'membership_validity_months' });
+            const validityMonths = parseInt(validitySetting?.value || '12', 10);
+            const expiryDate = new Date();
+            expiryDate.setMonth(expiryDate.getMonth() + validityMonths);
+
+            user.payment_status = 'completed';
+            user.razorpay_payment_id = successfulPayment.id;
+            user.razorpay_order_id = orderId;
+            user.premium_expiry = expiryDate;
+            user.pitch_limit_reset_date = new Date();
+            await user.save({ validateModifiedOnly: true });
+
+            console.log(`✅ verify-status: User ${user.email} activated via Razorpay sync (Payment: ${successfulPayment.id})`);
+
+            return res.json({
+                status: 'completed',
+                message: 'Payment verified and account activated',
+                paymentId: successfulPayment.id,
+            });
+        }
+
+        // Check if payment failed
+        const failedPayment = items.find((p: any) => p.status === 'failed');
+        if (failedPayment) {
+            return res.json({
+                status: 'failed',
+                message: 'Payment failed. Please try again.',
+            });
+        }
+
+        // No captured payment found
+        return res.json({
+            status: 'pending',
+            message: 'Payment is still pending or not found.',
+        });
+    } catch (error) {
+        console.error('verify-status error:', error);
+        res.status(500).json({ error: 'Failed to verify payment status' });
     }
 });
 

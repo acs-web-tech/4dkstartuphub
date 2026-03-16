@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw, AlertTriangle } from 'lucide-react';
 import { authApi } from '../services/api';
 import { loadRazorpay } from '../utils/razorpay';
 import { useModal } from '../context/ModalContext';
@@ -28,6 +28,10 @@ export default function Login() {
     const [otp, setOtp] = useState('');
     const [resendLoading, setResendLoading] = useState(false);
     const [pendingPayment, setPendingPayment] = useState<any>(null);
+    // Stores Razorpay response for retry verification
+    const pendingPaymentRef = useRef<{ order_id: string; payment_id: string; signature: string } | null>(null);
+    const [showVerifyButton, setShowVerifyButton] = useState(false);
+    const [paymentVerifying, setPaymentVerifying] = useState(false);
 
     // Redirect if already logged in (prevents login page flicker)
     useEffect(() => {
@@ -39,7 +43,43 @@ export default function Login() {
     if (authLoading) return <div className="loading-container"><div className="spinner" /></div>;
     if (user) return null;
 
+    // Retry verify payment with stored details (login flow)
+    const retryVerifyPayment = async () => {
+        const details = pendingPaymentRef.current;
+        if (!details) {
+            setError('No payment details found. Please try paying again.');
+            setShowVerifyButton(false);
+            return;
+        }
+
+        setPaymentVerifying(true);
+        setError('');
+
+        try {
+            const finalizeRes = await authApi.finalizeRegistration(details);
+
+            pendingPaymentRef.current = null;
+            setShowVerifyButton(false);
+
+            if (finalizeRes.accessToken) localStorage.setItem('access_token', finalizeRes.accessToken);
+            if (finalizeRes.refreshToken) localStorage.setItem('refresh_token', finalizeRes.refreshToken);
+
+            if (finalizeRes.requireVerification) {
+                setShowVerification(true);
+                setPendingPayment(null);
+            } else {
+                await login(email, password);
+                navigate('/feed');
+            }
+        } catch (err: any) {
+            setError(err.message || 'Verification failed. Please try again or contact support.');
+        } finally {
+            setPaymentVerifying(false);
+        }
+    };
+
     const handlePaymentRetry = async (data: any) => {
+        setShowVerifyButton(false);
         const isLoaded = await loadRazorpay();
         if (!isLoaded) {
             setError('Razorpay SDK failed to load. Are you offline?');
@@ -54,13 +94,20 @@ export default function Login() {
             description: `Registration Payment`,
             order_id: data.orderId,
             handler: async (response: any) => {
+                // Store payment details immediately for retry safety
+                const paymentDetails = {
+                    order_id: response.razorpay_order_id,
+                    payment_id: response.razorpay_payment_id,
+                    signature: response.razorpay_signature,
+                };
+                pendingPaymentRef.current = paymentDetails;
+
                 setLoading(true);
                 try {
-                    const finalizeRes = await authApi.finalizeRegistration({
-                        order_id: response.razorpay_order_id,
-                        payment_id: response.razorpay_payment_id,
-                        signature: response.razorpay_signature,
-                    });
+                    const finalizeRes = await authApi.finalizeRegistration(paymentDetails);
+
+                    pendingPaymentRef.current = null;
+                    setShowVerifyButton(false);
 
                     // Set tokens if provided
                     if (finalizeRes.accessToken) localStorage.setItem('access_token', finalizeRes.accessToken);
@@ -76,7 +123,9 @@ export default function Login() {
                         navigate('/feed');
                     }
                 } catch (err: any) {
-                    setError(err.message || 'Payment success but activation failed');
+                    // Payment succeeded at Razorpay but finalize failed
+                    setError(err.message || 'Payment completed but activation failed. Please click "Verify Payment" to complete.');
+                    setShowVerifyButton(true);
                     setLoading(false);
                 }
             },
@@ -93,6 +142,10 @@ export default function Login() {
         };
 
         const rzp = new window.Razorpay(options);
+        rzp.on('payment.failed', (response: any) => {
+            setError(`Payment failed: ${response.error?.description || 'Unknown error'}. Please try again.`);
+            setLoading(false);
+        });
         rzp.open();
     };
 
@@ -187,9 +240,24 @@ export default function Login() {
                                 {loading ? 'Processing...' : `Pay ₹${pendingPayment.amount / 100} & Continue`}
                             </button>
 
+                            {showVerifyButton && (
+                                <button
+                                    className="btn btn-primary btn-full py-4 text-lg mt-3"
+                                    onClick={retryVerifyPayment}
+                                    disabled={paymentVerifying}
+                                    style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                                >
+                                    {paymentVerifying ? (
+                                        <><RefreshCw size={18} style={{ animation: 'spin 1s linear infinite', display: 'inline', marginRight: '8px' }} /> Verifying Payment...</>
+                                    ) : (
+                                        <><AlertTriangle size={18} style={{ display: 'inline', marginRight: '8px' }} /> Verify Payment</>
+                                    )}
+                                </button>
+                            )}
+
                             <button
                                 className="btn btn-ghost btn-full mt-4"
-                                onClick={() => setPendingPayment(null)}
+                                onClick={() => { setPendingPayment(null); setShowVerifyButton(false); }}
                             >
                                 Back to Login
                             </button>

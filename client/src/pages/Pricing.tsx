@@ -1,18 +1,22 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authApi, paymentApi, settingsApi } from '../services/api';
 import { loadRazorpay } from '../utils/razorpay';
-import { Rocket, ShieldCheck, Gem, Check, CreditCard, ArrowRight, Zap, Star, RefreshCw } from 'lucide-react';
+import { Rocket, ShieldCheck, Gem, Check, CreditCard, ArrowRight, Zap, Star, RefreshCw, AlertTriangle } from 'lucide-react';
 
 export default function Pricing() {
     const { user, refreshUser } = useAuth();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+    const [verifying, setVerifying] = useState(false);
     const [price, setPrice] = useState(950);
     const [validity, setValidity] = useState(12);
     const [error, setError] = useState('');
+    // Store payment details for retry verification
+    const pendingPaymentRef = useRef<{ razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string } | null>(null);
+    const [showVerifyButton, setShowVerifyButton] = useState(false);
 
     useEffect(() => {
         settingsApi.getPublic()
@@ -21,8 +25,83 @@ export default function Pricing() {
             })
             .catch(() => { });
 
-        // We don't have a public validity endpoint yet, but 12 is default
+        // Restore pending payment details from localStorage (survives page refresh)
+        try {
+            const stored = localStorage.getItem('pending_upgrade_payment');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                pendingPaymentRef.current = parsed;
+                setShowVerifyButton(true);
+            }
+        } catch { /* ignore parse errors */ }
+
+        // Server-side safety net: auto-check if a payment was captured but not verified
+        if (user) {
+            paymentApi.verifyPaymentStatus()
+                .then(result => {
+                    if (result.status === 'completed') {
+                        // Payment was already captured — clear any stale data and redirect
+                        localStorage.removeItem('pending_upgrade_payment');
+                        pendingPaymentRef.current = null;
+                        setShowVerifyButton(false);
+                        refreshUser().then(() => navigate('/feed'));
+                    }
+                })
+                .catch(() => { /* silent — non-critical check */ });
+        }
     }, []);
+
+    // Verify payment with stored details (retry-safe)
+    const verifyPayment = async () => {
+        const details = pendingPaymentRef.current;
+        if (!details) {
+            // Fallback: try server-side verify
+            setVerifying(true);
+            setError('');
+            try {
+                const result = await paymentApi.verifyPaymentStatus();
+                if (result.status === 'completed') {
+                    localStorage.removeItem('pending_upgrade_payment');
+                    setShowVerifyButton(false);
+                    await refreshUser();
+                    navigate('/feed');
+                    return;
+                }
+            } catch { /* ignore */ }
+            setVerifying(false);
+            setError('No payment details found. Please try paying again.');
+            setShowVerifyButton(false);
+            return;
+        }
+
+        setVerifying(true);
+        setError('');
+
+        try {
+            await paymentApi.verifyUpgrade(details);
+            pendingPaymentRef.current = null;
+            localStorage.removeItem('pending_upgrade_payment');
+            setShowVerifyButton(false);
+            await refreshUser();
+            navigate('/feed');
+        } catch (err: any) {
+            // Signature verify failed — try server-side direct check as fallback
+            try {
+                const result = await paymentApi.verifyPaymentStatus();
+                if (result.status === 'completed') {
+                    localStorage.removeItem('pending_upgrade_payment');
+                    pendingPaymentRef.current = null;
+                    setShowVerifyButton(false);
+                    await refreshUser();
+                    navigate('/feed');
+                    return;
+                }
+            } catch { /* ignore fallback error */ }
+            setError(err.message || 'Verification failed. Please try again or contact support.');
+        } finally {
+            setVerifying(false);
+        }
+    };
 
     const handleUpgrade = async () => {
         if (!user) {
@@ -32,6 +111,7 @@ export default function Pricing() {
 
         setLoading(true);
         setError('');
+        setShowVerifyButton(false);
 
         try {
             const order = await paymentApi.createOrder('upgrade');
@@ -44,16 +124,28 @@ export default function Pricing() {
                 description: 'Premium Membership Upgrade',
                 order_id: order.id,
                 handler: async (response: any) => {
+                    // Store payment details immediately for retry safety
+                    const paymentDetails = {
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature,
+                    };
+                    pendingPaymentRef.current = paymentDetails;
+                    // Persist to localStorage so it survives page refresh
+                    try { localStorage.setItem('pending_upgrade_payment', JSON.stringify(paymentDetails)); } catch {}
+
                     try {
-                        await paymentApi.verifyUpgrade({
-                            razorpay_order_id: response.razorpay_order_id,
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_signature: response.razorpay_signature,
-                        });
+                        await paymentApi.verifyUpgrade(paymentDetails);
+                        pendingPaymentRef.current = null;
+                        localStorage.removeItem('pending_upgrade_payment');
+                        setShowVerifyButton(false);
                         await refreshUser();
                         navigate('/feed');
                     } catch (err: any) {
-                        setError(err.message || 'Verification failed');
+                        // Payment succeeded at Razorpay but our verify call failed
+                        // Show verify button so user can retry
+                        setError(err.message || 'Payment completed but verification failed. Please click "Verify Payment" to complete.');
+                        setShowVerifyButton(true);
                         setLoading(false);
                     }
                 },
@@ -65,7 +157,9 @@ export default function Pricing() {
                     color: '#3b82f6',
                 },
                 modal: {
-                    ondismiss: () => setLoading(false)
+                    ondismiss: () => {
+                        setLoading(false);
+                    }
                 }
             };
 
@@ -75,6 +169,10 @@ export default function Pricing() {
             }
 
             const rzp = new (window as any).Razorpay(options);
+            rzp.on('payment.failed', (response: any) => {
+                setError(`Payment failed: ${response.error?.description || 'Unknown error'}. Please try again.`);
+                setLoading(false);
+            });
             rzp.open();
         } catch (err: any) {
             setError(err.message || 'Failed to initiate payment');
@@ -196,29 +294,56 @@ export default function Pricing() {
                         </ul>
                     </div>
 
-                    <button
-                        onClick={handleUpgrade}
-                        disabled={loading}
-                        className="btn btn-primary"
-                        style={{
-                            width: '100%',
-                            padding: '16px',
-                            fontSize: '1.1rem',
-                            fontWeight: 700,
-                            borderRadius: '12px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '10px',
-                            boxShadow: '0 8px 20px -6px rgba(59, 130, 246, 0.5)'
-                        }}
-                    >
-                        {loading ? (
-                            <><RefreshCw className="spinner" size={20} /> Processing...</>
-                        ) : (
-                            <><CreditCard size={20} /> Pay Once, Access All <ArrowRight size={18} /></>
-                        )}
-                    </button>
+                    {showVerifyButton ? (
+                        <button
+                            onClick={verifyPayment}
+                            disabled={verifying}
+                            className="btn btn-primary"
+                            style={{
+                                width: '100%',
+                                padding: '16px',
+                                fontSize: '1.1rem',
+                                fontWeight: 700,
+                                borderRadius: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '10px',
+                                boxShadow: '0 8px 20px -6px rgba(16, 185, 129, 0.5)',
+                                background: 'linear-gradient(135deg, #10b981, #059669)'
+                            }}
+                        >
+                            {verifying ? (
+                                <><RefreshCw className="spinner" size={20} /> Verifying Payment...</>
+                            ) : (
+                                <><AlertTriangle size={20} /> Verify Payment <ArrowRight size={18} /></>
+                            )}
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleUpgrade}
+                            disabled={loading}
+                            className="btn btn-primary"
+                            style={{
+                                width: '100%',
+                                padding: '16px',
+                                fontSize: '1.1rem',
+                                fontWeight: 700,
+                                borderRadius: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '10px',
+                                boxShadow: '0 8px 20px -6px rgba(59, 130, 246, 0.5)'
+                            }}
+                        >
+                            {loading ? (
+                                <><RefreshCw className="spinner" size={20} /> Processing...</>
+                            ) : (
+                                <><CreditCard size={20} /> Pay Once, Access All <ArrowRight size={18} /></>
+                            )}
+                        </button>
+                    )}
 
                     <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '20px' }}>
                         Secure payment powered by Razorpay. 100% encryption.

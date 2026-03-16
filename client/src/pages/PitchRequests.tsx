@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Lightbulb, Plus, Upload, Loader2, CheckCircle2, XCircle, Clock, FileText, Lock, CreditCard, Wifi, RefreshCw } from 'lucide-react';
 import { pitchApi, uploadApi, paymentApi, settingsApi } from '../services/api';
 import { loadRazorpay } from '../utils/razorpay';
@@ -35,6 +35,10 @@ export default function PitchRequests() {
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const [loadError, setLoadError] = useState(false);
+    // Stores payment details for retry verification
+    const pendingUpgradeRef = useRef<{ razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string } | null>(null);
+    const [showVerifyButton, setShowVerifyButton] = useState(false);
+    const [paymentVerifying, setPaymentVerifying] = useState(false);
 
     const isPremium = user?.role === 'admin' || user?.role === 'moderator' || (
         user?.paymentStatus?.toLowerCase() === 'completed' &&
@@ -51,6 +55,30 @@ export default function PitchRequests() {
 
     useEffect(() => {
         settingsApi.getPublic().then(d => setUpgradePrice((d as any).pitch_request_payment_amount || 950));
+
+        // Restore pending upgrade payment from localStorage (survives page refresh)
+        try {
+            const stored = localStorage.getItem('pending_upgrade_payment');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                pendingUpgradeRef.current = parsed;
+                setShowVerifyButton(true);
+            }
+        } catch { /* ignore parse errors */ }
+
+        // Server-side safety net: auto-check if a payment was captured but not verified
+        paymentApi.verifyPaymentStatus()
+            .then(result => {
+                if (result.status === 'completed') {
+                    localStorage.removeItem('pending_upgrade_payment');
+                    pendingUpgradeRef.current = null;
+                    setShowVerifyButton(false);
+                    refreshUser();
+                    setPremiumBlocked(false);
+                    loadPitches();
+                }
+            })
+            .catch(() => { /* silent */ });
     }, []);
 
     // ── Real-time socket listeners ──
@@ -240,8 +268,64 @@ export default function PitchRequests() {
     };
 
     // Premium gate UI
+    // Retry verify payment with stored details
+    const retryVerifyUpgrade = async () => {
+        const details = pendingUpgradeRef.current;
+        if (!details) {
+            // Fallback: try server-side verify
+            setPaymentVerifying(true);
+            try {
+                const result = await paymentApi.verifyPaymentStatus();
+                if (result.status === 'completed') {
+                    localStorage.removeItem('pending_upgrade_payment');
+                    setShowVerifyButton(false);
+                    await refreshUser();
+                    setPremiumBlocked(false);
+                    loadPitches();
+                    setPaymentVerifying(false);
+                    return;
+                }
+            } catch { /* ignore */ }
+            setPaymentVerifying(false);
+            await alert('No payment details found. Please try paying again.');
+            setShowVerifyButton(false);
+            return;
+        }
+
+        setPaymentVerifying(true);
+
+        try {
+            await paymentApi.verifyUpgrade(details);
+            pendingUpgradeRef.current = null;
+            localStorage.removeItem('pending_upgrade_payment');
+            setShowVerifyButton(false);
+            await refreshUser();
+            setPremiumBlocked(false);
+            loadPitches();
+        } catch (err: any) {
+            // Fallback: try server-side verify
+            try {
+                const result = await paymentApi.verifyPaymentStatus();
+                if (result.status === 'completed') {
+                    localStorage.removeItem('pending_upgrade_payment');
+                    pendingUpgradeRef.current = null;
+                    setShowVerifyButton(false);
+                    await refreshUser();
+                    setPremiumBlocked(false);
+                    loadPitches();
+                    setPaymentVerifying(false);
+                    return;
+                }
+            } catch { /* ignore fallback error */ }
+            await alert('Verification failed: ' + (err.message || 'Please try again or contact support.'));
+        } finally {
+            setPaymentVerifying(false);
+        }
+    };
+
     const handleUpgrade = async () => {
         setUpgrading(true);
+        setShowVerifyButton(false);
         try {
             const order = await paymentApi.createOrder('upgrade');
 
@@ -253,17 +337,30 @@ export default function PitchRequests() {
                 description: `Premium Upgrade — ₹${upgradePrice}`,
                 order_id: order.id,
                 handler: async (response: any) => {
+                    // Store payment details immediately for retry safety
+                    const paymentDetails = {
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id,
+                        razorpay_signature: response.razorpay_signature
+                    };
+                    pendingUpgradeRef.current = paymentDetails;
+                    // Persist to localStorage so it survives page refresh
+                    try { localStorage.setItem('pending_upgrade_payment', JSON.stringify(paymentDetails)); } catch {}
+
                     try {
-                        await paymentApi.verifyUpgrade({
-                            razorpay_order_id: response.razorpay_order_id,
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_signature: response.razorpay_signature
-                        });
+                        await paymentApi.verifyUpgrade(paymentDetails);
+                        pendingUpgradeRef.current = null;
+                        localStorage.removeItem('pending_upgrade_payment');
+                        setShowVerifyButton(false);
                         await refreshUser();
                         setPremiumBlocked(false);
                         loadPitches();
                     } catch (err: any) {
-                        await alert('Upgrade failed: ' + err.message);
+                        // Payment succeeded at Razorpay but verify failed
+                        setShowVerifyButton(true);
+                        await alert('Payment completed but verification failed. Please click "Verify Payment" to complete: ' + err.message);
+                    } finally {
+                        setUpgrading(false);
                     }
                 },
                 prefill: {
@@ -274,6 +371,11 @@ export default function PitchRequests() {
                     color: '#6366f1',
                     backdrop_color: 'rgba(15, 15, 20, 0.85)',
                 },
+                modal: {
+                    ondismiss: () => {
+                        setUpgrading(false);
+                    }
+                }
             };
 
             const isLoaded = await loadRazorpay();
@@ -285,18 +387,13 @@ export default function PitchRequests() {
 
             const rzp = new window.Razorpay(options);
             rzp.on('payment.failed', async (response: any) => {
-                await alert(`Payment failed: ${response.error.description}`);
+                await alert(`Payment failed: ${response.error?.description || 'Unknown error'}. Please try again.`);
+                setUpgrading(false);
             });
             rzp.open();
         } catch (err: any) {
             await alert('Failed to initiate upgrade: ' + err.message);
             setUpgrading(false);
-        } finally {
-            // Note: setUpgrading(false) is handled in callbacks or error
-            // but we can set it false here if we want to reset button state after pop-up opens
-            // Actually Razorpay opens in a modal, so we can keep spinning or stop.
-            // Let's stop spinning when modal opens (or shortly after)
-            setTimeout(() => setUpgrading(false), 2000);
         }
     };
     // Unified gate UI
@@ -323,8 +420,12 @@ export default function PitchRequests() {
                     <div className="premium-feature-item"><CheckCircle2 size={16} /> <span>Attach pitch decks & documents</span></div>
                     <div className="premium-feature-item"><CheckCircle2 size={16} /> <span>Receive admin feedback & approval</span></div>
                 </div>
-                <button className="btn-premium w-full" onClick={handleUpgrade} disabled={upgrading}>
-                    {upgrading ? (
+                <button className="btn-premium w-full" onClick={showVerifyButton ? retryVerifyUpgrade : handleUpgrade} disabled={upgrading || paymentVerifying}>
+                    {paymentVerifying ? (
+                        <><Loader2 className="animate-spin inline mr-2" size={20} /> Verifying Payment...</>
+                    ) : showVerifyButton ? (
+                        <><CheckCircle2 className="inline mr-2" size={20} /> Verify Payment</>
+                    ) : upgrading ? (
                         <><Loader2 className="animate-spin inline mr-2" size={20} /> Processing...</>
                     ) : (
                         <><CreditCard className="inline mr-2" size={20} /> {user?.paymentStatus?.toLowerCase() === 'expired' ? 'Renew Premium' : 'Upgrade'} for ₹{upgradePrice}</>

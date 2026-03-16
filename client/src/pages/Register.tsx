@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authApi, paymentApi, settingsApi, request } from '../services/api';
@@ -32,6 +32,10 @@ export default function Register() {
     const [otp, setOtp] = useState('');
     const [savedOrder, setSavedOrder] = useState<{ orderId: string, keyId: string, amount: number, currency: string, userId: string } | null>(null);
     const [resendLoading, setResendLoading] = useState(false);
+    // Stores Razorpay response for retry verification
+    const pendingPaymentRef = useRef<{ order_id: string; payment_id: string; signature: string } | null>(null);
+    const [showVerifyButton, setShowVerifyButton] = useState(false);
+    const [paymentVerifying, setPaymentVerifying] = useState(false);
 
     // Redirect if already logged in
     useEffect(() => {
@@ -143,6 +147,41 @@ export default function Register() {
         }
     };
 
+    // Retry verify payment with stored details
+    const retryVerifyPayment = async () => {
+        const details = pendingPaymentRef.current;
+        if (!details) {
+            setError('No payment details found. Please try paying again.');
+            setShowVerifyButton(false);
+            return;
+        }
+
+        setPaymentVerifying(true);
+        setError('');
+
+        try {
+            const res = await authApi.finalizeRegistration(details);
+
+            pendingPaymentRef.current = null;
+            setShowVerifyButton(false);
+
+            if (res.accessToken) {
+                localStorage.setItem('access_token', res.accessToken);
+                if (res.refreshToken) localStorage.setItem('refresh_token', res.refreshToken);
+            }
+
+            if (res.requireVerification) {
+                setVerificationSent(true);
+            } else {
+                window.location.href = '/feed';
+            }
+        } catch (err: any) {
+            setError(err.message || 'Verification failed. Please try again or contact support.');
+        } finally {
+            setPaymentVerifying(false);
+        }
+    };
+
     const handlePayment = async () => {
         if (!savedOrder) {
             setError('Order details missing. Please go back and try again.');
@@ -151,6 +190,7 @@ export default function Register() {
 
         setLoading(true);
         setError('');
+        setShowVerifyButton(false);
 
         try {
             // Step 2: Open Razorpay checkout using Saved Order
@@ -162,13 +202,20 @@ export default function Register() {
                 description: `${userType === 'startup' ? 'Startup' : userType === 'investor' ? 'Investor' : 'Freelancer'} Registration — ₹${paymentAmount}`,
                 order_id: savedOrder.orderId,
                 handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+                    // Store payment details immediately for retry safety
+                    const paymentDetails = {
+                        order_id: response.razorpay_order_id,
+                        payment_id: response.razorpay_payment_id,
+                        signature: response.razorpay_signature,
+                    };
+                    pendingPaymentRef.current = paymentDetails;
+
                     try {
                         // Step 3: Finalize Registration
-                        const res = await authApi.finalizeRegistration({
-                            order_id: response.razorpay_order_id,
-                            payment_id: response.razorpay_payment_id,
-                            signature: response.razorpay_signature,
-                        });
+                        const res = await authApi.finalizeRegistration(paymentDetails);
+
+                        pendingPaymentRef.current = null;
+                        setShowVerifyButton(false);
 
                         // Store tokens so we are authenticated for verification/resend
                         if (res.accessToken) {
@@ -183,7 +230,10 @@ export default function Register() {
                             window.location.href = '/feed';
                         }
                     } catch (err: any) {
-                        setError(err.message || 'Registration failed after payment');
+                        // Payment succeeded at Razorpay but finalize failed
+                        // Show verify button so user can retry
+                        setError(err.message || 'Payment completed but registration finalization failed. Please click "Verify Payment" to complete.');
+                        setShowVerifyButton(true);
                         setLoading(false);
                     }
                 },
@@ -212,7 +262,7 @@ export default function Register() {
 
             const rzp = new window.Razorpay(options);
             rzp.on('payment.failed', (response: any) => {
-                setError(`Payment failed: ${response.error.description || 'Unknown error'}`);
+                setError(`Payment failed: ${response.error?.description || 'Unknown error'}. Please try again.`);
                 setLoading(false);
             });
             rzp.open();
@@ -508,14 +558,26 @@ export default function Register() {
 
                                     <div className="form-actions-row">
                                         <button type="button" className="btn btn-ghost" onClick={() => setStep('details')}>← Back</button>
-                                        <button
-                                            className="btn btn-primary btn-pay"
-                                            onClick={handlePayment}
-                                            disabled={loading}
-                                            id="pay-and-register"
-                                        >
-                                            {loading ? 'Processing...' : `💳 Pay ₹${paymentAmount} & Register`}
-                                        </button>
+                                        {showVerifyButton ? (
+                                            <button
+                                                className="btn btn-primary btn-pay"
+                                                onClick={retryVerifyPayment}
+                                                disabled={paymentVerifying}
+                                                id="verify-payment"
+                                                style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                                            >
+                                                {paymentVerifying ? 'Verifying Payment...' : '✅ Verify Payment'}
+                                            </button>
+                                        ) : (
+                                            <button
+                                                className="btn btn-primary btn-pay"
+                                                onClick={handlePayment}
+                                                disabled={loading}
+                                                id="pay-and-register"
+                                            >
+                                                {loading ? 'Processing...' : `💳 Pay ₹${paymentAmount} & Register`}
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             )}

@@ -274,38 +274,40 @@ export default function Layout() {
                             <p style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Verifying account status...</p>
                         </div>
                     ) : isUnverified ? (
-                        <div className="verification-locked-screen p-6 md:p-12 flex flex-col items-center justify-center min-h-[70vh]">
-                            <div className="card max-w-md w-full p-8 text-center shadow-2xl" style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)' }}>
-                                <div className="w-20 h-20 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                                    <Mail size={40} className="text-accent" />
+                        <div className="verification-locked-screen">
+                            <div className="verification-card">
+                                <div className="verification-icon-wrapper">
+                                    <Mail size={32} />
                                 </div>
-                                <h2 className="text-2xl font-bold mb-3">Verify Your Email</h2>
-                                <p className="text-muted mb-8">
+                                <h2>Verify Your Email</h2>
+                                <p>
                                     A 6-digit verification code has been sent to <br />
-                                    <strong className="text-secondary">{user.email}</strong>. <br />
-                                    Please enter it below to activate your account.
+                                    <strong className="text-secondary">{user.email}</strong>
                                 </p>
 
                                 {verifyError && <div className="alert alert-error mb-6">{verifyError}</div>}
 
-                                <form onSubmit={handleVerifyOtp} className="space-y-6">
-                                    <div className="form-group">
+                                <form onSubmit={handleVerifyOtp}>
+                                    <div className="form-group mb-8">
+                                        <label className="otp-label">Verification Code</label>
                                         <input
                                             type="text"
-                                            className="form-input text-center text-3xl tracking-[0.5em] font-bold py-4 h-auto"
+                                            className="otp-input-premium"
                                             placeholder="000000"
                                             maxLength={6}
                                             value={otp}
                                             onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
                                             required
                                             disabled={verifying}
+                                            autoFocus
                                         />
                                     </div>
 
                                     <button 
                                         type="submit" 
-                                        className="btn btn-primary btn-full py-4 text-lg" 
+                                        className="btn btn-primary btn-full py-4 text-lg shadow-accent" 
                                         disabled={verifying || otp.length !== 6}
+                                        style={{ height: 'auto', borderRadius: 'var(--radius)' }}
                                     >
                                         {verifying ? (
                                             <><RefreshCw className="animate-spin mr-2" size={20} /> Verifying...</>
@@ -315,16 +317,18 @@ export default function Layout() {
                                     </button>
                                 </form>
 
-                                <div className="mt-8 pt-8 border-t border-gray-800">
-                                    <p className="text-sm text-gray-400 mb-3">Didn't receive the code?</p>
+                                <div className="verification-footer">
+                                    <p className="text-sm mb-2">Didn't receive the code?</p>
                                     <button 
-                                        className="btn btn-ghost btn-sm text-accent font-semibold hover:bg-accent/5"
+                                        className="resend-btn-premium"
                                         onClick={handleResendOtp}
                                         disabled={resendLoading}
                                     >
                                         {resendLoading ? (
-                                            <><RefreshCw className="animate-spin mr-2" size={14} /> Sending...</>
-                                        ) : 'Resend Verification Code'}
+                                            <><RefreshCw className="animate-spin" size={16} /> Sending...</>
+                                        ) : (
+                                            <><ArrowRight size={16} /> Resend Verification Code</>
+                                        )}
                                     </button>
                                 </div>
                             </div>
