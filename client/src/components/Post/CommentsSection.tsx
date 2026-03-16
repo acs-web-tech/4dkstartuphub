@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import { postsApi, usersApi } from '../../services/api';
 import { Comment } from '../../types';
-import { Lock, Search, X, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
+import { Lock, X, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
 import CommentItem from './CommentItem';
 import LinkPreview from '../Common/LinkPreview';
 import { useModal } from '../../context/ModalContext';
@@ -30,10 +30,6 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
 
     // Reply state
     const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
-
-    // Search state
-    const [searchQuery, setSearchQuery] = useState('');
-    const [showSearch, setShowSearch] = useState(false);
 
     // Collapse state for the comment section
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -253,24 +249,13 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
         }, 0);
     };
 
-    // ─── Search / filter logic ───
-    const filteredComments = useMemo(() => {
-        if (!searchQuery.trim()) return comments;
-        const q = searchQuery.toLowerCase().trim();
-        return comments.filter(c =>
-            c.content.toLowerCase().includes(q) ||
-            c.displayName.toLowerCase().includes(q) ||
-            c.username.toLowerCase().includes(q)
-        );
-    }, [comments, searchQuery]);
-
     // ─── Threaded comments: group replies under parents ───
     const threadedComments = useMemo(() => {
         // Build a map of parentId -> replies
         const replyMap = new Map<string, Comment[]>();
         const topLevel: Comment[] = [];
 
-        for (const c of filteredComments) {
+        for (const c of comments) {
             if (c.parentId) {
                 const existing = replyMap.get(c.parentId) || [];
                 existing.push(c);
@@ -303,7 +288,7 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
         // Build structured result
         const result: { comment: Comment; isReply: boolean; parentId?: string; replyCount?: number }[] = [];
         for (const parent of topLevel) {
-            const replyCount = countDescendants(parent.id);
+            const replyCount = parent.replyCount ?? countDescendants(parent.id);
             result.push({ comment: parent, isReply: false, replyCount });
 
             if (expandedReplies.has(parent.id)) {
@@ -313,25 +298,20 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
 
         const topLevelIds = new Set(topLevel.map(p => p.id));
 
-        // Also add any orphan replies whose parents were filtered out
+        // Also add any orphan replies whose parents were not loaded yet
         const resultIds = new Set(result.map(r => r.comment.id));
-        for (const c of filteredComments) {
+        for (const c of comments) {
             if (!resultIds.has(c.id)) {
-                // If it's a direct or nested reply to a parent that IS in the list (but collapsed), skip
-                // To properly check, we'd traverse up. For a simple check, if it's not in results, it just shows up as an orphan if its immediate parent is missing from topLevelIds.
                 let current = c;
                 let isCollapsedDescendant = false;
                 
-                // Climb up the tree to see if top-level is in topLevelIds
                 let safety = 0;
                 while (current.parentId && safety < 10) {
                     if (topLevelIds.has(current.parentId)) {
                         isCollapsedDescendant = true;
                         break;
                     }
-                    const parentArray = replyMap.get(current.parentId);
-                    // If we can't find parent, we check filteredComments
-                    const nextParent = filteredComments.find(p => p.id === current.parentId);
+                    const nextParent = comments.find(p => p.id === current.parentId);
                     if (!nextParent) break;
                     current = nextParent;
                     safety++;
@@ -346,7 +326,7 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
         }
 
         return result;
-    }, [filteredComments, expandedReplies]);
+    }, [comments, expandedReplies]);
 
     const toggleReplies = (parentId: string) => {
         setExpandedReplies(prev => {
@@ -374,39 +354,12 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
                     <h2>Comments ({totalCount})</h2>
                     {isCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
                 </button>
-                {!isCollapsed && totalCount > 0 && (
-                    <button
-                        className="comment-search-toggle"
-                        onClick={() => { setShowSearch(!showSearch); if (showSearch) setSearchQuery(''); }}
-                        title="Search comments"
-                        type="button"
-                    >
-                        {showSearch ? <X size={16} /> : <Search size={16} />}
-                    </button>
-                )}
+
             </div>
 
             {!isCollapsed && (
                 <>
-                    {showSearch && (
-                        <div className="comment-search-bar">
-                            <Search size={14} className="comment-search-icon" />
-                            <input
-                                type="text"
-                                className="form-input comment-search-input"
-                                placeholder="Search by keyword or username..."
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                autoFocus
-                                id="comment-search-input"
-                            />
-                            {searchQuery && (
-                                <button className="comment-search-clear" onClick={() => setSearchQuery('')} type="button">
-                                    <X size={14} />
-                                </button>
-                            )}
-                        </div>
-                    )}
+
 
                     {user && !isLocked && (
                         <form className="comment-form" onSubmit={handleComment} style={{ position: 'relative' }}>
@@ -473,9 +426,7 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
                         <div className="alert alert-info"><Lock size={16} className="inline mr-1" /> Comments are locked on this post</div>
                     )}
 
-                    {searchQuery && filteredComments.length === 0 ? (
-                        <p className="empty-comments">No comments match "{searchQuery}"</p>
-                    ) : threadedComments.length === 0 ? (
+                    {threadedComments.length === 0 ? (
                         <p className="empty-comments">No comments yet. Be the first to comment!</p>
                     ) : (
                         <div className="comments-list">

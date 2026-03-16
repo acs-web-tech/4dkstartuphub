@@ -62,6 +62,7 @@ export interface Comment {
     displayName: string;
     avatarUrl: string;
     createdAt: string;
+    replyCount?: number;
 }
 
 export interface PitchRequest {

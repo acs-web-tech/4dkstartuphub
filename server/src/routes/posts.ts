@@ -303,6 +303,16 @@ router.get('/:id/comments', authenticate, async (req, res) => {
 
         const total = await Comment.countDocuments({ post_id: req.params.id });
 
+        // Aggregate reply counts for all parent comments in this post
+        const replyCounts = await Comment.aggregate([
+            { $match: { post_id: new (require('mongoose').Types.ObjectId)(req.params.id), parent_id: { $ne: null } } },
+            { $group: { _id: '$parent_id', count: { $sum: 1 } } }
+        ]);
+        const replyCountMap = new Map<string, number>();
+        for (const rc of replyCounts) {
+            replyCountMap.set(rc._id.toString(), rc.count);
+        }
+
         res.json({
             comments: comments.map(c => {
                 const cUser = c.user_id as any;
@@ -318,6 +328,7 @@ router.get('/:id/comments', authenticate, async (req, res) => {
                     displayName: cUser.display_name,
                     avatarUrl: cUser.avatar_url,
                     createdAt: c.created_at,
+                    replyCount: replyCountMap.get(c._id.toString()) || 0,
                 };
             }),
             pagination: {
