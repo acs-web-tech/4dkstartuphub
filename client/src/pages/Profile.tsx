@@ -1,14 +1,18 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { usersApi, uploadApi, authApi } from '../services/api';
+import { usersApi, uploadApi, authApi, postsApi } from '../services/api';
+import { Link, useLocation } from 'react-router-dom';
+import { CATEGORY_CONFIG } from '../config';
+import { SmartImage } from '../components/Common/SmartImage';
 import {
-    User, Camera, Pencil, Mail, MapPin, Globe, Briefcase, Twitter, Calendar, Save, CheckCircle, AlertCircle, Eye, EyeOff, X
+    User, Camera, Pencil, Mail, MapPin, Globe, Briefcase, Twitter, Calendar, Save, CheckCircle, AlertCircle, Eye, EyeOff, X, Heart, MessageSquare
 } from 'lucide-react';
 import { validateFile } from '../utils/fileValidation';
 import { getCdnUrl } from '../utils/cdn';
 
 export default function Profile() {
+    const location = useLocation();
     const { user, refreshUser } = useAuth();
     const [showAvatarViewer, setShowAvatarViewer] = useState(false);
     const [editing, setEditing] = useState(false);
@@ -30,6 +34,16 @@ export default function Profile() {
     const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [pendingAvatar, setPendingAvatar] = useState<File | null>(null);
+
+    const [userPosts, setUserPosts] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (user?.id) {
+            postsApi.getAll({ limit: 20, userId: user.id })
+                .then(data => setUserPosts(data.posts))
+                .catch(err => console.error('Failed to load user posts', err));
+        }
+    }, [user?.id]);
 
     // Sync form state with user prop changes
     useEffect(() => {
@@ -648,6 +662,59 @@ export default function Profile() {
                     </form>
                 )}
             </div>
+
+            {userPosts.length > 0 && (
+                <section className="user-posts-section discovery-section" style={{ marginTop: '2rem' }}>
+                    <h2 className="section-title">My Recent Posts</h2>
+                    <div className="trending-grid">
+                        {userPosts.map((post: any) => {
+                            const cat = CATEGORY_CONFIG[post.category as keyof typeof CATEGORY_CONFIG];
+                            const CatIcon = cat?.icon;
+                            const postInitials = post.displayName?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+                            return (
+                                <Link to={`/posts/${post.id}`} state={{ background: location }} key={post.id} className="card trending-card-premium">
+                                    <div className="trending-card-top">
+                                        <div className="trending-card-info">
+                                            {cat && (
+                                                <span className="trending-badge" style={{ color: cat.color, background: `${cat.color}15` }}>
+                                                    <CatIcon size={12} /> {cat.label}
+                                                </span>
+                                            )}
+                                            <h3>{post.title}</h3>
+                                            <p>{post.content?.replace(/<[^>]*>/g, '').slice(0, 100)}…</p>
+                                        </div>
+                                        {post.imageUrl && (
+                                            <div className="trending-card-thumb">
+                                                <SmartImage src={post.imageUrl} alt="" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="trending-meta">
+                                        <div className="trending-author-info">
+                                            <div className="trending-author-avatar">
+                                                {post.avatarUrl ? (
+                                                    <SmartImage src={post.avatarUrl} alt="" />
+                                                ) : (
+                                                    <span>{postInitials}</span>
+                                                )}
+                                            </div>
+                                            <span className="trending-author">{post.displayName}</span>
+                                            {post.userType === 'investor' && (
+                                                <span className="investor-badge-sm">💰 Investor</span>
+                                            )}
+                                        </div>
+                                        <span className="trending-stats">
+                                            {post.viewCount > 0 && <><Eye size={12} /> {post.viewCount}</>}
+                                            {post.likeCount > 0 && <> · <Heart size={12} /> {post.likeCount}</>}
+                                            {post.commentCount > 0 && <> · <MessageSquare size={12} /> {post.commentCount}</>}
+                                        </span>
+                                    </div>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                </section>
+            )}
         </div>
     );
 }

@@ -30,9 +30,12 @@ router.get('/', authenticate, async (req, res) => {
         const category = req.query.category as string;
         const search = req.query.search as string;
         const trending = req.query.trending === 'true';
+        const userId = req.query.userId as string;
 
         const match: any = {};
-        if (category && category !== 'all') {
+        if (userId) {
+            match.user_id = new mongoose.Types.ObjectId(userId);
+        } else if (category && category !== 'all') {
             match.category = category;
         } else if (!search) {
             // Exclude announcements from the main community feed

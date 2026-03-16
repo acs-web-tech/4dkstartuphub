@@ -1,10 +1,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
-import { usersApi } from '../services/api';
+import { usersApi, postsApi } from '../services/api';
 import { CATEGORY_CONFIG } from '../config';
-import { MapPin, Globe, FileText, Calendar, Heart, MessageSquare, ArrowLeft, Twitter, Briefcase, Mail, Wifi, RefreshCw } from 'lucide-react';
+import { MapPin, Globe, FileText, Calendar, Heart, MessageSquare, ArrowLeft, Twitter, Briefcase, Mail, Wifi, RefreshCw, Eye } from 'lucide-react';
 import { getCdnUrl } from '../utils/cdn';
+import { SmartImage } from '../components/Common/SmartImage';
 
 export default function UserDetail() {
     const { id } = useParams<{ id: string }>();
@@ -19,10 +20,13 @@ export default function UserDetail() {
         if (!id) return;
         setLoading(true);
         setError(false);
-        usersApi.getById(id)
-            .then(data => {
-                setUser(data.user);
-                setPosts(data.recentPosts);
+        Promise.all([
+            usersApi.getById(id),
+            postsApi.getAll({ limit: 20, userId: id })
+        ])
+            .then(([userData, postsData]) => {
+                setUser(userData.user);
+                setPosts(postsData.posts);
             })
             .catch((err) => {
                 console.error('Failed to load user profile:', err);
@@ -201,25 +205,50 @@ export default function UserDetail() {
             </div>
 
             {posts.length > 0 && (
-                <section className="user-posts-section">
-                    <h2>Recent Posts</h2>
-                    <div className="posts-list">
-                        {posts.map((p: any) => {
-                            const cat = CATEGORY_CONFIG[p.category as keyof typeof CATEGORY_CONFIG];
-                            const Icon = cat?.icon;
+                <section className="user-posts-section discovery-section" style={{ marginTop: '2rem' }}>
+                    <h2 className="section-title">Recent Posts</h2>
+                    <div className="trending-grid">
+                        {posts.map((post: any) => {
+                            const cat = CATEGORY_CONFIG[post.category as keyof typeof CATEGORY_CONFIG];
+                            const CatIcon = cat?.icon;
+                            const postInitials = post.displayName?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
                             return (
-                                <Link to={`/posts/${p.id}`} state={{ background: location }} key={p.id} className="post-card">
-                                    <div className="post-card-header">
-                                        {cat && (
-                                            <span className="post-category-badge" style={{ background: cat.color + '22', color: cat.color }}>
-                                                <Icon size={14} className="inline mr-1" /> {cat.label}
-                                            </span>
+                                <Link to={`/posts/${post.id}`} state={{ background: location }} key={post.id} className="card trending-card-premium">
+                                    <div className="trending-card-top">
+                                        <div className="trending-card-info">
+                                            {cat && (
+                                                <span className="trending-badge" style={{ color: cat.color, background: `${cat.color}15` }}>
+                                                    <CatIcon size={12} /> {cat.label}
+                                                </span>
+                                            )}
+                                            <h3>{post.title}</h3>
+                                            <p>{post.content?.replace(/<[^>]*>/g, '').slice(0, 100)}…</p>
+                                        </div>
+                                        {post.imageUrl && (
+                                            <div className="trending-card-thumb">
+                                                <SmartImage src={post.imageUrl} alt="" />
+                                            </div>
                                         )}
                                     </div>
-                                    <h3 className="post-title">{p.title}</h3>
-                                    <div className="post-stats">
-                                        <span className="stat"><Heart size={14} /> {p.likeCount}</span>
-                                        <span className="stat"><MessageSquare size={14} /> {p.commentCount}</span>
+                                    <div className="trending-meta">
+                                        <div className="trending-author-info">
+                                            <div className="trending-author-avatar">
+                                                {post.avatarUrl ? (
+                                                    <SmartImage src={post.avatarUrl} alt="" />
+                                                ) : (
+                                                    <span>{postInitials}</span>
+                                                )}
+                                            </div>
+                                            <span className="trending-author">{post.displayName}</span>
+                                            {post.userType === 'investor' && (
+                                                <span className="investor-badge-sm">💰 Investor</span>
+                                            )}
+                                        </div>
+                                        <span className="trending-stats">
+                                            {post.viewCount > 0 && <><Eye size={12} /> {post.viewCount}</>}
+                                            {post.likeCount > 0 && <> · <Heart size={12} /> {post.likeCount}</>}
+                                            {post.commentCount > 0 && <> · <MessageSquare size={12} /> {post.commentCount}</>}
+                                        </span>
                                     </div>
                                 </Link>
                             );

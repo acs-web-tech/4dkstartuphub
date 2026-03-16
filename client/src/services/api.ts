@@ -252,13 +252,14 @@ export const paymentApi = {
 
 // ── Posts ────────────────────────────────────────────────────
 export const postsApi = {
-    getAll: (params?: { page?: number; limit?: number; category?: string; search?: string; trending?: boolean }, options?: RequestInit) => {
+    getAll: (params?: { page?: number; limit?: number; category?: string; search?: string; trending?: boolean; userId?: string }, options?: RequestInit) => {
         const qs = new URLSearchParams();
         if (params?.page) qs.set('page', String(params.page));
         if (params?.limit) qs.set('limit', String(params.limit));
         if (params?.category) qs.set('category', params.category);
         if (params?.search) qs.set('search', params.search);
         if (params?.trending) qs.set('trending', 'true');
+        if (params?.userId) qs.set('userId', params.userId);
         return request<{ posts: import('../types').Post[]; pagination: import('../types').Pagination }>(
             `/posts?${qs.toString()}`,
             options
