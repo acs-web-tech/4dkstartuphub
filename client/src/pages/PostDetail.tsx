@@ -336,16 +336,28 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
     const isMod = user?.role === 'moderator' || isAdmin;
     const initials = post.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
+    const handleClose = (e?: React.MouseEvent) => {
+        if (e) {
+            e.stopPropagation();
+            e.preventDefault();
+        }
+        if (window.history.state && window.history.state.idx > 0 && location.state?.background) {
+            navigate(-1);
+        } else {
+            navigate('/feed', { replace: true });
+        }
+    };
+
     return (
         <div className={`post-detail-page ${isModal ? 'post-detail-is-modal' : ''}`}>
             {isModal && (
-                <div className="modal-backdrop" onClick={(e) => { e.stopPropagation(); window.history.length > 1 ? navigate(-1) : navigate('/feed'); }} />
+                <div className="modal-backdrop" onClick={handleClose} />
             )}
             <div className={`post-detail-wrapper ${isModal ? 'modal-wrapper' : ''}`} onClick={(e) => e.stopPropagation()}>
                 <div className="post-detail-inner-scroll">
                     {isModal && (
                         <div className="modal-header-actions">
-                            <button className="modal-close-icon-btn" onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.history.length > 1 ? navigate(-1) : navigate('/feed'); }}>
+                            <button className="modal-close-icon-btn" onClick={handleClose}>
                                 <X size={24} />
                             </button>
                         </div>
@@ -364,13 +376,7 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                         <button
                             className="btn btn-ghost back-btn"
                             id="post-back-btn"
-                            onClick={() => {
-                                if (window.history.length > 1) {
-                                    navigate(-1);
-                                } else {
-                                    navigate('/feed');
-                                }
-                            }}
+                            onClick={handleClose}
                         >
                             <ArrowLeft size={16} className="mr-2" /> Back
                         </button>
@@ -780,7 +786,7 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                             </article>
                         </div>
                         <div className="post-split-right">
-                            {id && <CommentsSection postId={id} isLocked={!!post.isLocked} initialComments={comments} />}
+                            {id && <CommentsSection postId={id} isLocked={!!post.isLocked} initialComments={comments} totalServerCount={post.commentCount} />}
                         </div>
                     </div>
                 </div>

@@ -13,9 +13,10 @@ interface CommentsSectionProps {
     postId: string;
     isLocked: boolean | undefined;
     initialComments: Comment[];
+    totalServerCount?: number;
 }
 
-export default function CommentsSection({ postId, isLocked, initialComments }: CommentsSectionProps) {
+export default function CommentsSection({ postId, isLocked, initialComments, totalServerCount }: CommentsSectionProps) {
     const { user } = useAuth();
     const { socket } = useSocket();
     const { alert } = useModal();
@@ -279,17 +280,34 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
             }
         }
 
+        // Helper to count ALL descendants recursively
+        const countDescendants = (parentId: string): number => {
+            const children = replyMap.get(parentId) || [];
+            let count = children.length;
+            for (const child of children) {
+                count += countDescendants(child.id);
+            }
+            return count;
+        };
+
+        // Helper to flatten ALL descendants recursively
+        const flattenDescendants = (parentId: string, topLevelId: string, resultArr: any[]) => {
+            const children = replyMap.get(parentId) || [];
+            // Sort children earliest first if needed, usually they are appended in order
+            for (const child of children) {
+                resultArr.push({ comment: child, isReply: true, parentId: topLevelId });
+                flattenDescendants(child.id, topLevelId, resultArr);
+            }
+        };
+
         // Build structured result
         const result: { comment: Comment; isReply: boolean; parentId?: string; replyCount?: number }[] = [];
         for (const parent of topLevel) {
-            const replies = replyMap.get(parent.id);
-            const replyCount = replies?.length || 0;
+            const replyCount = countDescendants(parent.id);
             result.push({ comment: parent, isReply: false, replyCount });
 
-            if (replies && expandedReplies.has(parent.id)) {
-                for (const reply of replies) {
-                    result.push({ comment: reply, isReply: true, parentId: parent.id });
-                }
+            if (expandedReplies.has(parent.id)) {
+                flattenDescendants(parent.id, parent.id, result);
             }
         }
 
@@ -299,10 +317,30 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
         const resultIds = new Set(result.map(r => r.comment.id));
         for (const c of filteredComments) {
             if (!resultIds.has(c.id)) {
-                // If it's a reply to a parent that IS in the list, then it's intentionally collapsed
-                if (c.parentId && topLevelIds.has(c.parentId)) {
+                // If it's a direct or nested reply to a parent that IS in the list (but collapsed), skip
+                // To properly check, we'd traverse up. For a simple check, if it's not in results, it just shows up as an orphan if its immediate parent is missing from topLevelIds.
+                let current = c;
+                let isCollapsedDescendant = false;
+                
+                // Climb up the tree to see if top-level is in topLevelIds
+                let safety = 0;
+                while (current.parentId && safety < 10) {
+                    if (topLevelIds.has(current.parentId)) {
+                        isCollapsedDescendant = true;
+                        break;
+                    }
+                    const parentArray = replyMap.get(current.parentId);
+                    // If we can't find parent, we check filteredComments
+                    const nextParent = filteredComments.find(p => p.id === current.parentId);
+                    if (!nextParent) break;
+                    current = nextParent;
+                    safety++;
+                }
+
+                if (isCollapsedDescendant) {
                     continue;
                 }
+                
                 result.push({ comment: c, isReply: !!c.parentId });
             }
         }
@@ -322,7 +360,7 @@ export default function CommentsSection({ postId, isLocked, initialComments }: C
         });
     };
 
-    const totalCount = comments.length;
+    const totalCount = totalServerCount ?? comments.length;
 
     return (
         <section className="card comments-section">
