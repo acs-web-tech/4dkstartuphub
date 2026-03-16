@@ -1979,7 +1979,7 @@ img {
   height: 48px;
   border-radius: 50%;
   border: 1px solid var(--border-color);
-  overflow: visible;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
