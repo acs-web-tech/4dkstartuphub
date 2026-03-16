@@ -80,6 +80,10 @@ export default function Admin() {
             })
             .catch((err) => {
                 console.error('Failed to load admin stats:', err);
+                if (err.status === 403 || err.status === 401) {
+                    window.location.href = '/feed'; // Strict security redirect on unauthorized
+                    return;
+                }
                 setError(true);
             })
             .finally(() => setLoading(false));
@@ -89,16 +93,15 @@ export default function Admin() {
     useEffect(() => {
         setError(false);
         if (tab === 'dashboard') {
-            loadStats();
+            if (!stats) loadStats(); // Don't reload unnecessarily
         } else if (tab === 'users') {
             loadUsers();
         } else if (tab === 'rooms') {
-            loadRooms();
+            if (rooms.length === 0) loadRooms();
         } else if (tab === 'broadcast') {
-            setLoading(false);
             loadSettings();
         } else if (tab === 'settings') {
-            loadSettings();
+            if (!validityMonths) loadSettings();
         }
     }, [tab]);
 
@@ -751,28 +754,34 @@ export default function Admin() {
                 </button>
             </div>
 
-            {loading && !selectedRoom && !selectedPitch ? (
-                <div className="loading-container"><div className="spinner" /><p>Loading...</p></div>
-            ) : error ? (
-                <div className="error-state p-12 text-center card border-dashed border-2 border-red-900/50 bg-red-900/10" style={{ margin: '2rem' }}>
-                    <Wifi size={48} className="text-red-500 mx-auto mb-4" />
-                    <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
-                    <p className="text-gray-400 mb-6 font-medium">We couldn't load the admin data. This might be a temporary network issue.</p>
-                    <button
-                        className="btn btn-primary inline-flex items-center gap-2 px-6 py-3"
-                        onClick={() => {
-                            if (tab === 'dashboard') loadStats();
-                            else if (tab === 'users') loadUsers();
-                            else if (tab === 'rooms') loadRooms();
-                            else if (tab === 'pitch') loadPitches();
-                            else if (tab === 'settings') loadSettings();
-                        }}
-                    >
-                        <RefreshCw size={18} /> Retry Connection
-                    </button>
-                </div>
-            ) : (
-                <>
+            {/* Content Area */}
+            <div className="admin-content-area" style={{ position: 'relative', minHeight: '300px' }}>
+                {loading && !selectedRoom && !selectedPitch && (
+                    <div className="loading-overlay" style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(var(--bg-card-rgb), 0.7)', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(2px)' }}>
+                        <div className="spinner" />
+                    </div>
+                )}
+                
+                {error ? (
+                    <div className="error-state p-12 text-center card border-dashed border-2 border-red-900/50 bg-red-900/10" style={{ margin: '2rem' }}>
+                        <Wifi size={48} className="text-red-500 mx-auto mb-4" />
+                        <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
+                        <p className="text-gray-400 mb-6 font-medium">We couldn't load the admin data. This might be a temporary network issue.</p>
+                        <button
+                            className="btn btn-primary inline-flex items-center gap-2 px-6 py-3"
+                            onClick={() => {
+                                if (tab === 'dashboard') loadStats();
+                                else if (tab === 'users') loadUsers();
+                                else if (tab === 'rooms') loadRooms();
+                                else if (tab === 'pitch') loadPitches();
+                                else if (tab === 'settings') loadSettings();
+                            }}
+                        >
+                            <RefreshCw size={18} /> Retry Connection
+                        </button>
+                    </div>
+                ) : (
+                    <>
 
                     {/* Dashboard Tab */}
                     {tab === 'dashboard' && stats && (
@@ -1795,6 +1804,7 @@ export default function Admin() {
                     )}
                 </>
             )}
+            </div>
         </div>
     );
 }
