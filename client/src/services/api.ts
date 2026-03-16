@@ -30,11 +30,10 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
             }
 
             const res = await fetch(`${BASE}${url}`, {
-
                 credentials: 'include',
-                cache: 'no-store', // Prevent caching of API responses (crucial for /me)
-                headers,
+                cache: 'no-store', // Prevent caching of API responses
                 ...options,
+                headers,
             });
 
             if (res.status === 401) {
@@ -117,8 +116,8 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
                     try {
                         retryRes = await fetch(`${BASE}${url}`, {
                             credentials: 'include',
-                            headers,
                             ...options,
+                            headers,
                         });
                     } catch (e: any) {
                         if (e.name === 'AbortError') throw e;
@@ -147,8 +146,8 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
                                 try {
                                     queuedRes = await fetch(`${BASE}${url}`, {
                                         credentials: 'include',
-                                        headers,
                                         ...options,
+                                        headers,
                                     });
                                 } catch (e: any) {
                                     if (e.name === 'AbortError') { reject(e); return; }

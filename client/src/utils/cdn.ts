@@ -51,7 +51,7 @@ export function getCdnUrl(url: string | undefined | null): string {
         }
         return url;
     }
-    if (url.startsWith('data:')) return url;
+    if (url.startsWith('data:') || url.startsWith('blob:')) return url;
 
     // Extract filename from various formats:
     // 1. Full proxy URL: http://domain.com/api/upload/file/abc.webp

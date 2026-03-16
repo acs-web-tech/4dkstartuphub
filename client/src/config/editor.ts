@@ -6,6 +6,17 @@ import 'quill-emoji/dist/quill-emoji.css';
 
 const Quill = (ReactQuill as any).Quill;
 
+// Allow blob: URLs for images in Quill editor
+const ImageFormat = Quill.import('formats/image');
+const originalImageSanitize = ImageFormat.sanitize;
+ImageFormat.sanitize = function(url: string) {
+    if (url && url.startsWith('blob:')) {
+        return url;
+    }
+    return originalImageSanitize.call(this, url);
+};
+Quill.register(ImageFormat, true);
+
 // Register the emoji module
 // @ts-ignore
 if (quillEmoji) {

@@ -41,8 +41,8 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setStatus('connecting');
 
             const newSocket = io(backendUrl, {
-                auth: {
-                    token: localStorage.getItem('access_token')
+                auth: (cb) => {
+                    cb({ token: localStorage.getItem('access_token') });
                 },
                 withCredentials: true,
                 transports: ['websocket'],
