@@ -25,7 +25,7 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
     const [commenting, setCommenting] = useState(false);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
     const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(initialComments.length >= 50);
+    const [hasMore, setHasMore] = useState(initialComments.length >= 10);
     const [loadingMore, setLoadingMore] = useState(false);
 
     // Reply state
@@ -52,7 +52,7 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
     // Update comments when initialComments changes
     useEffect(() => {
         setComments(initialComments);
-        setHasMore(initialComments.length >= 50);
+        setHasMore(initialComments.length >= 10);
         setPage(1);
     }, [initialComments]);
 
@@ -79,7 +79,7 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
         setLoadingMore(true);
         try {
             const nextPage = page + 1;
-            const res = await postsApi.getComments(postId, { page: nextPage, limit: 20 });
+            const res = await postsApi.getComments(postId, { page: nextPage, limit: 10 });
             if (res.comments.length > 0) {
                 setComments(prev => {
                     const existingIds = new Set(prev.map(c => c.id));

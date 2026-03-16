@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { usersApi } from '../services/api';
 import {
@@ -23,14 +23,15 @@ const CATEGORIES = [
 export default function Members() {
     const [searchParams, setSearchParams] = useSearchParams();
     const [users, setUsers] = useState<any[]>([]);
-    const [pagination, setPagination] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const observerTarget = useRef<HTMLDivElement>(null);
 
-    // Read state from URL — back button naturally restores these
     const filter = searchParams.get('filter') || 'online';
     const search = searchParams.get('search') || '';
-    const page = parseInt(searchParams.get('page') || '1', 10);
 
     // Helper to update URL params without losing others
     const updateParams = (updates: Record<string, string>) => {
@@ -43,28 +44,59 @@ export default function Members() {
         }, { replace: false });
     };
 
-    const loadMembers = useCallback(() => {
-        setLoading(true);
+    const loadMembers = useCallback(async (pageNum: number, isNewSearch = false) => {
+        if (isNewSearch) {
+            setLoading(true);
+            setPage(1);
+        } else {
+            setLoadingMore(true);
+        }
         setError(false);
-        usersApi.getAll({ page, search: search || undefined, filter })
-            .then(data => {
-                setUsers(data.users);
-                setPagination(data.pagination);
-            })
-            .catch((err) => {
-                console.error('Failed to load members:', err);
-                setError(true);
-            })
-            .finally(() => setLoading(false));
-    }, [page, search, filter]);
+        try {
+            const data = await usersApi.getAll({ page: pageNum, search: search || undefined, filter });
+            setUsers(prev => {
+                if (isNewSearch) return data.users;
+                const existingIds = new Set(prev.map(u => u.id));
+                const filtered = data.users.filter((u: any) => !existingIds.has(u.id));
+                return [...prev, ...filtered];
+            });
+            setHasMore(data.pagination.page < data.pagination.totalPages);
+        } catch (err) {
+            console.error('Failed to load members:', err);
+            setError(true);
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
+    }, [search, filter]);
 
     useEffect(() => {
-        loadMembers();
+        loadMembers(1, true);
     }, [loadMembers]);
+
+    // Infinite scroll observer
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            entries => {
+                if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+                    const nextPage = page + 1;
+                    setPage(nextPage);
+                    loadMembers(nextPage, false);
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (observerTarget.current) {
+            observer.observe(observerTarget.current);
+        }
+
+        return () => observer.disconnect();
+    }, [hasMore, loadingMore, loading, page, loadMembers]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        updateParams({ search, page: '1' });
+        updateParams({ search });
     };
 
     const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -81,7 +113,7 @@ export default function Members() {
                         <button
                             key={cat.id}
                             className={`category-pill ${filter === cat.id ? 'active' : ''}`}
-                            onClick={() => updateParams({ filter: cat.id, page: '1', search: '' })}
+                            onClick={() => updateParams({ filter: cat.id, search: '' })}
                         >
                             <span>{cat.label}</span>
                         </button>
@@ -94,7 +126,7 @@ export default function Members() {
                         type="text"
                         placeholder={filter === 'online' ? 'Search online members...' : 'Search members...'}
                         value={search}
-                        onChange={e => updateParams({ search: e.target.value, page: '1' })}
+                        onChange={e => updateParams({ search: e.target.value })}
                         maxLength={100}
                     />
                 </form>
@@ -110,7 +142,7 @@ export default function Members() {
                     <Wifi size={48} className="text-gray-500 mx-auto mb-4" />
                     <h2 className="text-xl font-bold mb-2">Failed to load members</h2>
                     <p className="text-gray-400 mb-6">There was a problem reaching our servers.</p>
-                    <button className="btn btn-primary inline-flex items-center" onClick={loadMembers}>
+                    <button className="btn btn-primary inline-flex items-center" onClick={() => loadMembers(1, true)}>
                         <RefreshCw size={18} className="mr-2" /> Try Again
                     </button>
                 </div>
@@ -164,19 +196,8 @@ export default function Members() {
                         ))}
                     </div>
 
-                    {pagination && pagination.totalPages > 1 && (
-                        <div className="pagination">
-                            {Array.from({ length: Math.min(pagination.totalPages, 10) }, (_, i) => i + 1).map(p => (
-                                <button
-                                    key={p}
-                                    className={`pagination-btn ${p === page ? 'active' : ''}`}
-                                    onClick={() => updateParams({ page: String(p) })}
-                                >
-                                    {p}
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                    <div ref={observerTarget} style={{ height: '10px' }} />
+                    {loadingMore && <div className="loading-spinner-small" style={{ margin: '1rem auto' }} />}
                 </div>
             )}
         </div>

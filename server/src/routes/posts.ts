@@ -233,7 +233,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
             .populate('user_id', 'username display_name avatar_url')
             .populate({ path: 'parent_id', populate: { path: 'user_id', select: 'display_name' } })
             .sort({ created_at: 1 })
-            .limit(50);
+            .limit(10);
 
         const totalComments = await Comment.countDocuments({ post_id: post._id });
 
@@ -279,7 +279,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
                     createdAt: c.created_at,
                 };
             }),
-            hasMoreComments: totalComments > 50
+            hasMoreComments: totalComments > 10
         });
     } catch (err) {
         console.error('Get post error:', err);
@@ -291,7 +291,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
 router.get('/:id/comments', authenticate, async (req, res) => {
     try {
         const page = Math.max(1, parseInt(req.query.page as string) || 1);
-        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
         const skip = (page - 1) * limit;
 
         const comments = await Comment.find({ post_id: req.params.id })

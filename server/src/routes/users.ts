@@ -25,7 +25,7 @@ router.get('/online', (req, res) => {
 router.get('/', authenticate, async (req: AuthRequest, res) => {
     try {
         const page = Math.max(1, parseInt(req.query.page as string) || 1);
-        const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 20));
+        const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 10));
         const skip = (page - 1) * limit;
         const search = req.query.search as string;
         const filter = req.query.filter as string || 'explore';
