@@ -6,7 +6,8 @@ export interface User {
     bio: string;
     avatarUrl: string;
     role: 'user' | 'admin' | 'moderator';
-    profileCompleted: number;
+    profileCompleted: boolean | number;
+    postCount?: number;
     location: string;
     website: string;
     linkedin: string;

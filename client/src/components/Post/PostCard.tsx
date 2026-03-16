@@ -192,7 +192,7 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
                 >
                     <Calendar size={14} className="text-accent" />
                     <span>
-                        {new Date(post.eventDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} at{' '}
+                        {new Date(post.eventDate).toLocaleDateString('en-GB')} at{' '}
                         {new Date(post.eventDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                     </span>
                 </div>
@@ -370,5 +370,5 @@ const getTimeAgo = (date: Date): string => {
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
     if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
-    return date.toLocaleDateString();
+    return date.toLocaleDateString('en-GB');
 };

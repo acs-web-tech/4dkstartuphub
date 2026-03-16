@@ -698,7 +698,7 @@ export default function ChatRooms() {
 
                         <form className="chat-input-form" onSubmit={handleSend} style={{ position: 'relative' }}>
                             {showMentionDropdown && filteredMentionMembers.length > 0 && (
-                                <div className="mention-dropdown below">
+                                <div className="mention-dropdown">
                                     {filteredMentionMembers.map((m, i) => (
                                         <div
                                             key={m.id}
@@ -802,5 +802,5 @@ function formatTime(dateStr: string): string {
     const now = Date.now();
     const diff = Math.floor((now - d.getTime()) / 1000);
     if (diff < 86400) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    return d.toLocaleDateString();
+    return d.toLocaleDateString('en-GB');
 }

@@ -559,7 +559,7 @@ export default function PitchRequests() {
                                     )}
 
                                     <div className="text-xs text-gray-500 mt-4">
-                                        Submitted on {new Date(pitch.createdAt).toLocaleDateString()}
+                                        Submitted on {new Date(pitch.createdAt).toLocaleDateString('en-GB')}
                                     </div>
                                 </div>
                             ))}

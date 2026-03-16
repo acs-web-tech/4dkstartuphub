@@ -847,7 +847,7 @@ export default function Admin() {
                                                         </span>
                                                         {u.premiumExpiry && (
                                                             <span className="text-[10px] text-gray-400">
-                                                                Exp: {new Date(u.premiumExpiry).toLocaleDateString()}
+                                                                Exp: {new Date(u.premiumExpiry).toLocaleDateString('en-GB')}
                                                             </span>
                                                         )}
                                                     </div>
@@ -856,7 +856,7 @@ export default function Admin() {
                                                     {u.paymentId || '-'}
                                                 </td>
                                                 <td>{u.lastSeen ? new Date(u.lastSeen).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Never'}</td>
-                                                <td>{new Date(u.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                                                <td>{new Date(u.createdAt).toLocaleDateString('en-GB')}</td>
                                                 <td><span className={`status-badge ${u.isActive ? 'active' : 'inactive'}`}>{u.isActive ? 'Active' : 'Inactive'}</span></td>
                                                 <td>
                                                     <div className="flex gap-1">
@@ -1059,7 +1059,7 @@ export default function Admin() {
                                                         <div className="text-sm text-gray-400 flex items-center gap-2 mt-1">
                                                             <span>By {pitch.userDisplayName}</span>
                                                             <span>•</span>
-                                                            <span>{new Date(pitch.createdAt).toLocaleDateString()}</span>
+                                                            <span>{new Date(pitch.createdAt).toLocaleDateString('en-GB')}</span>
                                                         </div>
                                                     </div>
                                                     {getStatusBadge(pitch.status)}

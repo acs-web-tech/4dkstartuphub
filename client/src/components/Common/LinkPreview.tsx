@@ -97,9 +97,7 @@ export default function LinkPreview({ url, compact = false, initialData }: { url
     let formattedDate = '';
     if (meta.publishedDate) {
         try {
-            formattedDate = new Date(meta.publishedDate).toLocaleDateString('en-IN', {
-                day: 'numeric', month: 'short', year: 'numeric'
-            });
+            formattedDate = new Date(meta.publishedDate).toLocaleDateString('en-GB');
         } catch { }
     }
 

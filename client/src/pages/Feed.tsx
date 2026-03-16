@@ -380,17 +380,53 @@ export default function Feed() {
             </div>
 
             {/* Welcome card for new users */}
-            {user && !user.profileCompleted && page === 1 && (
-                <div className="card welcome-card">
-                    <h2>Welcome back, {user.displayName}! <Hand className="inline-icon" size={24} /></h2>
-                    <div className="checklist">
-                        <div className="checklist-item done"><CheckCircle size={16} className="inline mr-2" /> Fill Out Your Profile</div>
-                        <div className="checklist-item"><Circle size={16} className="inline mr-2" /> Introduce Yourself</div>
-                        <div className="checklist-item"><Circle size={16} className="inline mr-2" /> Browse the Community</div>
+            {(() => {
+                if (!user || page !== 1) return null;
+                const isProfileDone = !!user.profileCompleted;
+                const isIntroDone = (user.postCount || 0) > 0;
+                const isBrowseDone = true; // Always done since they are on the feed
+
+                const completedSteps = (isProfileDone ? 1 : 0) + (isIntroDone ? 1 : 0) + (isBrowseDone ? 1 : 0);
+                const progressPercent = Math.round((completedSteps / 3) * 100);
+
+                if (completedSteps === 3) return null; // Hide completely when all are done
+
+                return (
+                    <div className="card welcome-card">
+                        <h2>Welcome back, {user.displayName}! <Hand className="inline-icon" size={24} /></h2>
+                        
+                        <div style={{ marginBottom: '16px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}>
+                                <span>Profile Progress</span>
+                                <span>{progressPercent}%</span>
+                            </div>
+                            <div style={{ width: '100%', height: '6px', background: 'var(--bg-secondary)', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div style={{ width: `${progressPercent}%`, height: '100%', background: 'var(--accent)', transition: 'width 0.4s ease' }} />
+                            </div>
+                        </div>
+
+                        <div className="checklist">
+                            <div className={`checklist-item ${isProfileDone ? 'done' : ''}`}>
+                                {isProfileDone ? <CheckCircle size={16} className="inline mr-2" /> : <Circle size={16} className="inline mr-2" />}
+                                Fill Out Your Profile
+                            </div>
+                            <div className={`checklist-item ${isIntroDone ? 'done' : ''}`}>
+                                {isIntroDone ? <CheckCircle size={16} className="inline mr-2" /> : <Circle size={16} className="inline mr-2" />}
+                                Introduce Yourself
+                            </div>
+                            <div className={`checklist-item ${isBrowseDone ? 'done' : ''}`}>
+                                {isBrowseDone ? <CheckCircle size={16} className="inline mr-2" /> : <Circle size={16} className="inline mr-2" />}
+                                Browse the Community
+                            </div>
+                        </div>
+                        {!isProfileDone && (
+                            <Link to="/profile" className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+                                Complete Profile <ArrowRight size={16} />
+                            </Link>
+                        )}
                     </div>
-                    <Link to="/profile" className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>Complete Profile <ArrowRight size={16} /></Link>
-                </div>
-            )}
+                );
+            })()}
 
             {loading ? (
                 <div className="loading-container">
@@ -415,7 +451,7 @@ export default function Feed() {
                 </div>
             ) : (
                 <>
-                    {search && searchUsers.length > 0 && page === 1 && (
+                    {search && searchUsers.length > 0 && (
                         <div className="search-users-section" style={{ marginBottom: '32px' }}>
                             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '1.25rem', fontWeight: 600, borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
                                 <UserIcon size={20} /> People
@@ -440,7 +476,7 @@ export default function Feed() {
                         </div>
                     )}
 
-                    {posts.length > 0 && search && searchUsers.length > 0 && page === 1 && (
+                    {posts.length > 0 && search && searchUsers.length > 0 && (
                         <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '1.25rem', fontWeight: 600, borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
                             <Newspaper size={20} /> Posts
                         </h3>

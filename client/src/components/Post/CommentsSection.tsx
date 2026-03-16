@@ -431,7 +431,7 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
 
                             {/* @mention dropdown */}
                             {showMentionDropdown && mentionUsers.length > 0 && (
-                                <div className="mention-dropdown below">
+                                <div className="mention-dropdown">
                                     {mentionUsers.map(u => (
                                         <div
                                             key={u.id}

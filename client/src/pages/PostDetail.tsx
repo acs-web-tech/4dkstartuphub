@@ -540,14 +540,14 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                             <div className="post-event-info mb-6 p-4 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center gap-4">
                                                 <div className="event-date-box text-center p-2 rounded bg-[var(--accent-soft)] min-w-[70px]">
                                                     <div className="text-xs uppercase font-bold text-[var(--accent)]">
-                                                        {new Date(post.eventDate).toLocaleDateString('en-IN', { month: 'short' })}
+                                                        {new Date(post.eventDate).toLocaleDateString('en-GB')}
                                                     </div>
                                                     <div className="text-2xl font-bold">
                                                         {new Date(post.eventDate).getDate()}
                                                     </div>
                                                 </div>
                                                 <div className="event-time-info">
-                                                    <div className="font-semibold">{new Date(post.eventDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                                                    <div className="font-semibold">{new Date(post.eventDate).toLocaleDateString('en-GB')}</div>
                                                     <div className="text-[var(--text-muted)] text-sm">
                                                         {new Date(post.eventDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                                                     </div>
@@ -656,7 +656,7 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                             <span>{(() => {
                                                 const dStr = post.createdAt;
                                                 const date = (!dStr.endsWith('Z') && !dStr.includes('+')) ? new Date(dStr + 'Z') : new Date(dStr);
-                                                return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+                                                return date.toLocaleDateString('en-GB');
                                             })()}</span>
                                             <span>·</span>
                                             <span>{post.viewCount} views</span>
