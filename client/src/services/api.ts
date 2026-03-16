@@ -67,6 +67,7 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
                                     localStorage.setItem('access_token', refreshData.accessToken);
                                     (headers as Record<string, string>)['Authorization'] = `Bearer ${refreshData.accessToken}`;
                                 } else {
+                                    localStorage.removeItem('access_token');
                                     delete (headers as Record<string, string>)['Authorization'];
                                 }
                                 if (refreshData.refreshToken) {
