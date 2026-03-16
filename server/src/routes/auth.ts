@@ -896,8 +896,12 @@ router.post('/refresh', async (req, res) => {
 
 // ── POST /api/auth/logout ────────────────────────────────────
 router.post('/logout', (_req, res) => {
+    // Clear cookies on all possible paths
     res.clearCookie('access_token', { path: '/' });
+    res.clearCookie('refresh_token', { path: '/' });
     res.clearCookie('refresh_token', { path: '/api/auth/refresh' });
+    res.clearCookie('access_token', { path: '/api' });
+    res.clearCookie('refresh_token', { path: '/api' });
     res.json({ message: 'Logged out successfully' });
 });
 

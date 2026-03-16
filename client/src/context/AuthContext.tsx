@@ -171,8 +171,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             await authApi.logout();
         } finally {
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
+            // Clear all storage completely
+            localStorage.clear();
+            sessionStorage.clear();
+
+            // Clear in-memory feed cache
+            try {
+                const { clearFeedCache } = await import('../pages/Feed');
+                clearFeedCache();
+            } catch { /* ignore */ }
+
+            // Unregister service workers to clear cached responses
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const reg of registrations) {
+                    await reg.unregister().catch(() => {});
+                }
+            }
+
+            // Clear browser caches
+            if ('caches' in window) {
+                const keys = await caches.keys();
+                for (const key of keys) {
+                    await caches.delete(key).catch(() => {});
+                }
+            }
+
             setUser(null);
         }
     };
