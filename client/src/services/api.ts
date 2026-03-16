@@ -275,10 +275,11 @@ export const postsApi = {
     checkLiked: (id: string) => request<{ liked: boolean }>(`/posts/${id}/liked`),
     comment: (id: string, data: { content: string; parentId?: string }) =>
         request(`/posts/${id}/comments`, { method: 'POST', body: JSON.stringify(data) }),
-    getComments: (id: string, params?: { page?: number; limit?: number }) => {
+    getComments: (id: string, params?: { page?: number; limit?: number; parentId?: string }) => {
         const qs = new URLSearchParams();
         if (params?.page) qs.set('page', String(params.page));
         if (params?.limit) qs.set('limit', String(params.limit));
+        if (params?.parentId !== undefined) qs.set('parentId', params.parentId);
         return request<{ comments: import('../types').Comment[]; pagination: import('../types').Pagination }>(`/posts/${id}/comments?${qs.toString()}`);
     },
     bookmark: (id: string) => request<{ bookmarked: boolean }>(`/posts/${id}/bookmark`, { method: 'POST' }),

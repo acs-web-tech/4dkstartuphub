@@ -75,7 +75,7 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
         setLoadingMore(true);
         try {
             const nextPage = page + 1;
-            const res = await postsApi.getComments(postId, { page: nextPage, limit: 10 });
+            const res = await postsApi.getComments(postId, { page: nextPage, limit: 10, parentId: 'null' });
             if (res.comments.length > 0) {
                 setComments(prev => {
                     const existingIds = new Set(prev.map(c => c.id));
@@ -363,7 +363,9 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
         return result;
     }, [comments, expandedReplies]);
 
-    const toggleReplies = (parentId: string) => {
+    const [loadingReplies, setLoadingReplies] = useState<Set<string>>(new Set());
+
+    const toggleReplies = async (parentId: string) => {
         setExpandedReplies(prev => {
             const next = new Set(prev);
             if (next.has(parentId)) {
@@ -373,6 +375,30 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
             }
             return next;
         });
+
+        // If we are expanding, fetch the replies if not already fully loaded
+        if (!expandedReplies.has(parentId)) {
+            // Check if we already have some replies loaded (we could be more accurate, but fetching 100 replies is small)
+            setLoadingReplies(prev => new Set(prev).add(parentId));
+            try {
+                const res = await postsApi.getComments(postId, { limit: 100, parentId });
+                if (res.comments.length > 0) {
+                    setComments(prev => {
+                        const existingIds = new Set(prev.map(c => c.id));
+                        const filtered = res.comments.filter(c => !existingIds.has(c.id));
+                        return [...prev, ...filtered];
+                    });
+                }
+            } catch (err) {
+                console.error('Error fetching replies:', err);
+            } finally {
+                setLoadingReplies(prev => {
+                    const next = new Set(prev);
+                    next.delete(parentId);
+                    return next;
+                });
+            }
+        }
     };
 
     const totalCount = totalServerCount ?? comments.length;
@@ -479,8 +505,11 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
                                             className="view-replies-btn"
                                             onClick={() => toggleReplies(comment.id)}
                                             type="button"
+                                            disabled={loadingReplies.has(comment.id)}
                                         >
-                                            {expandedReplies.has(comment.id) ? (
+                                            {loadingReplies.has(comment.id) ? (
+                                                <><ChevronDown size={14} /> Loading replies...</>
+                                            ) : expandedReplies.has(comment.id) ? (
                                                 <><ChevronUp size={14} /> Hide {replyCount} {replyCount === 1 ? 'reply' : 'replies'}</>
                                             ) : (
                                                 <><ChevronDown size={14} /> View {replyCount} {replyCount === 1 ? 'reply' : 'replies'}</>

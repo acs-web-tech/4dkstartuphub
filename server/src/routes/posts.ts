@@ -227,15 +227,16 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
             }
         }
 
-        // Get likes and initial comments (limited to 50 for performance)
+        // Get likes and top-level initial comments
         const likeCount = await Like.countDocuments({ post_id: post._id });
-        const comments = await Comment.find({ post_id: post._id })
+        const comments = await Comment.find({ post_id: post._id, parent_id: null })
             .populate('user_id', 'username display_name avatar_url')
             .populate({ path: 'parent_id', populate: { path: 'user_id', select: 'display_name' } })
             .sort({ created_at: 1 })
             .limit(10);
 
         const totalComments = await Comment.countDocuments({ post_id: post._id });
+        const topLevelCommentsCount = await Comment.countDocuments({ post_id: post._id, parent_id: null });
 
         // Aggregate reply counts for all parent comments in this post
         const replyCounts = await Comment.aggregate([
@@ -290,7 +291,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
                     replyCount: replyCountMap.get(c._id.toString()) || 0,
                 };
             }),
-            hasMoreComments: totalComments > 10
+            hasMoreComments: topLevelCommentsCount > 10
         });
     } catch (err) {
         console.error('Get post error:', err);
@@ -305,14 +306,23 @@ router.get('/:id/comments', authenticate, async (req, res) => {
         const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
         const skip = (page - 1) * limit;
 
-        const comments = await Comment.find({ post_id: req.params.id })
+        const parentId = req.query.parentId as string | undefined;
+
+        const query: any = { post_id: req.params.id };
+        if (parentId === 'null') {
+            query.parent_id = null;
+        } else if (parentId) {
+            query.parent_id = parentId;
+        }
+
+        const comments = await Comment.find(query)
             .populate('user_id', 'username display_name avatar_url')
             .populate({ path: 'parent_id', populate: { path: 'user_id', select: 'display_name' } })
             .sort({ created_at: 1 })
             .skip(skip)
             .limit(limit);
 
-        const total = await Comment.countDocuments({ post_id: req.params.id });
+        const total = await Comment.countDocuments(query);
 
         // Aggregate reply counts for all parent comments in this post
         const replyCounts = await Comment.aggregate([
