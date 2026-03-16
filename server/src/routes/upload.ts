@@ -11,6 +11,52 @@ import sharp from 'sharp';
 
 const router = Router();
 
+// ── GET /api/upload/download ───────────────────────────────────
+// Proxy a file from the CDN and force a download via Content-Disposition
+router.get('/download', async (req, res) => {
+    try {
+        const fileUrl = req.query.url as string;
+        let filename = req.query.filename as string;
+        
+        if (!fileUrl) {
+            return res.status(400).json({ error: 'Missing url parameter' });
+        }
+
+        if (!filename) {
+            filename = fileUrl.split('/').pop() || 'download_file';
+        }
+
+        const response = await fetch(fileUrl);
+        if (!response.ok) {
+            return res.status(response.status).json({ error: 'Failed to fetch the file' });
+        }
+
+        const contentType = response.headers.get('content-type') || 'application/octet-stream';
+
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${filename.replace(/"/g, '\\"')}"`);
+
+        // Convert the web response body to a node readable stream and pipe it
+        if (response.body) {
+            const reader = response.body.getReader();
+            const processStream = async () => {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    res.write(value);
+                }
+                res.end();
+            };
+            await processStream();
+        } else {
+            res.status(500).json({ error: 'Empty response body' });
+        }
+    } catch (err: any) {
+        console.error('Download proxy error:', err);
+        res.status(500).json({ error: 'Failed to download file' });
+    }
+});
+
 // ── CloudFront URL builder ────────────────────────────────────
 // If CloudFront is configured, builds CDN URLs; otherwise falls back to proxy
 function getCdnUrl(s3Key: string): string {

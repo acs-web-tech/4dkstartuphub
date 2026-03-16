@@ -540,12 +540,11 @@ export default function PitchRequests() {
 
                                     {pitch.deckUrl && (
                                         <a
-                                            href={pitch.deckUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
+                                            href={`/api/upload/download?url=${encodeURIComponent(pitch.deckUrl)}&filename=${encodeURIComponent((pitch.title || 'pitch').replace(/\s+/g, '_') + '_Deck')}`}
                                             className="inline-flex items-center text-primary hover:underline mb-4"
+                                            download
                                         >
-                                            <FileText size={16} className="mr-1" /> View Pitch Deck
+                                            <FileText size={16} className="mr-1" /> Download Pitch Deck
                                         </a>
                                     )}
 

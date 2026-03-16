@@ -1107,12 +1107,11 @@ export default function Admin() {
                                             <div className="mb-8">
                                                 <h3 className="text-lg font-semibold mb-2">Pitch Deck</h3>
                                                 <a
-                                                    href={getCdnUrl(selectedPitch.deckUrl)}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
+                                                    href={`/api/upload/download?url=${encodeURIComponent(getCdnUrl(selectedPitch.deckUrl))}&filename=${encodeURIComponent((selectedPitch.title || 'pitch').replace(/\s+/g, '_') + '_Deck')}`}
                                                     className="btn btn-secondary inline-flex items-center"
+                                                    download
                                                 >
-                                                    <FileText size={18} className="mr-2" /> View Attached Document
+                                                    <Download size={18} className="mr-2" /> Download Attached Document
                                                 </a>
                                             </div>
                                         )}

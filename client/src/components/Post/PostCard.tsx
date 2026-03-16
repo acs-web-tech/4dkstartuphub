@@ -80,7 +80,7 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
 
         icsContent.push('END:VEVENT', 'END:VCALENDAR');
 
-        const blob = new Blob([icsContent.join('\n')], { type: 'text/calendar;charset=utf-8' });
+        const blob = new Blob([icsContent.join('\n')], { type: 'application/octet-stream' });
         const link = document.createElement('a');
         link.href = window.URL.createObjectURL(blob);
         link.setAttribute('download', `${post.title.replace(/\s+/g, '_').slice(0, 20)}.ics`);
