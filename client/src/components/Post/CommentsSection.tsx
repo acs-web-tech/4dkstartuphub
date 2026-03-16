@@ -496,7 +496,7 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
                                     <CommentItem
                                         comment={comment}
                                         isReply={isReplyItem}
-                                        onReply={user ? handleReply : undefined}
+                                        onReply={user && !isReplyItem ? handleReply : undefined}
                                         isLocked={!!isLocked}
                                     />
                                     {/* Show "View N replies" button for parents with collapsed replies */}

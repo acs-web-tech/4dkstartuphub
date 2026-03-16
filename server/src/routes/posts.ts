@@ -238,10 +238,25 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
         const totalComments = await Comment.countDocuments({ post_id: post._id });
         const topLevelCommentsCount = await Comment.countDocuments({ post_id: post._id, parent_id: null });
 
-        // Aggregate reply counts for all parent comments in this post
+        // Aggregate reply counts for all top-level parent comments in this post
         const replyCounts = await Comment.aggregate([
-            { $match: { post_id: post._id, parent_id: { $ne: null } } },
-            { $group: { _id: '$parent_id', count: { $sum: 1 } } }
+            { $match: { post_id: post._id, parent_id: null } },
+            {
+                $graphLookup: {
+                    from: 'comments',
+                    startWith: '$_id',
+                    connectFromField: '_id',
+                    connectToField: 'parent_id',
+                    as: 'descendants',
+                    restrictSearchWithMatch: { post_id: post._id }
+                }
+            },
+            {
+                $project: {
+                    _id: 1,
+                    count: { $size: '$descendants' }
+                }
+            }
         ]);
         const replyCountMap = new Map<string, number>();
         for (const rc of replyCounts) {
@@ -308,12 +323,53 @@ router.get('/:id/comments', authenticate, async (req, res) => {
 
         const parentId = req.query.parentId as string | undefined;
 
-        const query: any = { post_id: req.params.id };
-        if (parentId === 'null') {
-            query.parent_id = null;
-        } else if (parentId) {
-            query.parent_id = parentId;
+        if (parentId && parentId !== 'null') {
+            const parentObjectId = new (require('mongoose').Types.ObjectId)(parentId);
+            
+            // Using graph lookup to fetch ALL descendants of the selected comment
+            const descendantsObj = await Comment.aggregate([
+                { $match: { _id: parentObjectId } },
+                {
+                    $graphLookup: {
+                        from: 'comments',
+                        startWith: '$_id',
+                        connectFromField: '_id',
+                        connectToField: 'parent_id',
+                        as: 'descendants'
+                    }
+                }
+            ]);
+            
+            const descendantIds = descendantsObj[0]?.descendants.map((d: any) => d._id) || [];
+            
+            const comments = await Comment.find({ _id: { $in: descendantIds } })
+                .populate('user_id', 'username display_name avatar_url')
+                .populate({ path: 'parent_id', populate: { path: 'user_id', select: 'display_name' } })
+                .sort({ created_at: 1 });
+            
+            return res.json({
+                comments: comments.map(c => {
+                    const cUser = c.user_id as any;
+                    const parentComment = c.parent_id as any;
+                    return {
+                        id: c._id.toString(),
+                        postId: c.post_id.toString(),
+                        userId: cUser._id.toString(),
+                        content: c.content,
+                        parentId: parentComment?._id?.toString() || null,
+                        parentDisplayName: parentComment?.user_id?.display_name || undefined,
+                        username: cUser.username,
+                        displayName: cUser.display_name,
+                        avatarUrl: cUser.avatar_url,
+                        createdAt: c.created_at,
+                        replyCount: 0 // nested replies don't have replyCount buttons
+                    };
+                }),
+                pagination: { page: 1, limit: descendantIds.length || 1, total: descendantIds.length, totalPages: 1 }
+            });
         }
+
+        const query: any = { post_id: req.params.id, parent_id: null };
 
         const comments = await Comment.find(query)
             .populate('user_id', 'username display_name avatar_url')
@@ -324,10 +380,25 @@ router.get('/:id/comments', authenticate, async (req, res) => {
 
         const total = await Comment.countDocuments(query);
 
-        // Aggregate reply counts for all parent comments in this post
+        // Aggregate reply counts for all top-level parent comments in this post
         const replyCounts = await Comment.aggregate([
-            { $match: { post_id: new (require('mongoose').Types.ObjectId)(req.params.id), parent_id: { $ne: null } } },
-            { $group: { _id: '$parent_id', count: { $sum: 1 } } }
+            { $match: { post_id: new (require('mongoose').Types.ObjectId)(req.params.id), parent_id: null } },
+            {
+                $graphLookup: {
+                    from: 'comments',
+                    startWith: '$_id',
+                    connectFromField: '_id',
+                    connectToField: 'parent_id',
+                    as: 'descendants',
+                    restrictSearchWithMatch: { post_id: new (require('mongoose').Types.ObjectId)(req.params.id) }
+                }
+            },
+            {
+                $project: {
+                    _id: 1,
+                    count: { $size: '$descendants' }
+                }
+            }
         ]);
         const replyCountMap = new Map<string, number>();
         for (const rc of replyCounts) {
