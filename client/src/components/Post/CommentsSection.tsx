@@ -121,7 +121,18 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
                         return newComments;
                     }
                     if (prev.find(c => c.id === comment.id)) return prev;
-                    return [...prev, comment];
+                    
+                    const newComments = [...prev, comment];
+                    if (comment.parentId) {
+                        const parentIdx = newComments.findIndex(c => c.id === comment.parentId);
+                        if (parentIdx !== -1) {
+                            newComments[parentIdx] = {
+                                ...newComments[parentIdx],
+                                replyCount: (newComments[parentIdx].replyCount || 0) + 1
+                            };
+                        }
+                    }
+                    return newComments;
                 });
 
                 // Auto-expand replies when a new reply comes in for a parent
@@ -175,7 +186,19 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
             createdAt: new Date().toISOString()
         };
 
-        setComments(prev => [...prev, optimisticComment]);
+        setComments(prev => {
+            const newComments = [...prev, optimisticComment];
+             if (parentId) {
+                 const parentIdx = newComments.findIndex(c => c.id === parentId);
+                 if (parentIdx !== -1) {
+                     newComments[parentIdx] = { 
+                         ...newComments[parentIdx], 
+                         replyCount: (newComments[parentIdx].replyCount || 0) + 1 
+                     };
+                 }
+             }
+             return newComments;
+        });
         setNewComment('');
         setPreviewUrls([]);
         setShowMentionDropdown(false);
@@ -195,7 +218,19 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
         try {
             await postsApi.comment(postId, { content, parentId: parentId || undefined });
         } catch (err) {
-            setComments(prev => prev.filter(c => c.id !== tempId));
+            setComments(prev => {
+                const newComments = prev.filter(c => c.id !== tempId);
+                if (parentId) {
+                    const parentIdx = newComments.findIndex(c => c.id === parentId);
+                    if (parentIdx !== -1) {
+                        newComments[parentIdx] = { 
+                            ...newComments[parentIdx], 
+                            replyCount: Math.max(0, (newComments[parentIdx].replyCount || 0) - 1) 
+                        };
+                    }
+                }
+                return newComments;
+            });
             await alert('Failed to post comment. Please try again.');
             setNewComment(content);
             if (parentId && replyingTo) setReplyingTo(replyingTo);

@@ -237,6 +237,16 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
 
         const totalComments = await Comment.countDocuments({ post_id: post._id });
 
+        // Aggregate reply counts for all parent comments in this post
+        const replyCounts = await Comment.aggregate([
+            { $match: { post_id: post._id, parent_id: { $ne: null } } },
+            { $group: { _id: '$parent_id', count: { $sum: 1 } } }
+        ]);
+        const replyCountMap = new Map<string, number>();
+        for (const rc of replyCounts) {
+            replyCountMap.set(rc._id.toString(), rc.count);
+        }
+
         res.json({
             post: {
                 id: post._id.toString(),
@@ -277,6 +287,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
                     displayName: cUser.display_name,
                     avatarUrl: cUser.avatar_url,
                     createdAt: c.created_at,
+                    replyCount: replyCountMap.get(c._id.toString()) || 0,
                 };
             }),
             hasMoreComments: totalComments > 10
