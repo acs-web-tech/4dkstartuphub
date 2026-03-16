@@ -25,62 +25,99 @@ export default function Members() {
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
-    const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const observerTarget = useRef<HTMLDivElement>(null);
+
+    // Use refs for mutable state that the observer needs
+    const pageRef = useRef(1);
+    const hasMoreRef = useRef(true);
+    const loadingRef = useRef(false);
+    const loadingMoreRef = useRef(false);
+
+    // Local search input state for responsive typing (decoupled from URL)
+    const [searchInput, setSearchInput] = useState(searchParams.get('search') || '');
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const filter = searchParams.get('filter') || 'online';
     const search = searchParams.get('search') || '';
 
-    // Helper to update URL params without losing others
-    const updateParams = (updates: Record<string, string>) => {
+    // Helper to update URL params
+    const updateParams = useCallback((updates: Record<string, string>) => {
         setSearchParams(prev => {
             const next = new URLSearchParams(prev);
             Object.entries(updates).forEach(([k, v]) => {
                 if (v) next.set(k, v); else next.delete(k);
             });
             return next;
-        }, { replace: false });
+        }, { replace: true });
+    }, [setSearchParams]);
+
+    // Debounced search: update URL 400ms after user stops typing
+    const handleSearchInputChange = (value: string) => {
+        setSearchInput(value);
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+            updateParams({ search: value });
+        }, 400);
     };
+
+    // Sync local input if URL search changes externally (e.g. category change clears search)
+    useEffect(() => {
+        setSearchInput(search);
+    }, [search]);
 
     const loadMembers = useCallback(async (pageNum: number, isNewSearch = false) => {
         if (isNewSearch) {
             setLoading(true);
-            setPage(1);
+            pageRef.current = 1;
+            hasMoreRef.current = true;
         } else {
             setLoadingMore(true);
+            loadingMoreRef.current = true;
         }
+        loadingRef.current = true;
         setError(false);
         try {
-            const data = await usersApi.getAll({ page: pageNum, search: search || undefined, filter });
+            const data = await usersApi.getAll({ page: pageNum, limit: 10, search: search || undefined, filter });
             setUsers(prev => {
                 if (isNewSearch) return data.users;
                 const existingIds = new Set(prev.map(u => u.id));
                 const filtered = data.users.filter((u: any) => !existingIds.has(u.id));
                 return [...prev, ...filtered];
             });
-            setHasMore(data.pagination.page < data.pagination.totalPages);
+            const more = data.pagination.page < data.pagination.totalPages;
+            hasMoreRef.current = more;
+            if (isNewSearch) pageRef.current = 1;
         } catch (err) {
             console.error('Failed to load members:', err);
             setError(true);
         } finally {
             setLoading(false);
             setLoadingMore(false);
+            loadingRef.current = false;
+            loadingMoreRef.current = false;
         }
     }, [search, filter]);
 
+    // Reload when search or filter changes
     useEffect(() => {
         loadMembers(1, true);
     }, [loadMembers]);
 
-    // Infinite scroll observer
+    // Infinite scroll observer using refs to avoid stale closures
     useEffect(() => {
         const observer = new IntersectionObserver(
             entries => {
-                if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-                    const nextPage = page + 1;
-                    setPage(nextPage);
+                if (
+                    entries[0].isIntersecting &&
+                    hasMoreRef.current &&
+                    !loadingMoreRef.current &&
+                    !loadingRef.current
+                ) {
+                    const nextPage = pageRef.current + 1;
+                    pageRef.current = nextPage;
+                    loadingMoreRef.current = true;
+                    setLoadingMore(true);
                     loadMembers(nextPage, false);
                 }
             },
@@ -92,11 +129,13 @@ export default function Members() {
         }
 
         return () => observer.disconnect();
-    }, [hasMore, loadingMore, loading, page, loadMembers]);
+    }, [loadMembers]);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        updateParams({ search });
+        // Immediately commit current input to URL
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        updateParams({ search: searchInput });
     };
 
     const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -113,7 +152,10 @@ export default function Members() {
                         <button
                             key={cat.id}
                             className={`category-pill ${filter === cat.id ? 'active' : ''}`}
-                            onClick={() => updateParams({ filter: cat.id, search: '' })}
+                            onClick={() => {
+                                setSearchInput('');
+                                updateParams({ filter: cat.id, search: '' });
+                            }}
                         >
                             <span>{cat.label}</span>
                         </button>
@@ -125,8 +167,8 @@ export default function Members() {
                     <input
                         type="text"
                         placeholder={filter === 'online' ? 'Search online members...' : 'Search members...'}
-                        value={search}
-                        onChange={e => updateParams({ search: e.target.value })}
+                        value={searchInput}
+                        onChange={e => handleSearchInputChange(e.target.value)}
                         maxLength={100}
                     />
                 </form>

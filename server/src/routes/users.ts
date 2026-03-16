@@ -40,22 +40,24 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
                 { username: { $regex: escapedSearch, $options: 'i' } },
                 { bio: { $regex: escapedSearch, $options: 'i' } }
             ];
-        }
-
-        // Apply filters
-        if (filter === 'online') {
-            const onlineUserIds = socketService.getOnlineUserIds();
-            match._id = { $in: onlineUserIds.map(id => new mongoose.Types.ObjectId(id)) };
-        } else if (filter === 'hosts') {
-            match.role = { $in: ['admin', 'moderator'] };
-        } else if (filter === 'top') {
-            sort = { post_count: -1, created_at: -1 };
-        } else if (filter === 'newest') {
-            sort = { created_at: -1 };
-        } else if (filter === 'near-me' && req.user) {
-            const currentUser = await User.findById(req.user.userId);
-            if (currentUser && currentUser.location) {
-                match.location = { $regex: escapeRegExp(currentUser.location), $options: 'i' };
+            // When searching, search ALL active users regardless of filter
+            sort = { display_name: 1 };
+        } else {
+            // Apply filters only when not searching
+            if (filter === 'online') {
+                const onlineUserIds = socketService.getOnlineUserIds();
+                match._id = { $in: onlineUserIds.map(id => new mongoose.Types.ObjectId(id)) };
+            } else if (filter === 'hosts') {
+                match.role = { $in: ['admin', 'moderator'] };
+            } else if (filter === 'top') {
+                sort = { post_count: -1, created_at: -1 };
+            } else if (filter === 'newest') {
+                sort = { created_at: -1 };
+            } else if (filter === 'near-me' && req.user) {
+                const currentUser = await User.findById(req.user.userId);
+                if (currentUser && currentUser.location) {
+                    match.location = { $regex: escapeRegExp(currentUser.location), $options: 'i' };
+                }
             }
         }
 
