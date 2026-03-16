@@ -11,7 +11,7 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
     const isGet = !options.method || options.method.toUpperCase() === 'GET';
     const cacheKey = `${url}:${JSON.stringify(options.headers || {})}`;
 
-    if (isGet && ongoingRequests.has(cacheKey)) {
+    if (isGet && url !== '/auth/me' && ongoingRequests.has(cacheKey)) {
         return ongoingRequests.get(cacheKey);
     }
 

@@ -46,23 +46,8 @@ export default function Layout() {
     const prevPath = useRef(location.pathname);
     useEffect(() => {
         closeSidebar();
-
-        if (prevPath.current !== location.pathname) {
-            if (user?.id && socketState !== 'connected') {
-                setIsSyncing(true);
-
-                Promise.all([
-                    refreshUser(),
-                    settingsApi.getPublic().then((data: any) => {
-                        setAppUrls({ android: data.android_app_url, ios: data.ios_app_url });
-                        setGlobalLock(data.global_payment_lock || false);
-                    })
-                ]).catch(err => console.error('[Sync] Navigation sync failed:', err))
-                    .finally(() => setIsSyncing(false));
-            }
-            prevPath.current = location.pathname;
-        }
-    }, [location.pathname, closeSidebar, user?.id, socketState, refreshUser]);
+        prevPath.current = location.pathname;
+    }, [location.pathname, closeSidebar]);
 
     // Force re-verification ONLY when the socket genuinely drops and reconnects 
     // (Bypasses the first successful connection since AuthContext handles initial load)
