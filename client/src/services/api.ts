@@ -53,54 +53,50 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
                     let refreshSucceeded = false;
                     let newToken = '';
 
-                    for (let attempt = 0; attempt < 3; attempt++) {
-                        try {
-                            const refreshRes = await fetch(`${BASE}/auth/refresh`, {
-                                method: 'POST',
-                                credentials: 'include',
-                            });
+                    try {
+                        const refreshRes = await fetch(`${BASE}/auth/refresh`, {
+                            method: 'POST',
+                            credentials: 'include',
+                        });
 
-                            if (refreshRes.ok) {
-                                refreshSucceeded = true;
-                                try {
-                                    const refreshData = await refreshRes.json();
-                                    if (refreshData.accessToken) {
-                                        newToken = refreshData.accessToken;
-                                        localStorage.setItem('access_token', refreshData.accessToken);
-                                        (headers as Record<string, string>)['Authorization'] = `Bearer ${refreshData.accessToken}`;
-                                    } else {
-                                        delete (headers as Record<string, string>)['Authorization'];
-                                    }
-                                    if (refreshData.refreshToken) {
-                                        localStorage.setItem('refresh_token', refreshData.refreshToken);
-                                    }
-                                } catch (e) { /* ignore parse error */ }
-                                break; // Succeeded, exit loop
-                            } else {
-                                if (refreshRes.status === 401 || refreshRes.status === 403) {
-                                    throw new Error('REFRESH_EXPIRED'); // Explicit signal to log out
+                        if (refreshRes.ok) {
+                            refreshSucceeded = true;
+                            try {
+                                const refreshData = await refreshRes.json();
+                                if (refreshData.accessToken) {
+                                    newToken = refreshData.accessToken;
+                                    localStorage.setItem('access_token', refreshData.accessToken);
+                                    (headers as Record<string, string>)['Authorization'] = `Bearer ${refreshData.accessToken}`;
+                                } else {
+                                    delete (headers as Record<string, string>)['Authorization'];
                                 }
-                                throw new Error('NETWORK_ERROR'); // Proceed to catch block to backoff/retry
-                            }
-                        } catch (error: any) {
-                            if (error.message === 'REFRESH_EXPIRED') {
-                                isRefreshing = false;
-                                refreshQueue.forEach(cb => cb(null));
-                                refreshQueue = [];
-
-                                const publicPages = ['/login', '/register', '/forgot-password', '/reset-password'];
-                                localStorage.removeItem('access_token');
-                                localStorage.removeItem('refresh_token');
-
-                                if (!publicPages.includes(window.location.pathname)) {
-                                    window.location.href = '/login';
+                                if (refreshData.refreshToken) {
+                                    localStorage.setItem('refresh_token', refreshData.refreshToken);
                                 }
-                                throw new Error(errMessage);
+                            } catch (e) { /* ignore parse error */ }
+                        } else {
+                            if (refreshRes.status === 401 || refreshRes.status === 403) {
+                                throw new Error('REFRESH_EXPIRED'); // Explicit signal to log out
                             }
-                            // Silent backoff and retry for NETWORK_ERROR or fetch aborts
-                            if (error.name === 'AbortError') throw error;
-                            await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); 
+                            throw new Error('NETWORK_ERROR'); // Proceed to catch block to backoff/retry
                         }
+                    } catch (error: any) {
+                        if (error.message === 'REFRESH_EXPIRED') {
+                            isRefreshing = false;
+                            refreshQueue.forEach(cb => cb(null));
+                            refreshQueue = [];
+
+                            const publicPages = ['/login', '/register', '/forgot-password', '/reset-password'];
+                            localStorage.removeItem('access_token');
+                            localStorage.removeItem('refresh_token');
+
+                            if (!publicPages.includes(window.location.pathname)) {
+                                window.dispatchEvent(new CustomEvent('auth_hard_logout'));
+                                await new Promise(() => {}); // Block permanently to stop React looping
+                            }
+                            throw new Error(errMessage);
+                        }
+                        if (error.name === 'AbortError') throw error;
                     }
 
                     if (!refreshSucceeded) {
@@ -118,18 +114,14 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
 
                     // Retry original request independently (seamless retry logic)
                     let retryRes: Response | null = null;
-                    for (let attempt = 0; attempt < 3; attempt++) {
-                        try {
-                            retryRes = await fetch(`${BASE}${url}`, {
-                                credentials: 'include',
-                                headers,
-                                ...options,
-                            });
-                            break;
-                        } catch (e: any) {
-                            if (e.name === 'AbortError') throw e;
-                            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-                        }
+                    try {
+                        retryRes = await fetch(`${BASE}${url}`, {
+                            credentials: 'include',
+                            headers,
+                            ...options,
+                        });
+                    } catch (e: any) {
+                        if (e.name === 'AbortError') throw e;
                     }
                     
                     if (!retryRes || !retryRes.ok) {
@@ -152,18 +144,14 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
                                 }
                                 
                                 let queuedRes: Response | null = null;
-                                for (let attempt = 0; attempt < 3; attempt++) {
-                                    try {
-                                        queuedRes = await fetch(`${BASE}${url}`, {
-                                            credentials: 'include',
-                                            headers,
-                                            ...options,
-                                        });
-                                        break;
-                                    } catch (e: any) {
-                                        if (e.name === 'AbortError') { reject(e); return; }
-                                        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-                                    }
+                                try {
+                                    queuedRes = await fetch(`${BASE}${url}`, {
+                                        credentials: 'include',
+                                        headers,
+                                        ...options,
+                                    });
+                                } catch (e: any) {
+                                    if (e.name === 'AbortError') { reject(e); return; }
                                 }
 
                                 if (!queuedRes || !queuedRes.ok) {

@@ -56,25 +56,9 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
             newSocket.on('connect_error', (err) => {
                 console.error('🔌 WebSocket Connect Error:', err.message);
-
-                // If it's an authentication error, try to refresh the session
-                if (err.message.includes('Authentication error') || err.message.includes('No token')) {
-                    refreshUser().then(() => {
-                        // After refreshUser, the localStorage and cookies should be updated
-                        const newToken = localStorage.getItem('access_token');
-                        if (newToken) {
-                            newSocket.auth = { token: newToken };
-                            // Socket.IO will automatically try to reconnect, 
-                            // but we can force it if it's currently disconnected
-                            if (!newSocket.connected) {
-                                setTimeout(() => newSocket.connect(), 1000);
-                            }
-                        }
-                    }).catch(() => {
-                        // Refresh failed, likely need to login again
-                        setStatus('disconnected');
-                    });
-                }
+                // Relying natively on Socket.IO's exponential backoff for reconnection.
+                // Do not manually force a reconnect token-loop here, as it can cause infinite looping
+                // if the client spoofs their state but lacks a valid JWT.
             });
 
             newSocket.on('connect', () => {
