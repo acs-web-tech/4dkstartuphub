@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { updateProfileSchema } from '../validators/schemas';
 import { sanitizeHtml, sanitizePlainText } from '../utils/sanitize';
@@ -22,7 +22,7 @@ router.get('/online', (req, res) => {
 });
 
 // ── GET /api/users ──────────────────────────────────────────
-router.get('/', authenticate, async (req: AuthRequest, res) => {
+router.get('/', async (req: AuthRequest, res) => {
     try {
         const page = Math.max(1, parseInt(req.query.page as string) || 1);
         const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 10));
@@ -98,7 +98,7 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
 });
 
 // ── GET /api/users/:id ──────────────────────────────────────
-router.get('/:id', authenticate, async (req: AuthRequest, res) => {
+router.get('/:id', async (req: AuthRequest, res) => {
     try {
         const user = await User.findOne({ _id: req.params.id, is_active: true });
 
@@ -167,7 +167,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
 });
 
 // ── PUT /api/users/profile ──────────────────────────────────
-router.put('/profile', authenticate, validate(updateProfileSchema), async (req: AuthRequest, res) => {
+router.put('/profile', validate(updateProfileSchema), async (req: AuthRequest, res) => {
     try {
         const user = await User.findById(req.user!.userId);
         if (!user) {
@@ -219,7 +219,7 @@ router.put('/profile', authenticate, validate(updateProfileSchema), async (req: 
 });
 
 // ── GET /api/users/me/bookmarks ─────────────────────────────
-router.get('/me/bookmarks', authenticate, async (req: AuthRequest, res) => {
+router.get('/me/bookmarks', async (req: AuthRequest, res) => {
     try {
         const bookmarks = await Bookmark.aggregate([
             { $match: { user_id: new mongoose.Types.ObjectId(req.user!.userId) } },
@@ -282,7 +282,7 @@ router.get('/me/bookmarks', authenticate, async (req: AuthRequest, res) => {
 });
 
 // ── GET /api/users/me/notifications ─────────────────────────
-router.get('/me/notifications', authenticate, async (req: AuthRequest, res) => {
+router.get('/me/notifications', async (req: AuthRequest, res) => {
     try {
         const userId = new mongoose.Types.ObjectId(req.user!.userId);
         const page = Math.max(1, parseInt(req.query.page as string) || 1);
@@ -330,7 +330,7 @@ router.get('/me/notifications', authenticate, async (req: AuthRequest, res) => {
 
 
 // ── PUT /api/users/me/notifications/read ────────────────────
-router.put('/me/notifications/read', authenticate, async (req: AuthRequest, res) => {
+router.put('/me/notifications/read', async (req: AuthRequest, res) => {
     try {
         await Notification.updateMany(
             { user_id: req.user!.userId, is_read: false },
@@ -345,7 +345,7 @@ router.put('/me/notifications/read', authenticate, async (req: AuthRequest, res)
 });
 
 // ── PUT /api/users/me/notifications/:id/read ────────────────
-router.put('/me/notifications/:id/read', authenticate, async (req: AuthRequest, res) => {
+router.put('/me/notifications/:id/read', async (req: AuthRequest, res) => {
     try {
         await Notification.updateOne(
             { _id: req.params.id, user_id: req.user!.userId },

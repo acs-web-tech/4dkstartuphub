@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth';
 import User from '../models/User';
 import Post from '../models/Post';
 import Like from '../models/Like';
@@ -12,7 +12,7 @@ const router = Router();
 
 // ── GET /api/search?q=...&limit=5 ───────────────────────────
 // Smart global search: returns scored + ranked users and posts
-router.get('/', authenticate, async (req: AuthRequest, res) => {
+router.get('/', async (req: AuthRequest, res) => {
     try {
         const q = (req.query.q as string || '').trim();
         const limit = Math.min(20, Math.max(1, parseInt(req.query.limit as string) || 5));

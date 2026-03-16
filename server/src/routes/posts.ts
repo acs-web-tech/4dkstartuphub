@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { config } from '../config/env';
-import { authenticate, optionalAuth, AuthRequest } from '../middleware/auth';
+import { optionalAuth, AuthRequest } from '../middleware/auth';
 import { requireModerator } from '../middleware/admin';
 import { validate } from '../middleware/validate';
 import { createPostSchema, updatePostSchema, createCommentSchema } from '../validators/schemas';
@@ -22,7 +22,7 @@ import { deleteFileByUrl, deleteHtmlImagesFromS3 } from '../utils/s3';
 const router = Router();
 
 // ── GET /api/posts ───────────────────────────────────────────
-router.get('/', authenticate, async (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const page = Math.max(1, parseInt(req.query.page as string) || 1);
         const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 5));
@@ -179,7 +179,7 @@ router.get('/', authenticate, async (req, res) => {
 });
 
 // ── GET /api/posts/:id ──────────────────────────────────────
-router.get('/:id', authenticate, async (req: AuthRequest, res) => {
+router.get('/:id', async (req: AuthRequest, res) => {
     try {
         const id = String(req.params.id);
         if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -318,7 +318,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res) => {
 });
 
 // ── GET /api/posts/:id/comments ─────────────────────────────
-router.get('/:id/comments', authenticate, async (req, res) => {
+router.get('/:id/comments', async (req, res) => {
     try {
         const page = Math.max(1, parseInt(req.query.page as string) || 1);
         const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
@@ -441,7 +441,7 @@ router.get('/:id/comments', authenticate, async (req, res) => {
 
 
 // ── POST /api/posts ──────────────────────────────────────────
-router.post('/', authenticate, validate(createPostSchema), async (req: AuthRequest, res) => {
+router.post('/', validate(createPostSchema), async (req: AuthRequest, res) => {
     try {
         const { title, content: rawContent, category, videoUrl, imageUrl, eventDate } = req.body;
         const userId = new mongoose.Types.ObjectId(req.user!.userId);
@@ -528,7 +528,7 @@ router.post('/', authenticate, validate(createPostSchema), async (req: AuthReque
 });
 
 // ── PUT /api/posts/:id ──────────────────────────────────────
-router.put('/:id', authenticate, validate(updatePostSchema), async (req: AuthRequest, res) => {
+router.put('/:id', validate(updatePostSchema), async (req: AuthRequest, res) => {
     try {
         const id = String(req.params.id);
         const post = await Post.findById(id);
@@ -610,7 +610,7 @@ router.put('/:id', authenticate, validate(updatePostSchema), async (req: AuthReq
 });
 
 // ── DELETE /api/posts/:id ───────────────────────────────────
-router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
+router.delete('/:id', async (req: AuthRequest, res) => {
     try {
         const id = String(req.params.id);
         const post = await Post.findById(id);
@@ -660,7 +660,7 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res) => {
 });
 
 // ── POST /api/posts/:id/like ────────────────────────────────
-router.post('/:id/like', authenticate, async (req: AuthRequest, res) => {
+router.post('/:id/like', async (req: AuthRequest, res) => {
     try {
         const id = String(req.params.id);
         const userId = new mongoose.Types.ObjectId(req.user!.userId);
@@ -739,7 +739,7 @@ router.post('/:id/like', authenticate, async (req: AuthRequest, res) => {
 });
 
 // ── GET /api/posts/:id/liked ────────────────────────────────
-router.get('/:id/liked', authenticate, async (req: AuthRequest, res) => {
+router.get('/:id/liked', async (req: AuthRequest, res) => {
     try {
         const existing = await Like.findOne({
             post_id: String(req.params.id),
@@ -753,7 +753,7 @@ router.get('/:id/liked', authenticate, async (req: AuthRequest, res) => {
 });
 
 // ── POST /api/posts/:id/comments ────────────────────────────
-router.post('/:id/comments', authenticate, validate(createCommentSchema), async (req: AuthRequest, res) => {
+router.post('/:id/comments', validate(createCommentSchema), async (req: AuthRequest, res) => {
     try {
         const id = String(req.params.id);
         const { content, parentId } = req.body;
@@ -987,7 +987,7 @@ router.post('/:id/comments', authenticate, validate(createCommentSchema), async 
 });
 
 // ── POST /api/posts/:id/bookmark ────────────────────────────
-router.post('/:id/bookmark', authenticate, async (req: AuthRequest, res) => {
+router.post('/:id/bookmark', async (req: AuthRequest, res) => {
     try {
         const id = String(req.params.id);
         const userId = new mongoose.Types.ObjectId(req.user!.userId);
@@ -1008,7 +1008,7 @@ router.post('/:id/bookmark', authenticate, async (req: AuthRequest, res) => {
 });
 
 // ── Pin/Lock (moderator+) ───────────────────────────────────
-router.post('/:id/pin', authenticate, requireModerator, async (req: AuthRequest, res) => {
+router.post('/:id/pin', requireModerator, async (req: AuthRequest, res) => {
     try {
         const post = await Post.findById(req.params.id);
         if (!post) { res.status(404).json({ error: 'Post not found' }); return; }
@@ -1022,7 +1022,7 @@ router.post('/:id/pin', authenticate, requireModerator, async (req: AuthRequest,
     }
 });
 
-router.post('/:id/lock', authenticate, requireModerator, async (req: AuthRequest, res) => {
+router.post('/:id/lock', requireModerator, async (req: AuthRequest, res) => {
     try {
         const post = await Post.findById(req.params.id);
         if (!post) { res.status(404).json({ error: 'Post not found' }); return; }

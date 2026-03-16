@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth';
 import PushSubscription from '../models/PushSubscription';
 import User from '../models/User';
 import { config } from '../config/env';
@@ -12,7 +12,7 @@ router.get('/vapid-key', (req, res) => {
 });
 
 // POST /api/notifications/subscribe — Save user push subscription
-router.post('/subscribe', authenticate, async (req: AuthRequest, res) => {
+router.post('/subscribe', async (req: AuthRequest, res) => {
     try {
         const { subscription, deviceType } = req.body;
         const userId = req.user!.userId;
@@ -40,7 +40,7 @@ router.post('/subscribe', authenticate, async (req: AuthRequest, res) => {
 });
 
 // POST /api/notifications/unsubscribe — Remove user push subscription
-router.post('/unsubscribe', authenticate, async (req: AuthRequest, res) => {
+router.post('/unsubscribe', async (req: AuthRequest, res) => {
     try {
         const { endpoint } = req.body;
         if (!endpoint) {
@@ -56,7 +56,7 @@ router.post('/unsubscribe', authenticate, async (req: AuthRequest, res) => {
 });
 
 // POST /api/notifications/register-device — Save FCM token
-router.post('/register-device', authenticate, async (req: AuthRequest, res) => {
+router.post('/register-device', async (req: AuthRequest, res) => {
     try {
         const { token } = req.body;
         if (!token) {
@@ -76,7 +76,7 @@ router.post('/register-device', authenticate, async (req: AuthRequest, res) => {
 });
 
 // POST /api/notifications/unregister-device — Remove FCM token
-router.post('/unregister-device', authenticate, async (req: AuthRequest, res) => {
+router.post('/unregister-device', async (req: AuthRequest, res) => {
     try {
         const { token } = req.body;
         if (!token) {

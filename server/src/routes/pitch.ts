@@ -1,5 +1,5 @@
 import { Router, Response, NextFunction } from 'express';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/admin';
 import { sanitizeHtml } from '../utils/sanitize';
 import { socketService } from '../services/socket';
@@ -60,7 +60,7 @@ async function requirePremium(req: AuthRequest, res: Response, next: NextFunctio
 }
 
 // ── POST /api/pitch — Submit a new pitch request ──────────
-router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => {
+router.post('/', requirePremium, async (req: AuthRequest, res) => {
     try {
         const { title, description, deckUrl } = req.body;
 
@@ -143,7 +143,7 @@ router.post('/', authenticate, requirePremium, async (req: AuthRequest, res) => 
 });
 
 // ── GET /api/pitch/my — Get current user's pitch requests ──
-router.get('/my', authenticate, requirePremium, async (req: AuthRequest, res) => {
+router.get('/my', requirePremium, async (req: AuthRequest, res) => {
     try {
         const pitches = await PitchRequest.find({ user_id: new mongoose.Types.ObjectId(req.user!.userId) })
             .populate('reviewed_by', 'display_name')
@@ -190,7 +190,7 @@ router.get('/my', authenticate, requirePremium, async (req: AuthRequest, res) =>
 });
 
 // ── GET /api/pitch/all — Admin: Get all pitch requests ──────
-router.get('/all', authenticate, requireAdmin, async (req: AuthRequest, res) => {
+router.get('/all', requireAdmin, async (req: AuthRequest, res) => {
     try {
         const status = req.query.status as string;
         const query: any = {};
@@ -232,7 +232,7 @@ router.get('/all', authenticate, requireAdmin, async (req: AuthRequest, res) => 
 });
 
 // ── PUT /api/pitch/:id/review — Admin: Approve/Disapprove ──
-router.put('/:id/review', authenticate, requireAdmin, async (req: AuthRequest, res) => {
+router.put('/:id/review', requireAdmin, async (req: AuthRequest, res) => {
     try {
         const id = req.params.id as string;
         const { status, message } = req.body;

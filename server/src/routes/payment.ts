@@ -24,9 +24,25 @@ if (config.razorpay.keyId && config.razorpay.keySecret) {
 // POST /api/payment/webhook
 router.post('/webhook', async (req, res) => {
     try {
-        // Basic signature check existence
-        const signature = req.headers['x-razorpay-signature'];
+        // Verify webhook signature to prevent forged events
+        const signature = req.headers['x-razorpay-signature'] as string;
         if (!signature) return res.status(400).json({ error: 'Missing signature' });
+
+        // Cryptographic verification: compute expected signature from raw body
+        const webhookSecret = config.razorpay.webhookSecret;
+        if (webhookSecret) {
+            const expectedSignature = crypto
+                .createHmac('sha256', webhookSecret)
+                .update(JSON.stringify(req.body))
+                .digest('hex');
+
+            if (expectedSignature !== signature) {
+                console.warn('❌ Webhook signature mismatch — possible forged event');
+                return res.status(400).json({ error: 'Invalid webhook signature' });
+            }
+        } else {
+            console.warn('⚠️ RAZORPAY_WEBHOOK_SECRET not configured — webhook signature verification skipped');
+        }
 
         const { event, payload } = req.body;
 

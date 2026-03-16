@@ -387,21 +387,19 @@ router.post('/users/:id/reset-password', async (req: AuthRequest, res) => {
             return;
         }
 
-        // Generate reset token
-        const resetBuffer = crypto.randomBytes(32);
-        const resetToken = resetBuffer.toString('hex');
+        // Generate reset OTP
+        const otp = crypto.randomInt(100000, 999999).toString();
 
-        user.reset_password_token = crypto.createHash('sha256').update(resetToken).digest('hex');
-        user.reset_password_expires = new Date(Date.now() + 3600000); // 1 hour
+        user.reset_password_otp = otp;
+        user.reset_password_expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
         await user.save({ validateModifiedOnly: true });
 
-        console.log(`[AUDIT] Admin ${req.user!.userId} triggered password reset for user ${user._id}`);
+        console.log(`[AUDIT] Admin ${req.user!.userId} triggered password reset OTP for user ${user._id}`);
 
-        // Send email
-        const resetUrl = `https://startup.4dk.in/reset-password?token=${resetToken}`;
-        await emailService.sendPasswordResetEmail(user.email, user.display_name, resetToken); // Fix: pass name and token correctly
+        // Send OTP email
+        await emailService.sendOTP(user.email, user.display_name, 'reset', otp);
 
-        res.json({ message: 'Password reset link sent to user email.' });
+        res.json({ message: 'Password reset OTP sent to user email.' });
     } catch (err) {
         console.error('Admin reset password error:', err);
         res.status(500).json({ error: 'Failed to send reset email' });
@@ -462,6 +460,16 @@ router.post('/notifications/broadcast', async (req: AuthRequest, res) => {
 
         if (!title || !content) {
             res.status(400).json({ error: 'Title and content are required' });
+            return;
+        }
+
+        if (typeof title !== 'string' || title.trim().length > 200) {
+            res.status(400).json({ error: 'Title must be 200 characters or less' });
+            return;
+        }
+
+        if (typeof content !== 'string' || content.trim().length > 10000) {
+            res.status(400).json({ error: 'Content must be 10,000 characters or less' });
             return;
         }
 

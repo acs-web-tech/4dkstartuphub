@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate, AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/admin';
 import { validate } from '../middleware/validate';
 import { createChatRoomSchema, chatMessageSchema } from '../validators/schemas';
@@ -16,7 +16,7 @@ import { getLinkPreview } from '../services/metadata';
 const router = Router();
 
 // ── GET /api/chatrooms ──────────────────────────────────────
-router.get('/', authenticate, async (req: AuthRequest, res) => {
+router.get('/', async (req: AuthRequest, res) => {
     try {
         const rooms = await ChatRoom.aggregate([
             { $match: { is_active: true } },
@@ -77,7 +77,7 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
 });
 
 // ── POST /api/chatrooms (Admin only) ────────────────────────
-router.post('/', authenticate, requireAdmin, validate(createChatRoomSchema), async (req: AuthRequest, res) => {
+router.post('/', requireAdmin, validate(createChatRoomSchema), async (req: AuthRequest, res) => {
     try {
         const { name, description, accessType } = req.body;
         const userId = new mongoose.Types.ObjectId(req.user!.userId);
@@ -97,7 +97,7 @@ router.post('/', authenticate, requireAdmin, validate(createChatRoomSchema), asy
 });
 
 // ── PUT /api/chatrooms/:id/settings (Admin only) ───────────
-router.put('/:id/settings', authenticate, requireAdmin, async (req: AuthRequest, res) => {
+router.put('/:id/settings', requireAdmin, async (req: AuthRequest, res) => {
     try {
         const { name, description, accessType } = req.body;
         const room = await ChatRoom.findById(req.params.id);
@@ -122,7 +122,7 @@ router.put('/:id/settings', authenticate, requireAdmin, async (req: AuthRequest,
 });
 
 // ── POST /api/chatrooms/:id/join ────────────────────────────
-router.post('/:id/join', authenticate, async (req: AuthRequest, res) => {
+router.post('/:id/join', async (req: AuthRequest, res) => {
     try {
         const room = await ChatRoom.findById(req.params.id);
         if (!room || !room.is_active) {
@@ -161,7 +161,7 @@ router.post('/:id/join', authenticate, async (req: AuthRequest, res) => {
 });
 
 // ── POST /api/chatrooms/:id/leave ───────────────────────────
-router.post('/:id/leave', authenticate, async (req: AuthRequest, res) => {
+router.post('/:id/leave', async (req: AuthRequest, res) => {
     try {
         await ChatRoomMember.deleteOne({ room_id: req.params.id, user_id: req.user!.userId });
         res.json({ message: 'Left chat room' });
@@ -172,7 +172,7 @@ router.post('/:id/leave', authenticate, async (req: AuthRequest, res) => {
 });
 
 // ── POST /api/chatrooms/:id/add-member (Admin only) ────────
-router.post('/:id/add-member', authenticate, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/:id/add-member', requireAdmin, async (req: AuthRequest, res) => {
     try {
         const { userId } = req.body;
         if (!mongoose.Types.ObjectId.isValid(req.params.id as string)) {
@@ -229,7 +229,7 @@ router.post('/:id/add-member', authenticate, requireAdmin, async (req: AuthReque
 });
 
 // ── POST /api/chatrooms/:id/kick (Admin only) ──────────────
-router.post('/:id/kick', authenticate, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/:id/kick', requireAdmin, async (req: AuthRequest, res) => {
     try {
         const { userId } = req.body;
         if (!mongoose.Types.ObjectId.isValid(req.params.id as string) || !mongoose.Types.ObjectId.isValid(userId)) {
@@ -256,7 +256,7 @@ router.post('/:id/kick', authenticate, requireAdmin, async (req: AuthRequest, re
 });
 
 // ── POST /api/chatrooms/:id/mute (Admin only) ──────────────
-router.post('/:id/mute', authenticate, requireAdmin, async (req: AuthRequest, res) => {
+router.post('/:id/mute', requireAdmin, async (req: AuthRequest, res) => {
     try {
         const { userId } = req.body;
         if (!mongoose.Types.ObjectId.isValid(req.params.id as string) || !mongoose.Types.ObjectId.isValid(userId)) {
@@ -282,7 +282,7 @@ router.post('/:id/mute', authenticate, requireAdmin, async (req: AuthRequest, re
 });
 
 // ── GET /api/chatrooms/:id/messages ─────────────────────────
-router.get('/:id/messages', authenticate, async (req: AuthRequest, res) => {
+router.get('/:id/messages', async (req: AuthRequest, res) => {
     try {
         if (!mongoose.Types.ObjectId.isValid(req.params.id as string)) {
             res.status(400).json({ error: 'Invalid room ID' });
@@ -362,7 +362,7 @@ router.get('/:id/messages', authenticate, async (req: AuthRequest, res) => {
 });
 
 // ── POST /api/chatrooms/:id/messages ────────────────────────
-router.post('/:id/messages', authenticate, validate(chatMessageSchema), async (req: AuthRequest, res) => {
+router.post('/:id/messages', validate(chatMessageSchema), async (req: AuthRequest, res) => {
     try {
         if (!mongoose.Types.ObjectId.isValid(req.params.id as string)) {
             res.status(400).json({ error: 'Invalid room ID' });
@@ -497,7 +497,7 @@ router.post('/:id/messages', authenticate, validate(chatMessageSchema), async (r
 });
 
 // ── DELETE /api/chatrooms/:roomId/messages/:messageId ──
-router.delete('/:roomId/messages/:messageId', authenticate, async (req: AuthRequest, res) => {
+router.delete('/:roomId/messages/:messageId', async (req: AuthRequest, res) => {
     try {
         const { roomId, messageId } = req.params;
         if (!mongoose.Types.ObjectId.isValid(roomId as string) || !mongoose.Types.ObjectId.isValid(messageId as string)) {
@@ -532,7 +532,7 @@ router.delete('/:roomId/messages/:messageId', authenticate, async (req: AuthRequ
 });
 
 // ── DELETE /api/chatrooms/:roomId/users/:userId/messages (Admin) ──
-router.delete('/:roomId/users/:userId/messages', authenticate, requireAdmin, async (req: AuthRequest, res) => {
+router.delete('/:roomId/users/:userId/messages', requireAdmin, async (req: AuthRequest, res) => {
     try {
         const { roomId, userId } = req.params;
         if (!mongoose.Types.ObjectId.isValid(roomId as string) || !mongoose.Types.ObjectId.isValid(userId as string)) {
@@ -553,7 +553,7 @@ router.delete('/:roomId/users/:userId/messages', authenticate, requireAdmin, asy
     }
 });
 
-router.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res) => {
+router.delete('/:id', requireAdmin, async (req: AuthRequest, res) => {
     try {
         await ChatRoom.updateOne({ _id: req.params.id }, { $set: { is_active: false } });
 

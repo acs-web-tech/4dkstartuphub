@@ -22,6 +22,31 @@ router.get('/download', async (req, res) => {
             return res.status(400).json({ error: 'Missing url parameter' });
         }
 
+        // ── SSRF Protection: Only allow fetching from our own CDN/S3 domains ──
+        let parsedUrl: URL;
+        try {
+            parsedUrl = new URL(fileUrl);
+        } catch {
+            return res.status(400).json({ error: 'Invalid URL' });
+        }
+
+        const allowedDomains: string[] = [];
+        if (config.aws.cloudfrontDomain) {
+            allowedDomains.push(config.aws.cloudfrontDomain.toLowerCase());
+        }
+        if (config.aws.bucketName && config.aws.region) {
+            allowedDomains.push(`${config.aws.bucketName}.s3.${config.aws.region}.amazonaws.com`);
+            allowedDomains.push(`s3.${config.aws.region}.amazonaws.com`);
+        }
+
+        const hostname = parsedUrl.hostname.toLowerCase();
+        const isAllowed = allowedDomains.length > 0 && allowedDomains.some(d => hostname === d || hostname.endsWith(`.${d}`));
+
+        if (!isAllowed) {
+            console.warn(`[SECURITY] Download proxy blocked: ${hostname} is not in allowed domains`);
+            return res.status(403).json({ error: 'Download source not allowed' });
+        }
+
         if (!filename) {
             filename = fileUrl.split('/').pop() || 'download_file';
         }
