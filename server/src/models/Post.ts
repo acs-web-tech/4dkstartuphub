@@ -72,5 +72,6 @@ PostSchema.index({ user_id: 1 });
 PostSchema.index({ category: 1 });
 PostSchema.index({ created_at: -1 });
 PostSchema.index({ is_pinned: -1, created_at: -1 });
+PostSchema.index({ title: 'text', content: 'text' });
 
 export default mongoose.model<IPost>('Post', PostSchema);

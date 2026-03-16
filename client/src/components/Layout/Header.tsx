@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { usersApi, postsApi } from '../../services/api';
+import { searchApi, usersApi } from '../../services/api';
 import { AppNotification } from '../../types';
 import {
     Rocket, Search, Bell, Heart, MessageSquare, AtSign, Megaphone, MessageCircle, Sparkles,
@@ -242,7 +242,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
     // Debounced live search
     useEffect(() => {
         if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-        if (!search.trim() || search.trim().length < 2) {
+        if (!search.trim() || search.trim().length < 1) {
             setSearchResults({ users: [], posts: [] });
             setShowSearchDropdown(false);
             return;
@@ -250,16 +250,18 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
         setSearchLoading(true);
         setShowSearchDropdown(true);
         searchTimerRef.current = setTimeout(() => {
-            Promise.all([
-                usersApi.getAll({ search: search.trim(), page: 1 }).catch(() => ({ users: [] })),
-                postsApi.getAll({ search: search.trim(), limit: 5 }).catch(() => ({ posts: [] }))
-            ]).then(([userData, postData]) => {
-                setSearchResults({
-                    users: (userData.users || []).slice(0, 4),
-                    posts: (postData.posts || []).slice(0, 4)
-                });
-                setShowSearchDropdown(true);
-            }).finally(() => setSearchLoading(false));
+            searchApi.query(search.trim(), 5)
+                .then(data => {
+                    setSearchResults({
+                        users: data.users || [],
+                        posts: data.posts || []
+                    });
+                    setShowSearchDropdown(true);
+                })
+                .catch(() => {
+                    setSearchResults({ users: [], posts: [] });
+                })
+                .finally(() => setSearchLoading(false));
         }, 300);
         return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
     }, [search]);
@@ -372,7 +374,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                             placeholder="Search posts, people..."
                             value={search}
                             onChange={e => setSearch(e.target.value)}
-                            onFocus={() => { if (search.trim().length >= 2) setShowSearchDropdown(true); }}
+                            onFocus={() => { if (search.trim().length >= 1) setShowSearchDropdown(true); }}
                             maxLength={100}
                             id="global-search"
                         />

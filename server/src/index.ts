@@ -27,6 +27,7 @@ import notificationRoutes from './routes/notifications';
 import uploadRoutes from './routes/upload';
 import paymentRoutes from './routes/payment';
 import metaRoutes from './routes/meta';
+import searchRoutes from './routes/search';
 
 // ── Environment Flag ─────────────────────────────────────────
 const isProd = process.env.NODE_ENV === 'production';
@@ -163,6 +164,7 @@ app.use('/api/pitch', authenticate, requirePayment, pitchRoutes);
 app.use('/api/notifications', authenticate, requirePayment, notificationRoutes);
 app.use('/api/meta', metaRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/search', authenticate, requirePayment, searchRoutes);
 app.use('/api/payment', paymentRoutes); // Payment routes must be public to allow paying!
 
 // ── Health Check ────────────────────────────────────────────

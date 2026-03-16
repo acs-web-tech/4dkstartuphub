@@ -428,3 +428,9 @@ export const uploadApi = {
         return request<{ url: string }>(`/upload?type=${type}`, { method: 'POST', body: formData });
     }
 };
+
+// ── Smart Search ────────────────────────────────────────────
+export const searchApi = {
+    query: (q: string, limit = 5) =>
+        request<{ users: any[]; posts: any[] }>(`/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+};
