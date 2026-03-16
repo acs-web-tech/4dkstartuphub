@@ -1059,7 +1059,7 @@ export default function Admin() {
                                     </div>
                                     <div className="grid gap-4">
                                         {pitches.map(pitch => (
-                                            <div key={pitch.id} className="card p-4 hover:border-primary transition-colors cursor-pointer" onClick={() => setSelectedPitch(pitch)}>
+                                            <div key={pitch.id} className="card p-4 hover:border-primary transition-colors cursor-pointer" onClick={() => { setSelectedPitch(pitch); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
                                                 <div className="flex justify-between items-start mb-2">
                                                     <div>
                                                         <h3 className="font-semibold text-lg">{pitch.title}</h3>

@@ -31,26 +31,27 @@ router.get('/download', async (req, res) => {
             return res.status(response.status).json({ error: 'Failed to fetch the file' });
         }
 
+        // Ensure proper file extension
+        const extMatch = fileUrl.match(/\.([\w\d]+)(?:\?|#|$)/i);
+        const ext = extMatch ? `.${extMatch[1]}` : '';
+        if (ext && !filename.toLowerCase().endsWith(ext.toLowerCase())) {
+            filename += ext;
+        }
+
         const contentType = response.headers.get('content-type') || 'application/octet-stream';
+        const contentLength = response.headers.get('content-length');
 
         res.setHeader('Content-Type', contentType);
         res.setHeader('Content-Disposition', `attachment; filename="${filename.replace(/"/g, '\\"')}"`);
-
-        // Convert the web response body to a node readable stream and pipe it
-        if (response.body) {
-            const reader = response.body.getReader();
-            const processStream = async () => {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    res.write(value);
-                }
-                res.end();
-            };
-            await processStream();
-        } else {
-            res.status(500).json({ error: 'Empty response body' });
+        if (contentLength) {
+            res.setHeader('Content-Length', contentLength);
         }
+
+        // Fetch into memory and send (limit is 5MB, so memory is perfectly safe)
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        
+        return res.send(buffer);
     } catch (err: any) {
         console.error('Download proxy error:', err);
         res.status(500).json({ error: 'Failed to download file' });
