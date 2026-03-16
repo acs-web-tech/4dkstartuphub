@@ -830,6 +830,8 @@ router.post('/login', validate(loginSchema), async (req, res) => {
                 userType: user.user_type,
                 paymentStatus: user.payment_status,
                 premiumExpiry: user.premium_expiry,
+                isEmailVerified: user.is_email_verified,
+                isActive: user.is_active,
             },
         });
     } catch (err) {
