@@ -86,13 +86,14 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
                             refreshQueue.forEach(cb => cb(null));
                             refreshQueue = [];
 
-                            const publicPages = ['/login', '/register', '/forgot-password', '/reset-password'];
+                            const publicPages = ['/login', '/register', '/forgot-password', '/reset-password', '/', '/feed', '/discovery', '/pricing'];
+                            const hadToken = !!localStorage.getItem('access_token') || !!localStorage.getItem('refresh_token');
+                            
                             localStorage.removeItem('access_token');
                             localStorage.removeItem('refresh_token');
 
-                            if (!publicPages.includes(window.location.pathname)) {
+                            if (hadToken && !publicPages.includes(window.location.pathname)) {
                                 window.dispatchEvent(new CustomEvent('auth_hard_logout'));
-                                await new Promise(() => {}); // Block permanently to stop React looping
                             }
                             throw new Error(errMessage);
                         }

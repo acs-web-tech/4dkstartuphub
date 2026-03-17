@@ -29,10 +29,31 @@ class ErrorBoundary extends Component<Props, State> {
             const reloadKey = 'eb_chunk_reload';
             if (!sessionStorage.getItem(reloadKey)) {
                 sessionStorage.setItem(reloadKey, '1');
-                window.location.reload();
+                this.performHardReload();
             }
         }
     }
+
+    private performHardReload = async () => {
+        try {
+            if ('serviceWorker' in navigator) {
+                const regs = await navigator.serviceWorker.getRegistrations();
+                for (let reg of regs) {
+                    await reg.unregister();
+                }
+            }
+            if ('caches' in window) {
+                const keys = await caches.keys();
+                for (let key of keys) {
+                    await caches.delete(key);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to clear caches before reload', e);
+        } finally {
+            window.location.href = '/'; // Hard reload to root
+        }
+    };
 
     private isChunkLoadError(error: Error | null): boolean {
         if (!error) return false;
@@ -146,7 +167,7 @@ class ErrorBoundary extends Component<Props, State> {
                                 A new version of StartupHub is available. Please reload to continue.
                             </p>
                             <button
-                                onClick={() => window.location.reload()}
+                                onClick={this.performHardReload}
                                 style={{
                                     padding: '12px 28px',
                                     background: '#6366f1',
@@ -159,7 +180,7 @@ class ErrorBoundary extends Component<Props, State> {
                                     transition: 'all 0.2s'
                                 }}
                             >
-                                Reload App
+                                Reload App & Clear Cache
                             </button>
                         </>
                     ) : (
@@ -184,7 +205,7 @@ class ErrorBoundary extends Component<Props, State> {
                                     Try Again
                                 </button>
                                 <button
-                                    onClick={() => window.location.href = '/'}
+                                    onClick={this.performHardReload}
                                     style={{
                                         padding: '10px 20px',
                                         background: 'transparent',
@@ -195,7 +216,7 @@ class ErrorBoundary extends Component<Props, State> {
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    Back to Home
+                                    Full Reload (Fix Glitches)
                                 </button>
                             </div>
                         </>

@@ -69,21 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [user?.avatarUrl]);
 
-    if (sessionExpired) {
-        return (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)', color: 'var(--text-primary)', padding: '20px', textAlign: 'center', fontFamily: 'inherit' }}>
-                <h1 style={{ fontSize: '2rem', marginBottom: '1rem', fontWeight: 600 }}>Session Expired</h1>
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', maxWidth: '400px' }}>Your authentication session has ended or is invalid. Please log in again to continue.</p>
-                <button 
-                    onClick={() => window.location.href = '/login'}
-                    className="btn btn-primary"
-                    style={{ padding: '12px 24px', fontSize: '1rem' }}
-                >
-                    Return to Login
-                </button>
-            </div>
-        );
-    }
+
 
     // Handle Push Notification Subscription (Web)
     useEffect(() => {
@@ -203,7 +189,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>
-            {children}
+            {sessionExpired ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)', color: 'var(--text-primary)', padding: '20px', textAlign: 'center', fontFamily: 'inherit' }}>
+                    <h1 style={{ fontSize: '2rem', marginBottom: '1rem', fontWeight: 600 }}>Session Expired</h1>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', maxWidth: '400px' }}>Your authentication session has ended or is invalid. Please log in again to continue.</p>
+                    <button 
+                        onClick={() => window.location.href = '/login'}
+                        className="btn btn-primary"
+                        style={{ padding: '12px 24px', fontSize: '1rem' }}
+                    >
+                        Return to Login
+                    </button>
+                </div>
+            ) : (
+                children
+            )}
         </AuthContext.Provider>
     );
 }

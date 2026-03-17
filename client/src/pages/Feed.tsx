@@ -459,18 +459,18 @@ export default function Feed() {
                                 <UserIcon size={20} /> People
                             </h3>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-                                {searchUsers.map(u => (
+                                {searchUsers.filter(u => !!u).map(u => (
                                     <Link key={u.id} to={`/users/${u.id}`} className="card" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', textDecoration: 'none', color: 'inherit', transition: 'transform 0.2s', margin: 0 }}>
                                         <div style={{ width: '56px', height: '56px', flexShrink: 0, borderRadius: '50%', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid var(--border)' }}>
                                             {u.avatarUrl ? (
                                                 <img src={getCdnUrl(u.avatarUrl)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                             ) : (
-                                                <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>{u.displayName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}</span>
+                                                <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>{u.displayName ? u.displayName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() : '??'}</span>
                                             )}
                                         </div>
                                         <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{ fontWeight: 600, fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.displayName}</div>
-                                            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>@{u.username}</div>
+                                            <div style={{ fontWeight: 600, fontSize: '1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.displayName || 'Unknown User'}</div>
+                                            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>@{u.username || 'unknown'}</div>
                                         </div>
                                     </Link>
                                 ))}
@@ -486,12 +486,12 @@ export default function Feed() {
 
                     <div className="posts-list">
                         {posts
-                            .filter(p => !category || p.category === category)
+                            .filter(p => !!p && (!category || p.category === category))
                             .map((post, index) => {
                                 // Inject online status
                                 const postWithStatus = {
                                     ...post,
-                                    userIsOnline: connected ? onlineUsers.has(post.userId) : false
+                                    userIsOnline: (connected && post.userId) ? onlineUsers.has(post.userId) : false
                                 };
 
                                 // First 3 posts are above-the-fold — eagerly load their images

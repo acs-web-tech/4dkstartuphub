@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stphub-v5';
+const CACHE_NAME = 'stphub-v6';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',

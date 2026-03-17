@@ -17,7 +17,7 @@ interface Props {
 function PostCard({ post, onImageClick, priority = false }: Props) {
     const location = useLocation();
     const [showOptions, setShowOptions] = useState(false);
-    const cat = CATEGORY_CONFIG[post.category];
+    const cat = CATEGORY_CONFIG[post.category] || CATEGORY_CONFIG.general;
     const Icon = cat.icon;
 
     // Parse date correctly for UTC

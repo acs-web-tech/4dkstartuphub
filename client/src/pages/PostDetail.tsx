@@ -362,7 +362,7 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
 
     if (!post) return <div className="empty-state"><h2>Post not found</h2></div>;
 
-    const cat = CATEGORY_CONFIG[post.category];
+    const cat = CATEGORY_CONFIG[post.category] || CATEGORY_CONFIG.general;
     const Icon = cat.icon;
     const isAuthor = user?.id === post.userId;
     const isAdmin = user?.role === 'admin';
