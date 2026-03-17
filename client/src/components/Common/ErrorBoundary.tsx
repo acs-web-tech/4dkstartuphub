@@ -36,13 +36,20 @@ class ErrorBoundary extends Component<Props, State> {
 
     private isChunkLoadError(error: Error | null): boolean {
         if (!error) return false;
-        const msg = error.message || '';
+        
+        // Sometimes HTML fallbacks evaluating as JS throw SyntaxError
+        if (error.name === 'ChunkLoadError' || error.name === 'SyntaxError') return true;
+
+        const msg = (error.message || '').toLowerCase();
         return (
             msg.includes('dynamically imported module') ||
-            msg.includes('Loading chunk') ||
-            msg.includes('Failed to fetch') ||
-            msg.includes('Loading CSS chunk') ||
-            msg.includes('Importing a module script failed')
+            msg.includes('loading chunk') ||
+            msg.includes('failed to fetch') ||
+            msg.includes('loading css chunk') ||
+            msg.includes('importing a module script failed') ||
+            msg.includes('load failed') ||
+            msg.includes('network error') ||
+            msg.includes('the internet connection appears to be offline')
         );
     }
 
