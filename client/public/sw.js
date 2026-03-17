@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stphub-v3';
+const CACHE_NAME = 'stphub-v4';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -20,6 +20,11 @@ self.addEventListener('activate', (event) => {
     // Clear old caches
     event.waitUntil(
         caches.keys().then((cacheNames) => {
+            // Disable navigation preload to avoid warnings if it became inadvertently enabled by a previous SW version
+            if (self.registration.navigationPreload) {
+                await self.registration.navigationPreload.disable();
+            }
+            
             return Promise.all(
                 cacheNames.map((cacheName) => {
                     if (cacheName !== CACHE_NAME) {
@@ -40,11 +45,22 @@ self.addEventListener('fetch', (event) => {
 
     // Simple network-first strategy for dynamic content
     event.respondWith(
-        fetch(event.request).catch(() => {
-            return caches.match(event.request).then(response => {
-                return response || Response.error();
-            });
-        })
+        (async () => {
+            try {
+                // Return the preloaded response if one exists
+                const preloadedResponse = await event.preloadResponse;
+                if (preloadedResponse) {
+                    return preloadedResponse;
+                }
+
+                // Otherwise fallback to network
+                return await fetch(event.request);
+            } catch (err) {
+                // If network/preload fails, check the cache
+                const cachedResponse = await caches.match(event.request);
+                return cachedResponse || Response.error();
+            }
+        })()
     );
 });
 
