@@ -22,7 +22,35 @@ class ErrorBoundary extends Component<Props, State> {
 
     public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error('Uncaught error:', error, errorInfo);
+
+        // Auto-recover from chunk load failures: reload the page to get fresh chunks
+        if (this.isChunkLoadError(error)) {
+            // Prevent infinite reload loops — only reload once per session
+            const reloadKey = 'eb_chunk_reload';
+            if (!sessionStorage.getItem(reloadKey)) {
+                sessionStorage.setItem(reloadKey, '1');
+                window.location.reload();
+            }
+        }
     }
+
+    private isChunkLoadError(error: Error | null): boolean {
+        if (!error) return false;
+        const msg = error.message || '';
+        return (
+            msg.includes('dynamically imported module') ||
+            msg.includes('Loading chunk') ||
+            msg.includes('Failed to fetch') ||
+            msg.includes('Loading CSS chunk') ||
+            msg.includes('Importing a module script failed')
+        );
+    }
+
+    private handleRetry = () => {
+        // Clear reload guard so future chunk errors can also auto-recover
+        sessionStorage.removeItem('eb_chunk_reload');
+        this.setState({ hasError: false, error: null });
+    };
 
     public render() {
         if (this.state.hasError) {
@@ -31,6 +59,7 @@ class ErrorBoundary extends Component<Props, State> {
             const isDeleted = this.state.error?.message === 'Account not found';
             const isDeactivated = this.state.error?.message === 'Account deactivated';
             const isAuthError = isDeleted || isDeactivated;
+            const isChunkError = this.isChunkLoadError(this.state.error);
 
             return (
                 <div style={{
@@ -89,26 +118,79 @@ class ErrorBoundary extends Component<Props, State> {
                                 Back to Login
                             </button>
                         </>
+                    ) : isChunkError ? (
+                        <>
+                            <div style={{
+                                width: '64px',
+                                height: '64px',
+                                background: 'rgba(99, 102, 241, 0.1)',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                marginBottom: '24px'
+                            }}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path></svg>
+                            </div>
+                            <h2 style={{ marginBottom: '12px', fontSize: '1.3rem', fontWeight: 700 }}>
+                                App Updated
+                            </h2>
+                            <p style={{ color: '#a1a1aa', marginBottom: '24px', maxWidth: '400px', lineHeight: 1.6, fontSize: '0.95rem' }}>
+                                A new version of StartupHub is available. Please reload to continue.
+                            </p>
+                            <button
+                                onClick={() => window.location.reload()}
+                                style={{
+                                    padding: '12px 28px',
+                                    background: '#6366f1',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    color: 'white',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    fontSize: '0.95rem',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                Reload App
+                            </button>
+                        </>
                     ) : (
                         <>
                             <h2 style={{ marginBottom: '16px' }}>Oops! Something went wrong.</h2>
                             <p style={{ color: '#a1a1aa', marginBottom: '24px' }}>
                                 {this.state.error?.message || 'An unexpected error occurred.'}
                             </p>
-                            <button
-                                onClick={() => window.location.href = '/'}
-                                style={{
-                                    padding: '10px 20px',
-                                    background: '#3b82f6',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    color: 'white',
-                                    fontWeight: 600,
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                Back to Home
-                            </button>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                                <button
+                                    onClick={this.handleRetry}
+                                    style={{
+                                        padding: '10px 20px',
+                                        background: '#3b82f6',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        color: 'white',
+                                        fontWeight: 600,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Try Again
+                                </button>
+                                <button
+                                    onClick={() => window.location.href = '/'}
+                                    style={{
+                                        padding: '10px 20px',
+                                        background: 'transparent',
+                                        border: '1px solid #3f3f46',
+                                        borderRadius: '8px',
+                                        color: 'white',
+                                        fontWeight: 600,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Back to Home
+                                </button>
+                            </div>
                         </>
                     )}
                 </div>

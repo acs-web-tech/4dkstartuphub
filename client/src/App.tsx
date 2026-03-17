@@ -5,24 +5,56 @@ import Layout from './components/Layout/Layout';
 import ProtectedRoute from './components/Common/ProtectedRoute';
 import NetworkStatus from './components/Common/NetworkStatus';
 
-// Lazy-load all pages for code splitting — each page becomes its own JS chunk
-const Feed = React.lazy(() => import('./pages/Feed'));
-const PostDetail = React.lazy(() => import('./pages/PostDetail'));
-const Login = React.lazy(() => import('./pages/Login'));
-const Register = React.lazy(() => import('./pages/Register'));
-const Members = React.lazy(() => import('./pages/Members'));
-const Discovery = React.lazy(() => import('./pages/Discovery'));
-const Profile = React.lazy(() => import('./pages/Profile'));
-const ChatRooms = React.lazy(() => import('./pages/ChatRooms'));
-const Admin = React.lazy(() => import('./pages/Admin'));
-const Bookmarks = React.lazy(() => import('./pages/Bookmarks'));
-const UserDetail = React.lazy(() => import('./pages/UserDetail'));
-const CreatePost = React.lazy(() => import('./components/Post/CreatePost'));
-const PitchRequests = React.lazy(() => import('./pages/PitchRequests'));
-const Pricing = React.lazy(() => import('./pages/Pricing'));
-const Privacy = React.lazy(() => import('./pages/Privacy'));
-const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
-const ResetPassword = React.lazy(() => import('./pages/ResetPassword'));
+/**
+ * Wraps React.lazy with automatic retry logic.
+ * If a dynamic import fails (e.g. stale chunk hash after deployment, flaky network),
+ * it retries up to `retries` times with a short delay. On final failure, it forces
+ * a full page reload to fetch the latest index.html with updated chunk references.
+ */
+function lazyWithRetry(importFn: () => Promise<any>, retries = 3, delay = 1000) {
+    return React.lazy(() => {
+        const attempt = (remaining: number): Promise<any> =>
+            importFn().catch((err: any) => {
+                if (remaining <= 0) {
+                    // Last resort: reload the page to get fresh chunk manifest
+                    // Only if this looks like a chunk load error
+                    if (
+                        err?.message?.includes('dynamically imported module') ||
+                        err?.message?.includes('Loading chunk') ||
+                        err?.message?.includes('Failed to fetch')
+                    ) {
+                        window.location.reload();
+                        // Return a never-resolving promise to prevent React from rendering an error
+                        return new Promise(() => {});
+                    }
+                    throw err;
+                }
+                return new Promise<void>((resolve) => setTimeout(resolve, delay)).then(() =>
+                    attempt(remaining - 1)
+                );
+            });
+        return attempt(retries);
+    });
+}
+
+// Lazy-load all pages with retry — each page becomes its own JS chunk
+const Feed = lazyWithRetry(() => import('./pages/Feed'));
+const PostDetail = lazyWithRetry(() => import('./pages/PostDetail'));
+const Login = lazyWithRetry(() => import('./pages/Login'));
+const Register = lazyWithRetry(() => import('./pages/Register'));
+const Members = lazyWithRetry(() => import('./pages/Members'));
+const Discovery = lazyWithRetry(() => import('./pages/Discovery'));
+const Profile = lazyWithRetry(() => import('./pages/Profile'));
+const ChatRooms = lazyWithRetry(() => import('./pages/ChatRooms'));
+const Admin = lazyWithRetry(() => import('./pages/Admin'));
+const Bookmarks = lazyWithRetry(() => import('./pages/Bookmarks'));
+const UserDetail = lazyWithRetry(() => import('./pages/UserDetail'));
+const CreatePost = lazyWithRetry(() => import('./components/Post/CreatePost'));
+const PitchRequests = lazyWithRetry(() => import('./pages/PitchRequests'));
+const Pricing = lazyWithRetry(() => import('./pages/Pricing'));
+const Privacy = lazyWithRetry(() => import('./pages/Privacy'));
+const ForgotPassword = lazyWithRetry(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazyWithRetry(() => import('./pages/ResetPassword'));
 
 import { SocketProvider } from './context/SocketContext';
 import { ModalProvider } from './context/ModalContext';
