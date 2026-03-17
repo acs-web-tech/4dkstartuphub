@@ -392,27 +392,27 @@ export default function Profile() {
                                     <a href={user.website.startsWith('http') ? user.website : `https://${user.website}`}
                                         target="_blank" rel="noopener noreferrer"
                                         className="social-btn website-btn"
-                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'var(--bg-secondary)', borderRadius: '20px', color: 'var(--text-primary)', textDecoration: 'none', transition: 'all 0.2s', border: '1px solid var(--border)' }}
+                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: 'var(--accent, #3b82f6)', borderRadius: '8px', color: 'white', textDecoration: 'none', transition: 'all 0.2s', border: 'none', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)' }}
                                     >
-                                        <Globe size={16} /> <span style={{ fontSize: '14px', fontWeight: '500' }}>Website</span>
+                                        <Globe size={16} /> <span style={{ fontSize: '14px', fontWeight: '600' }}>Website</span>
                                     </a>
                                 )}
                                 {user.linkedin && (
                                     <a href={user.linkedin.startsWith('http') ? user.linkedin : `https://${user.linkedin}`}
                                         target="_blank" rel="noopener noreferrer"
                                         className="social-btn linkedin-btn"
-                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'rgba(10, 102, 194, 0.1)', borderRadius: '20px', color: '#0a66c2', textDecoration: 'none', transition: 'all 0.2s', border: '1px solid rgba(10, 102, 194, 0.2)' }}
+                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: '#0a66c2', borderRadius: '8px', color: 'white', textDecoration: 'none', transition: 'all 0.2s', border: 'none', boxShadow: '0 4px 12px rgba(10, 102, 194, 0.3)' }}
                                     >
-                                        <Briefcase size={16} /> <span style={{ fontSize: '14px', fontWeight: '500' }}>LinkedIn</span>
+                                        <Briefcase size={16} /> <span style={{ fontSize: '14px', fontWeight: '600' }}>LinkedIn</span>
                                     </a>
                                 )}
                                 {user.twitter && (
                                     <a href={user.twitter.startsWith('http') ? user.twitter : `https://twitter.com/${user.twitter.replace('@', '')}`}
                                         target="_blank" rel="noopener noreferrer"
                                         className="social-btn twitter-btn"
-                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: 'rgba(29, 155, 240, 0.1)', borderRadius: '20px', color: '#1d9bf0', textDecoration: 'none', transition: 'all 0.2s', border: '1px solid rgba(29, 155, 240, 0.2)' }}
+                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: '#1d9bf0', borderRadius: '8px', color: 'white', textDecoration: 'none', transition: 'all 0.2s', border: 'none', boxShadow: '0 4px 12px rgba(29, 155, 240, 0.3)' }}
                                     >
-                                        <Twitter size={16} /> <span style={{ fontSize: '14px', fontWeight: '500' }}>Twitter</span>
+                                        <Twitter size={16} /> <span style={{ fontSize: '14px', fontWeight: '600' }}>Twitter</span>
                                     </a>
                                 )}
                             </div>

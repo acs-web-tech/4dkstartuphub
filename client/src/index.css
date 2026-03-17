@@ -1382,6 +1382,11 @@ img {
   border-radius: var(--radius-sm);
 }
 
+.social-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+
 /* ── Cards ─────────────────────────────────────────────────── */
 .card {
   background: var(--bg-card);
