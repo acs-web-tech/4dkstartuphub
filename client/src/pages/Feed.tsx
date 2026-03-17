@@ -66,10 +66,11 @@ export default function Feed() {
     const [page, setPage] = useState(cachedData?.page || 1);
     const [hasMore, setHasMore] = useState(cachedData ? cachedData.page < cachedData.totalPages : true);
     const [pagination, setPagination] = useState<Pagination | null>(
-        cachedData ? { page: cachedData.page, totalPages: cachedData.totalPages, total: cachedData.posts.length, limit: 5 } : null
+        cachedData ? { page: cachedData.page, totalPages: cachedData.totalPages, total: cachedData.posts.length, limit: 10 } : null
     );
 
     // Refs for socket handlers
+    const isFetchingRef = useRef(false);
     const categoryRef = useRef(category);
     const searchRef = useRef(search);
     const pageRef = useRef(page);
@@ -78,11 +79,12 @@ export default function Feed() {
     // Intersection Observer for Infinite Scroll
     const observer = useRef<IntersectionObserver>();
     const lastPostElementRef = useCallback((node: HTMLDivElement) => {
-        if (loading || loadingMore) return;
+        if (loading || loadingMore || isFetchingRef.current) return;
         if (observer.current) observer.current.disconnect();
 
         observer.current = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting && hasMore) {
+            if (entries[0].isIntersecting && hasMore && !isFetchingRef.current) {
+                isFetchingRef.current = true;
                 setPage((prev: number) => prev + 1);
             }
         });
@@ -247,7 +249,7 @@ export default function Feed() {
                     page: freshCache.page,
                     totalPages: freshCache.totalPages,
                     total: freshCache.posts.length,
-                    limit: 5
+                    limit: 10
                 });
                 setHasMore(freshCache.page < freshCache.totalPages);
                 setLoading(false);
@@ -286,7 +288,7 @@ export default function Feed() {
         if (page === 1) setLoading(true);
         else setLoadingMore(true);
 
-        postsApi.getAll({ page, limit: 5, category: category || undefined, search: search || undefined }, { signal: controller.signal })
+        postsApi.getAll({ page, limit: 10, category: category || undefined, search: search || undefined }, { signal: controller.signal })
             .then(data => {
                 if (!isCurrent) return;
 
@@ -317,6 +319,7 @@ export default function Feed() {
                 if (isCurrent) {
                     setLoading(false);
                     setLoadingMore(false);
+                    isFetchingRef.current = false;
                 }
             });
 

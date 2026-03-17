@@ -307,13 +307,32 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
 
         icsContent.push('END:VEVENT', 'END:VCALENDAR');
 
-        const blob = new Blob([icsContent.join('\n')], { type: 'application/octet-stream' });
+        const icsString = icsContent.join('\n');
+        const filename = `${post.title.replace(/\s+/g, '_').slice(0, 20)}.ics`;
+
+        // 1. Mobile Native Calendar App Share (iOS/Android)
+        if (navigator.share && navigator.canShare) {
+            const file = new File([icsString], filename, { type: 'text/calendar' });
+            if (navigator.canShare({ files: [file] })) {
+                navigator.share({
+                    files: [file],
+                    title: post.title,
+                }).catch(() => {});
+                return;
+            }
+        }
+
+        // 2. Desktop Fallback (Classic Download)
+        const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8' });
+        const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = window.URL.createObjectURL(blob);
-        link.setAttribute('download', `${post.title.replace(/\s+/g, '_').slice(0, 20)}.ics`);
+        link.href = url;
+        link.setAttribute('download', filename);
+        link.target = "_blank";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     };
 
     const handleContentClick = (e: React.MouseEvent) => {
