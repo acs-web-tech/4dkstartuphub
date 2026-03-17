@@ -45,6 +45,7 @@ export interface IUser extends Document {
     };
     otp_count: number;
     otp_last_request_date: string;
+    is_chat_muted: boolean;
 }
 
 const UserSchema: Schema = new Schema({
@@ -89,7 +90,8 @@ const UserSchema: Schema = new Schema({
         reset_count: { type: Number, default: 0 }
     },
     otp_count: { type: Number, default: 0 },
-    otp_last_request_date: { type: String, default: '' }
+    otp_last_request_date: { type: String, default: '' },
+    is_chat_muted: { type: Boolean, default: false }
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
     toJSON: {
@@ -107,6 +109,7 @@ const UserSchema: Schema = new Schema({
             ret.isActive = ret.is_active;
             ret.profileCompleted = ret.profile_completed;
             ret.isEmailVerified = ret.is_email_verified;
+            ret.isChatMuted = ret.is_chat_muted;
             ret.createdAt = ret.created_at;
             ret.updatedAt = ret.updated_at;
 
@@ -133,6 +136,7 @@ const UserSchema: Schema = new Schema({
             delete ret.reset_password_otp;
             delete ret.reset_password_token;
             delete ret.fcm_tokens;
+            delete ret.is_chat_muted;
 
             return ret;
         }

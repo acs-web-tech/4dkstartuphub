@@ -272,7 +272,15 @@ router.post('/:id/mute', requireAdmin, async (req: AuthRequest, res) => {
             return;
         }
 
-        member.is_muted = !member.is_muted;
+        if (member.is_muted) {
+            // Unmuting: Clear BOTH room-level and global-level mutes
+            member.is_muted = false;
+            await User.updateOne({ _id: uObjectId }, { is_chat_muted: false });
+        } else {
+            // Muting
+            member.is_muted = true;
+        }
+
         await member.save();
         res.json({ message: member.is_muted ? 'Member muted' : 'Member unmuted', isMuted: member.is_muted });
     } catch (err) {
@@ -291,6 +299,7 @@ router.get('/:id/messages', async (req: AuthRequest, res) => {
         const rObjectId = new mongoose.Types.ObjectId(req.params.id as string);
         const isAdmin = req.user!.role === 'admin';
         const membership = await ChatRoomMember.findOne({ room_id: rObjectId, user_id: req.user!.userId });
+        const user = await User.findById(req.user!.userId);
 
         const room = await ChatRoom.findById(rObjectId);
         if (!room || !room.is_active) {
@@ -316,7 +325,7 @@ router.get('/:id/messages', async (req: AuthRequest, res) => {
         await room.populate('created_by', 'display_name');
 
         const members = await ChatRoomMember.find({ room_id: rObjectId })
-            .populate('user_id', 'username display_name avatar_url');
+            .populate('user_id', 'username display_name avatar_url is_chat_muted');
 
         res.json({
             room: {
@@ -349,10 +358,10 @@ router.get('/:id/messages', async (req: AuthRequest, res) => {
                         username: mUser?.username || 'Unknown',
                         displayName: mUser?.display_name || 'Deleted User',
                         avatarUrl: mUser?.avatar_url || '',
-                        isMuted: m.is_muted ? 1 : 0,
+                        isMuted: (m.is_muted || mUser?.is_chat_muted) ? 1 : 0,
                     };
                 }),
-            isMuted: membership ? (membership.is_muted ? 1 : 0) : 0,
+            isMuted: (membership?.is_muted || user?.is_chat_muted) ? 1 : 0,
             pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
         });
     } catch (err) {
@@ -411,8 +420,9 @@ router.post('/:id/messages', validate(chatMessageSchema), async (req: AuthReques
             return;
         }
 
-        if (membership.is_muted) {
-            res.status(403).json({ error: 'You are muted in this room.' });
+        const user = await User.findById(req.user!.userId);
+        if (user?.is_chat_muted || membership.is_muted) {
+            res.status(403).json({ error: 'You are muted in this room or globally.' });
             return;
         }
 
@@ -435,7 +445,7 @@ router.post('/:id/messages', validate(chatMessageSchema), async (req: AuthReques
             link_preview: linkPreview
         });
 
-        const user = await User.findById(req.user!.userId);
+
 
         // Mentions
         const mentionPattern = /@([a-zA-Z0-9_]+)/g;

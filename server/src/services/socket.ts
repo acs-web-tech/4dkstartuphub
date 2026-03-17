@@ -540,8 +540,8 @@ class SocketService {
             }
 
             // ── LEVEL 6: Muted check ──
-            if (confirmedMembership.is_muted) {
-                socket.emit('chatError', { roomId, error: 'You are muted in this room.' });
+            if (confirmedMembership.is_muted || user.is_chat_muted) {
+                socket.emit('chatError', { roomId, error: user.is_chat_muted ? 'You have been muted globally due to spamming.' : 'You are muted in this room.' });
                 return;
             }
 
@@ -554,9 +554,9 @@ class SocketService {
                 timestamps = timestamps.filter(t => now - t < 10000);
 
                 if (timestamps.length >= 10) {
-                    // Auto-mute
-                    await ChatRoomMember.updateOne({ room_id: rObjectId, user_id: uObjectId }, { is_muted: 1 });
-                    socket.emit('chatError', { roomId, error: 'You have been automatically muted for sending messages too quickly.' });
+                    // Auto-mute GLOBALLY instead of locally
+                    await User.updateOne({ _id: uObjectId }, { is_chat_muted: true });
+                    socket.emit('chatError', { roomId, error: 'You have been automatically muted globally for sending messages too quickly.' });
                     // Notify room of update (mute status)
                     this.io.to(`chat:${roomId}`).emit('memberListUpdated', { roomId });
                     return;
