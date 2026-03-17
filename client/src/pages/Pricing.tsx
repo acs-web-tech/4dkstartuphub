@@ -206,7 +206,7 @@ export default function Pricing() {
                 }}>
                     <Zap size={14} /> UNLOCK FULL POWER
                 </div>
-                <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '16px', letterSpacing: '-0.02em' }}>
+                <h1 style={{ fontSize: 'clamp(1.6rem, 5vw, 2.5rem)', fontWeight: 800, marginBottom: '16px', letterSpacing: '-0.02em' }}>
                     Join the Elite <span className="text-gradient">Startup</span> Community
                 </h1>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>
@@ -224,7 +224,7 @@ export default function Pricing() {
                 background: 'var(--bg-card)',
                 border: '1px solid var(--accent-border)',
                 borderRadius: '24px',
-                padding: '40px',
+                padding: 'clamp(24px, 5vw, 40px)',
                 width: '100%',
                 maxWidth: '440px',
                 position: 'relative',
@@ -256,10 +256,10 @@ export default function Pricing() {
                     </div>
 
                     <div style={{ marginBottom: '32px' }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                            <span style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-secondary)' }}>₹</span>
-                            <span style={{ fontSize: '3.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>{price}</span>
-                            <span style={{ color: 'var(--text-muted)' }}>/year</span>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', whiteSpace: 'nowrap' }}>
+                            <span style={{ fontSize: 'clamp(1rem, 3vw, 1.2rem)', fontWeight: 600, color: 'var(--text-secondary)' }}>₹</span>
+                            <span style={{ fontSize: 'clamp(2rem, 8vw, 3.5rem)', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1 }}>{price}</span>
+                            <span style={{ color: 'var(--text-muted)', fontSize: 'clamp(0.8rem, 2.5vw, 1rem)' }}>/year</span>
                         </div>
                         <div style={{ fontSize: '0.85rem', color: 'var(--green)', fontWeight: 600, marginTop: '4px' }}>
                             Best Value for Startups

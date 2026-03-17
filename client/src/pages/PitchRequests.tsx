@@ -428,7 +428,7 @@ export default function PitchRequests() {
                     ) : upgrading ? (
                         <><Loader2 className="animate-spin inline mr-2" size={20} /> Processing...</>
                     ) : (
-                        <><CreditCard className="inline mr-2" size={20} /> {user?.paymentStatus?.toLowerCase() === 'expired' ? 'Renew Premium' : 'Upgrade'} for ₹{upgradePrice}</>
+                        <><CreditCard className="inline mr-2" size={20} /><span style={{ whiteSpace: 'nowrap' }}>{user?.paymentStatus?.toLowerCase() === 'expired' ? 'Renew Premium' : 'Upgrade'} for ₹{upgradePrice}</span></>
                     )}
                 </button>
             </div>

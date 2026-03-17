@@ -263,29 +263,28 @@ img {
   height: 10px;
   background: var(--accent);
   border-radius: 50%;
-  margin-left: 10px;
-  box-shadow: 0 0 15px var(--accent);
-  animation: pulseLive 2s ease-in-out infinite;
+  margin-left: 8px;
   vertical-align: middle;
+  position: relative;
+  top: -1px;
+  flex-shrink: 0;
+  animation: pulseLive 2s ease-in-out infinite;
 }
 
 @keyframes pulseLive {
   0% {
     opacity: 0.5;
-    transform: scale(0.9);
-    box-shadow: 0 0 5px var(--accent);
+    box-shadow: 0 0 4px var(--accent);
   }
 
   50% {
     opacity: 1;
-    transform: scale(1.1);
-    box-shadow: 0 0 15px var(--accent);
+    box-shadow: 0 0 12px var(--accent);
   }
 
   100% {
     opacity: 0.5;
-    transform: scale(0.9);
-    box-shadow: 0 0 5px var(--accent);
+    box-shadow: 0 0 4px var(--accent);
   }
 }
 
@@ -1979,7 +1978,6 @@ img {
   height: 48px;
   border-radius: 50%;
   border: 1px solid var(--border-color);
-  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
