@@ -186,6 +186,7 @@ export default function CreatePost() {
 
             if (urlsToUpload.length > 0) {
                 setImageUploading(true);
+                const failedUploads: string[] = [];
                 for (const url of urlsToUpload) {
                     const file = pendingUploads[url];
                     try {
@@ -194,10 +195,25 @@ export default function CreatePost() {
                         if (finalImageUrl === url) finalImageUrl = cdnUrl;
                         if (finalContent.includes(url)) finalContent = finalContent.split(url).join(cdnUrl);
                     } catch (err: any) {
-                        throw new Error(`Failed to upload an image: ${err.message}`);
+                        failedUploads.push(file.name || 'image');
+                        // Remove the broken blob URL from the content so it doesn't leak
+                        if (finalImageUrl === url) finalImageUrl = '';
+                        // Remove <img> tags with this blob URL from content
+                        finalContent = finalContent.replace(new RegExp(`<img[^>]*src=["']${url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*>`, 'g'), '');
                     }
                 }
                 setImageUploading(false);
+
+                // If ALL uploads failed, stop — there's nothing useful to post
+                if (failedUploads.length === urlsToUpload.length && urlsToUpload.length > 0) {
+                    setError(`All image uploads failed (${failedUploads.join(', ')}). Please check your network and try again.`);
+                    setLoading(false);
+                    return;
+                }
+                // If some uploads failed, warn but continue
+                if (failedUploads.length > 0) {
+                    console.warn(`Some images failed to upload and were removed: ${failedUploads.join(', ')}`);
+                }
             }
 
             if (isEditing) {

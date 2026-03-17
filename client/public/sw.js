@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stphub-v4';
+const CACHE_NAME = 'stphub-v5';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',
@@ -38,30 +38,63 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+    const url = new URL(event.request.url);
+
     // Skip cross-origin requests to avoid CORS / opaque response caching errors in SW
-    if (!event.request.url.startsWith(self.location.origin)) {
+    if (url.origin !== self.location.origin) {
         return;
     }
 
-    // Simple network-first strategy for dynamic content
+    // NEVER intercept JS/CSS chunk files – let the browser fetch these directly from the server.
+    // This prevents "Failed to fetch dynamically imported module" errors after deployments
+    // when chunk hashes change and the SW would otherwise serve stale/404 responses.
+    if (url.pathname.startsWith('/assets/') || url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+        return;
+    }
+
+    // NEVER intercept API calls or upload requests – they must always go to the server.
+    if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/socket.io')) {
+        return;
+    }
+
+    // For navigation requests (HTML pages in an SPA), serve index.html from cache as fallback
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request).catch(() => caches.match('/index.html'))
+        );
+        return;
+    }
+
+    // For everything else (images, manifest, logo), use network-first with cache fallback
     event.respondWith(
         (async () => {
             try {
-                // Return the preloaded response if one exists
                 const preloadedResponse = await event.preloadResponse;
                 if (preloadedResponse) {
                     return preloadedResponse;
                 }
-
-                // Otherwise fallback to network
                 return await fetch(event.request);
             } catch (err) {
-                // If network/preload fails, check the cache
                 const cachedResponse = await caches.match(event.request);
                 return cachedResponse || Response.error();
             }
         })()
     );
+});
+
+// Listen for CLEAR_CACHE message from the app
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'CLEAR_CACHE') {
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    if (cacheName !== CACHE_NAME) {
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        });
+    }
 });
 
 self.addEventListener('push', (event) => {
