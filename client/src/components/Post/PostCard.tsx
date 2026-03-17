@@ -86,58 +86,46 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
 
         const icsString = icsContent.join('\r\n');
         const filename = `${post.title.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 20)}.ics`;
+        
+        const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8' });
 
-        const dataUriDownload = () => {
+        // iOS/Android Mobile Native Action
+        // Check if we're on a mobile device to prioritize sharing
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isMobile && navigator.share) {
             try {
-                const dataUri = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(icsString);
-                const link = document.createElement('a');
-                link.href = dataUri;
-                link.setAttribute('download', filename);
-                link.style.display = 'none';
-                document.body.appendChild(link);
-                link.click();
-                setTimeout(() => document.body.removeChild(link), 2000);
-            } catch {
-                const dataUri = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(icsString);
-                window.open(dataUri, '_blank');
+                const file = new File([blob], filename, { type: 'text/calendar' });
+                navigator.share({
+                    files: [file],
+                    title: post.title,
+                }).catch(() => {
+                    // Fallback to manual download if share is cancelled/fails
+                    executeDownload(blob, filename);
+                });
+                return;
+            } catch (e) {
+                // Ignore error and fallthrough to normal download
             }
-        };
-
-        const blobDownload = () => {
-            const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8' });
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', filename);
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            link.click();
-            setTimeout(() => {
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(url);
-            }, 2000);
-        };
-
-        if (navigator.share && navigator.canShare) {
-            try {
-                const file = new File([icsString], filename, { type: 'text/calendar' });
-                if (navigator.canShare({ files: [file] })) {
-                    navigator.share({
-                        files: [file],
-                        title: post.title,
-                    }).catch(() => {
-                        dataUriDownload();
-                    });
-                    return; 
-                }
-            } catch { } // fall-through context
         }
 
-        try {
-            dataUriDownload();
-        } catch {
-            blobDownload();
-        }
+        // Default Desktop/Web manual download wrapper
+        executeDownload(blob, filename);
+    };
+
+    const executeDownload = (blob: Blob, filename: string) => {
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename);
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        
+        setTimeout(() => {
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        }, 100);
     };
 
     return (

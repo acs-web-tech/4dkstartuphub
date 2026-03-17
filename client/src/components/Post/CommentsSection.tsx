@@ -105,6 +105,24 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
         setPreviewUrls(Array.from(unique).slice(0, 2));
     }, [newComment]);
 
+    // Helper to find the top level parent id string
+    const getTopLevelId = (commentsList: Comment[], pId: string): string => {
+        const p = commentsList.find(c => c.id === pId);
+        if (p && p.parentId) return getTopLevelId(commentsList, p.parentId);
+        return pId;
+    };
+
+    const [localTotalCount, setLocalTotalCount] = useState(totalServerCount ?? 0);
+
+    // Update localTotalCount when initialComments change
+    useEffect(() => {
+        if (totalServerCount !== undefined) {
+            setLocalTotalCount(totalServerCount);
+        } else {
+            setLocalTotalCount(initialComments.length);
+        }
+    }, [totalServerCount, initialComments]);
+
     // Socket listener for new comments
     useEffect(() => {
         if (socket && postId) {
@@ -122,9 +140,14 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
                     }
                     if (prev.find(c => c.id === comment.id)) return prev;
                     
+                    // Since it wasn't optimistic, it's a completely new comment from someone else
+                    // (or we missed the optimistic due to render timing), safely increment our grand total
+                    setLocalTotalCount(curr => curr + 1);
+
                     const newComments = [...prev, comment];
                     if (comment.parentId) {
-                        const parentIdx = newComments.findIndex(c => c.id === comment.parentId);
+                        const topLevelId = getTopLevelId(newComments, comment.parentId);
+                        const parentIdx = newComments.findIndex(c => c.id === topLevelId);
                         if (parentIdx !== -1) {
                             newComments[parentIdx] = {
                                 ...newComments[parentIdx],
@@ -186,14 +209,18 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
             createdAt: new Date().toISOString()
         };
 
+        // Optimistically bump the total count immediately
+        setLocalTotalCount(curr => curr + 1);
+
         setComments(prev => {
             const newComments = [...prev, optimisticComment];
              if (parentId) {
-                 const parentIdx = newComments.findIndex(c => c.id === parentId);
-                 if (parentIdx !== -1) {
-                     newComments[parentIdx] = { 
-                         ...newComments[parentIdx], 
-                         replyCount: (newComments[parentIdx].replyCount || 0) + 1 
+                 const topLevelId = getTopLevelId(newComments, parentId);
+                 const topLevelIdx = newComments.findIndex(c => c.id === topLevelId);
+                 if (topLevelIdx !== -1) {
+                     newComments[topLevelIdx] = { 
+                         ...newComments[topLevelIdx], 
+                         replyCount: (newComments[topLevelIdx].replyCount || 0) + 1 
                      };
                  }
              }
@@ -218,14 +245,16 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
         try {
             await postsApi.comment(postId, { content, parentId: parentId || undefined });
         } catch (err) {
+            setLocalTotalCount(curr => Math.max(0, curr - 1)); // Decrement if failed
             setComments(prev => {
                 const newComments = prev.filter(c => c.id !== tempId);
                 if (parentId) {
-                    const parentIdx = newComments.findIndex(c => c.id === parentId);
-                    if (parentIdx !== -1) {
-                        newComments[parentIdx] = { 
-                            ...newComments[parentIdx], 
-                            replyCount: Math.max(0, (newComments[parentIdx].replyCount || 0) - 1) 
+                    const topLevelId = getTopLevelId(newComments, parentId);
+                    const topLevelIdx = newComments.findIndex(c => c.id === topLevelId);
+                    if (topLevelIdx !== -1) {
+                        newComments[topLevelIdx] = { 
+                            ...newComments[topLevelIdx], 
+                            replyCount: Math.max(0, (newComments[topLevelIdx].replyCount || 0) - 1) 
                         };
                     }
                 }
@@ -401,8 +430,6 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
         }
     };
 
-    const totalCount = totalServerCount ?? comments.length;
-
     return (
         <section className="card comments-section">
             <div className="comments-section-header">
@@ -412,7 +439,7 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
                     type="button"
                 >
                     <MessageSquare size={18} />
-                    <h2>Comments ({totalCount})</h2>
+                    <h2>Comments ({localTotalCount})</h2>
                     {isCollapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
                 </button>
 
