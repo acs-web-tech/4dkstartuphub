@@ -446,6 +446,14 @@ router.post('/', validate(createPostSchema), async (req: AuthRequest, res) => {
         const { title, content: rawContent, category, videoUrl, imageUrl, eventDate } = req.body;
         const userId = new mongoose.Types.ObjectId(req.user!.userId);
 
+        // Cleanup utility to prevent orphaned S3 files on rejected requests
+        const cleanupOrphanedFiles = async () => {
+            if (imageUrl) await deleteFileByUrl(imageUrl).catch(err => console.error('Failed to cleanup orphan image:', err));
+            if (videoUrl) await deleteFileByUrl(videoUrl).catch(err => console.error('Failed to cleanup orphan video:', err));
+            // In a more complex scenario, we might parse rawContent to delete embedded S3 HTML images,
+            // but typical orphans are the primary meta attachments.
+        };
+
         // Prevent accidental double-posts
         const minuteAgo = new Date(Date.now() - 60 * 1000);
         const existingPost = await Post.findOne({
@@ -455,12 +463,14 @@ router.post('/', validate(createPostSchema), async (req: AuthRequest, res) => {
         });
 
         if (existingPost) {
+            await cleanupOrphanedFiles();
             res.status(409).json({ error: 'You just posted this. Please wait a moment.' });
             return;
         }
 
         // Restrict 'events' and 'announcements' category to admins
         if (['events', 'announcements'].includes(category) && req.user?.role !== 'admin') {
+            await cleanupOrphanedFiles();
             res.status(403).json({ error: `Only administrators can create ${category} posts.` });
             return;
         }
@@ -523,6 +533,12 @@ router.post('/', validate(createPostSchema), async (req: AuthRequest, res) => {
         res.status(201).json({ message: 'Post created', postId: newPost._id.toString() });
     } catch (err) {
         console.error('Create post error:', err);
+        
+        // Ensure cleanup occurs if MongoDB strictly fails midway
+        const { videoUrl, imageUrl } = req.body || {};
+        if (imageUrl) await deleteFileByUrl(imageUrl).catch(() => {});
+        if (videoUrl) await deleteFileByUrl(videoUrl).catch(() => {});
+        
         res.status(500).json({ error: 'Failed to create post' });
     }
 });

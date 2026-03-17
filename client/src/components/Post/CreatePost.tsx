@@ -168,6 +168,12 @@ export default function CreatePost() {
         const textContent = content.replace(/<[^>]*>/g, '');
         if (textContent.trim().length < 10) { setError('Content must be at least 10 characters'); return; }
 
+        const adminOnly = ['events', 'announcements'];
+        if (adminOnly.includes(category) && user?.role !== 'admin') {
+            setError(`Only administrators can create ${CATEGORY_CONFIG[category as PostCategory]?.label || category} posts.`);
+            return;
+        }
+
         setLoading(true);
         try {
             let finalImageUrl = imageUrl;
