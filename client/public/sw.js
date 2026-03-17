@@ -19,7 +19,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
     // Clear old caches
     event.waitUntil(
-        caches.keys().then((cacheNames) => {
+        caches.keys().then(async (cacheNames) => {
             // Disable navigation preload to avoid warnings if it became inadvertently enabled by a previous SW version
             if (self.registration.navigationPreload) {
                 await self.registration.navigationPreload.disable();
