@@ -65,12 +65,16 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
         let icsContent = [
             'BEGIN:VCALENDAR',
             'VERSION:2.0',
+            'PRODID:-//4DK Startup Hub//EN',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
             'BEGIN:VEVENT',
             `DTSTART:${date}`,
             `DTEND:${end}`,
             `SUMMARY:${post.title}`,
             `DESCRIPTION:${buildCalendarDesc(true)}`,
-            `LOCATION:${window.location.origin}/posts/${post.id}`
+            `LOCATION:${window.location.origin}/posts/${post.id}`,
+            `URL:${window.location.origin}/posts/${post.id}`
         ];
 
         if (post.imageUrl) {
@@ -80,34 +84,60 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
 
         icsContent.push('END:VEVENT', 'END:VCALENDAR');
 
-        const icsString = icsContent.join('\n');
-        const filename = `${post.title.replace(/\s+/g, '_').slice(0, 20)}.ics`;
+        const icsString = icsContent.join('\r\n');
+        const filename = `${post.title.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 20)}.ics`;
 
-        // 1. Mobile Native Calendar App Share (iOS/Android)
-        if (navigator.share && navigator.canShare) {
-            const file = new File([icsString], filename, { type: 'text/calendar' });
-            if (navigator.canShare({ files: [file] })) {
-                navigator.share({
-                    files: [file],
-                    title: post.title,
-                }).catch(() => {
-                    // Fallback if user cancels or share fails
-                });
-                return; // Stop here, native share popup handled it!
+        const dataUriDownload = () => {
+            try {
+                const dataUri = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(icsString);
+                const link = document.createElement('a');
+                link.href = dataUri;
+                link.setAttribute('download', filename);
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                setTimeout(() => document.body.removeChild(link), 2000);
+            } catch {
+                const dataUri = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(icsString);
+                window.open(dataUri, '_blank');
             }
+        };
+
+        const blobDownload = () => {
+            const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename);
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            setTimeout(() => {
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+            }, 2000);
+        };
+
+        if (navigator.share && navigator.canShare) {
+            try {
+                const file = new File([icsString], filename, { type: 'text/calendar' });
+                if (navigator.canShare({ files: [file] })) {
+                    navigator.share({
+                        files: [file],
+                        title: post.title,
+                    }).catch(() => {
+                        dataUriDownload();
+                    });
+                    return; 
+                }
+            } catch { } // fall-through context
         }
 
-        // 2. Desktop Fallback (Classic Download)
-        const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', filename);
-        link.target = "_blank"; // Fixes iOS webview intercept issues
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+        try {
+            dataUriDownload();
+        } catch {
+            blobDownload();
+        }
     };
 
     return (
@@ -117,7 +147,7 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
             </div>
 
             <div className="post-card-header">
-                <Link to={`/users/${post.userId}`} className="post-author-link">
+                <Link to={`/users/${post.userId}`} className="post-author-link" style={{ minWidth: 0, flex: 1 }}>
                     <div className="post-avatar">
                         {post.avatarUrl ? (
                             <SmartImage
@@ -131,8 +161,8 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
                         {/* Start Online Indicator */}
                         {post.userIsOnline && <span className="online-indicator-dot"></span>}
                     </div>
-                    <div className="post-meta">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="post-meta" style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                             <span className="post-author">
                                 {post.displayName}
                             </span>
@@ -159,7 +189,7 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
                     </div>
                 </Link>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                     <Link to={`/feed?category=${post.category}`} className="post-category-tag" style={{ '--cat-color': cat.color, marginLeft: 0 } as any}>
                         <Icon size={14} />
                         <span>{cat.label}</span>
