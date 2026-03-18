@@ -8,6 +8,8 @@
  * The CDN base URL is fetched once from the server and cached.
  */
 
+export const cdnEventTarget = new EventTarget();
+
 let cdnBaseUrl: string | null = null;
 let cdnFetched = false;
 
@@ -25,6 +27,8 @@ async function fetchCdnConfig(): Promise<void> {
         }
     } catch {
         // Silently fail — fallback to proxy URLs
+    } finally {
+        cdnEventTarget.dispatchEvent(new Event('cdndone'));
     }
 }
 

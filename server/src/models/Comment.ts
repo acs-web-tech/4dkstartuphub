@@ -32,5 +32,6 @@ const CommentSchema: Schema = new Schema({
 
 CommentSchema.index({ post_id: 1 });
 CommentSchema.index({ user_id: 1 });
+CommentSchema.index({ parent_id: 1, post_id: 1 });
 
 export default mongoose.model<IComment>('Comment', CommentSchema);

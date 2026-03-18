@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { getCdnUrl } from '../../utils/cdn';
+import { getCdnUrl, cdnEventTarget } from '../../utils/cdn';
 
 interface SmartImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
     src: string;
@@ -48,7 +48,22 @@ function getGlobalObserver() {
  */
 export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, priority = false, objectFit = 'cover', ...props }) => {
     // Rewrite to CloudFront URL if CDN is configured
-    const cdnSrc = useMemo(() => getCdnUrl(src), [src]);
+    const [cdnSrc, setCdnSrc] = useState(() => getCdnUrl(src));
+    const [retryCount, setRetryCount] = useState(0);
+
+    useEffect(() => {
+        setCdnSrc(getCdnUrl(src));
+        
+        const handleCdnDone = () => {
+            setCdnSrc(getCdnUrl(src));
+        };
+        
+        cdnEventTarget.addEventListener('cdndone', handleCdnDone);
+        
+        return () => {
+            cdnEventTarget.removeEventListener('cdndone', handleCdnDone);
+        };
+    }, [src]);
 
     const [isVisible, setIsVisible] = useState(priority); // Priority images visible immediately
     const [loaded, setLoaded] = useState(false);
@@ -90,12 +105,20 @@ export const SmartImage: React.FC<SmartImageProps> = ({ src, fallback, priority 
 
     const handleLoad = useCallback(() => {
         setLoaded(true);
+        setRetryCount(0);
     }, []);
 
     const handleError = useCallback(() => {
+        if (retryCount < 3) {
+            setTimeout(() => {
+                setCdnSrc(prev => prev.includes('retry=') ? prev.replace(/retry=\d+/, `retry=${retryCount + 1}`) : `${prev}${prev.includes('?') ? '&' : '?'}retry=${retryCount + 1}`);
+                setRetryCount(retryCount + 1);
+            }, 1000 * Math.pow(2, retryCount)); // Exponential backoff: 1s, 2s, 4s
+            return;
+        }
         setLoaded(false);
         setErrored(true);
-    }, []);
+    }, [retryCount]);
 
     if (errored) {
         return fallback ? <>{fallback}</> : null;
