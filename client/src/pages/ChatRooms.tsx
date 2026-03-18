@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { chatApi } from '../services/api';
 import { ChatRoom, ChatMessage } from '../types';
-import { MessageCircle, Trash2, Send, Plus, Lock, Shield, Users, Volume2, VolumeX, LogOut, Wifi, RefreshCw } from 'lucide-react';
+import { MessageCircle, Trash2, Send, Plus, Lock, Shield, Users, Volume2, VolumeX, LogOut, Wifi, RefreshCw, ArrowLeft } from 'lucide-react';
 import LinkPreview from '../components/Common/LinkPreview';
 import { useModal } from '../context/ModalContext';
 import { getCdnUrl } from '../utils/cdn';
@@ -485,7 +485,7 @@ export default function ChatRooms() {
     if (loading) return <div className="loading-container"><div className="spinner" /><p>Loading Chat...</p></div>;
 
     return (
-        <div className="chatrooms-page">
+        <div className={`chatrooms-page ${roomId ? 'has-active-room' : ''}`}>
             <div className="chat-sidebar">
                 <div className="chat-sidebar-header">
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -602,6 +602,13 @@ export default function ChatRooms() {
                         <div className="chat-header">
                             <div>
                                 <div className="flex items-center gap-2">
+                                    <button 
+                                        className="mobile-back-btn" 
+                                        onClick={() => navigate('/chatrooms')}
+                                        title="Back to rooms"
+                                    >
+                                        <ArrowLeft size={18} />
+                                    </button>
                                     <h3>{roomInfo.name}</h3>
                                     <span style={{
                                         display: 'inline-flex',
