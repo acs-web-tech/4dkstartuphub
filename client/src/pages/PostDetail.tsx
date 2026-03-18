@@ -599,40 +599,36 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                         )}
 
                                         {(() => {
-                                            const { displayContent, urls } = useMemo(() => {
-                                                const extractUrls = (html: string) => {
-                                                    const unique = new Set<string>();
-                                                    const regex = /(?:href="|src=")?(https?:\/\/[^\s<"]+)/g;
-                                                    let match;
-                                                    while ((match = regex.exec(html)) !== null) {
-                                                        if (match[0].startsWith('src=')) continue;
-                                                        unique.add(match[1]);
-                                                    }
-                                                    return Array.from(unique);
-                                                };
+                                            const extractUrls = (html: string) => {
+                                                const unique = new Set<string>();
+                                                const regex = /(?:href="|src=")?(https?:\/\/[^\s<"]+)/g;
+                                                let match;
+                                                while ((match = regex.exec(html)) !== null) {
+                                                    if (match[0].startsWith('src=')) continue;
+                                                    unique.add(match[1]);
+                                                }
+                                                return Array.from(unique);
+                                            };
 
-                                                const urls = extractUrls(post.content);
-                                                let displayContent = post.content;
+                                            const urls = extractUrls(post.content);
+                                            let displayContent = post.content;
 
-                                                urls.forEach(url => {
-                                                    try {
-                                                        const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                                                        const regex = new RegExp(`(href=["']|src=["'])?(${escaped})`, 'g');
-                                                        displayContent = displayContent.replace(regex, (match, prefix) => {
-                                                            if (prefix) return match;
-                                                            return ''; // Remove bare textual URLs (LinkPreview handles them below)
-                                                        });
-                                                    } catch (e) { }
-                                                });
+                                            urls.forEach(url => {
+                                                try {
+                                                    const escaped = url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                                    const regex = new RegExp(`(href=["']|src=["'])?(${escaped})`, 'g');
+                                                    displayContent = displayContent.replace(regex, (match, prefix) => {
+                                                        if (prefix) return match;
+                                                        return ''; // Remove bare textual URLs (LinkPreview handles them below)
+                                                    });
+                                                } catch (e) { }
+                                            });
 
-                                                displayContent = displayContent
-                                                    .replace(/<a[^>]*>\s*<\/a>/g, '')
-                                                    .replace(/<p>\s*<\/p>/g, '')
-                                                    .replace(/<p><br><\/p>/g, '')
-                                                    .trim();
-
-                                                return { displayContent, urls };
-                                            }, [post.content]);
+                                            displayContent = displayContent
+                                                .replace(/<a[^>]*>\s*<\/a>/g, '')
+                                                .replace(/<p>\s*<\/p>/g, '')
+                                                .replace(/<p><br><\/p>/g, '')
+                                                .trim();
 
                                             return (
                                                 <>
