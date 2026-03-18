@@ -677,7 +677,7 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                                         src={embedUrl}
                                                         title="Video player"
                                                         frameBorder="0"
-                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; compute-pressure"
+                                                        allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                                                         allowFullScreen
                                                         style={{ width: '100%', height: '100%' }}
                                                     />

@@ -313,73 +313,71 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
         }, 0);
     };
 
-    // ─── Threaded comments: group replies under parents ───
+    // ─── Threaded comments: flat layout without aggressive filtering ───
     const threadedComments = useMemo(() => {
-        // Build a map of parentId -> replies
-        const replyMap = new Map<string, Comment[]>();
         const topLevel: Comment[] = [];
+        const replies: Comment[] = [];
 
+        // 1. Separate top-level and replies
         for (const c of comments) {
-            if (c.parentId) {
-                const existing = replyMap.get(c.parentId) || [];
-                existing.push(c);
-                replyMap.set(c.parentId, existing);
-            } else {
+            if (!c.parentId) {
                 topLevel.push(c);
+            } else {
+                replies.push(c);
             }
         }
 
-        // Helper to count ALL descendants recursively
-        const countDescendants = (parentId: string): number => {
-            const children = replyMap.get(parentId) || [];
-            let count = children.length;
-            for (const child of children) {
-                count += countDescendants(child.id);
+        // 2. Build a reliable lookup to trace top-level parents for ANY descendant
+        const getTopParentId = (startId: string): string => {
+            let currentId = startId;
+            let safety = 0;
+            while (safety < 20) {
+                const c = comments.find(x => x.id === currentId);
+                if (!c || !c.parentId) break; // Reached top-level or dead end
+                currentId = c.parentId;
+                safety++;
             }
-            return count;
+            return currentId;
         };
 
-        // Helper to flatten ALL descendants recursively
-        const flattenDescendants = (parentId: string, topLevelId: string, resultArr: any[]) => {
-            const children = replyMap.get(parentId) || [];
-            // Sort children earliest first if needed, usually they are appended in order
-            for (const child of children) {
-                resultArr.push({ comment: child, isReply: true, parentId: topLevelId });
-                flattenDescendants(child.id, topLevelId, resultArr);
-            }
-        };
+        // 3. Group replies by their absolute discovered top-level parent
+        const groupedReplies = new Map<string, Comment[]>();
+        for (const r of replies) {
+            const topId = getTopParentId(r.id);
+            const group = groupedReplies.get(topId) || [];
+            group.push(r);
+            groupedReplies.set(topId, group);
+        }
 
-        // Build structured result
+        // 4. Construct final layout
         const result: { comment: Comment; isReply: boolean; parentId?: string; replyCount?: number }[] = [];
+        
+        // Put all valid top-level comments first, with their children if expanded
         for (const parent of topLevel) {
-            const replyCount = parent.replyCount ?? countDescendants(parent.id);
+            const threadReplies = groupedReplies.get(parent.id) || [];
+            // Use the backend's explicit replyCount, or fallback to the localized quantity
+            const replyCount = parent.replyCount ?? threadReplies.length;
+            
             result.push({ comment: parent, isReply: false, replyCount });
 
+            // If expanded, just blast all associated replies underneath, completely flat.
             if (expandedReplies.has(parent.id)) {
-                flattenDescendants(parent.id, parent.id, result);
+                // Sort chronologically
+                threadReplies.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+                for (const tr of threadReplies) {
+                    result.push({ comment: tr, isReply: true, parentId: parent.id });
+                }
             }
+            // Remove from map to indicate they've been placed
+            groupedReplies.delete(parent.id);
         }
 
-        const topLevelIds = new Set(topLevel.map(p => p.id));
-
-        // Also add any orphan replies whose parents were not loaded yet
-        const resultIds = new Set(result.map(r => r.comment.id));
-        for (const c of comments) {
-            if (!resultIds.has(c.id)) {
-                // If it's not rendered yet, it's either collapsed or completely orphaned across pages
-                let current = c;
-                let topLevelId = c.id;
-                let safety = 0;
-                while (current.parentId && safety < 10) {
-                    topLevelId = current.parentId;
-                    const nextParent = comments.find(p => p.id === current.parentId);
-                    if (!nextParent) break;
-                    current = nextParent;
-                    safety++;
-                }
-
-                // Append safely so it doesn't get utterly hidden if expanded state clipped it
-                result.push({ comment: c, isReply: !!c.parentId, parentId: topLevelId });
+        // 5. Place any completely orphaned replies (topId wasn't in topLevel array)
+        // This prevents hiding ANY database records from the UI.
+        for (const [topId, threadReplies] of Array.from(groupedReplies.entries())) {
+            threadReplies.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+            for (const tr of threadReplies) {
+                result.push({ comment: tr, isReply: true, parentId: topId });
             }
         }
 
