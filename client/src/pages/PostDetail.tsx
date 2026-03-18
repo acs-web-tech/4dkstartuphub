@@ -672,13 +672,15 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                             if (!embedUrl) return null;
 
                                             return (
-                                                <div className="post-video-container mt-6 mb-6 rounded-lg overflow-hidden border border-[var(--border-color)]">
+                                                <div className="post-video-container mt-6 mb-6 rounded-lg border border-[var(--border-color)]">
                                                     <iframe
                                                         src={embedUrl}
                                                         title="Video player"
+                                                        className="rounded-lg"
                                                         frameBorder="0"
                                                         allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                                                         allowFullScreen
+                                                        {...({ webkitallowfullscreen: 'true', mozallowfullscreen: 'true' } as any)}
                                                         style={{ width: '100%', height: '100%' }}
                                                     />
                                                 </div>

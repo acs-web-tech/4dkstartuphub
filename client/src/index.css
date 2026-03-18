@@ -6151,7 +6151,6 @@ img {
 
 .post-card-media-video {
   border-radius: var(--radius);
-  overflow: hidden;
   aspect-ratio: 16 / 9;
   background: #000;
   width: 100%;
@@ -6162,6 +6161,7 @@ img {
   height: 100%;
   border: none;
   display: block;
+  border-radius: var(--radius);
 }
 
 .post-card-video-link {

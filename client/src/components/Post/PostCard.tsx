@@ -295,6 +295,7 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
                                         title="Video"
                                         allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                                         allowFullScreen
+                                        {...({ webkitallowfullscreen: 'true', mozallowfullscreen: 'true' } as any)}
                                         loading="lazy"
                                     />
                                 </div>

@@ -771,6 +771,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                                 frameBorder="0"
                                                 allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                                                 allowFullScreen
+                                                {...({ webkitallowfullscreen: 'true', mozallowfullscreen: 'true' } as any)}
                                             />
                                         </div>
                                     )}
