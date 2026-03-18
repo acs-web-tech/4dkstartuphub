@@ -366,26 +366,20 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
         const resultIds = new Set(result.map(r => r.comment.id));
         for (const c of comments) {
             if (!resultIds.has(c.id)) {
+                // If it's not rendered yet, it's either collapsed or completely orphaned across pages
                 let current = c;
-                let isCollapsedDescendant = false;
-                
+                let topLevelId = c.id;
                 let safety = 0;
                 while (current.parentId && safety < 10) {
-                    if (topLevelIds.has(current.parentId)) {
-                        isCollapsedDescendant = true;
-                        break;
-                    }
+                    topLevelId = current.parentId;
                     const nextParent = comments.find(p => p.id === current.parentId);
                     if (!nextParent) break;
                     current = nextParent;
                     safety++;
                 }
 
-                if (isCollapsedDescendant) {
-                    continue;
-                }
-                
-                result.push({ comment: c, isReply: !!c.parentId });
+                // Append safely so it doesn't get utterly hidden if expanded state clipped it
+                result.push({ comment: c, isReply: !!c.parentId, parentId: topLevelId });
             }
         }
 
@@ -523,7 +517,7 @@ export default function CommentsSection({ postId, isLocked, initialComments, tot
                                     <CommentItem
                                         comment={comment}
                                         isReply={isReplyItem}
-                                        onReply={user && !isReplyItem ? handleReply : undefined}
+                                        onReply={user && !isReplyItem && !comment.id.startsWith('temp-') ? handleReply : undefined}
                                         isLocked={!!isLocked}
                                     />
                                     {/* Show "View N replies" button for parents with collapsed replies */}

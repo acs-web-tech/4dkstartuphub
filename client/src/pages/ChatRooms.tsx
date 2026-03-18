@@ -27,6 +27,9 @@ export default function ChatRooms() {
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [newRoom, setNewRoom] = useState({ name: '', description: '', accessType: 'invite' });
     const [isMuted, setIsMuted] = useState(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -98,24 +101,39 @@ export default function ChatRooms() {
         }
     }, [status, loadRooms]);
 
-    const loadMessages = useCallback(async (rId: string) => {
+    const loadMessages = useCallback(async (rId: string, pageNum = 1, append = false) => {
         try {
-            const data = await chatApi.getMessages(rId);
-            setMessages(data.messages);
+            if (pageNum > 1) setLoadingMore(true);
+            const data = await chatApi.getMessages(rId, pageNum, 10);
+            
+            if (append) {
+                setMessages(prev => {
+                    const existingIds = new Set(prev.map(m => m.id));
+                    const newMsgs = data.messages.filter(m => !existingIds.has(m.id));
+                    return [...newMsgs, ...prev]; // Prepend older messages when scrolling up
+                });
+            } else {
+                setMessages(data.messages);
+            }
+            
             setMembers(data.members);
             setRoomInfo(data.room);
             setIsMuted(!!data.isMuted);
+            setHasMore(data.pagination.page < data.pagination.totalPages);
+            setPage(pageNum);
 
-            // Restore scroll position
-            const savedScroll = sessionStorage.getItem(`chat_scroll_${rId}`);
-            if (savedScroll && parseInt(savedScroll, 10) > 0) {
-                setTimeout(() => {
-                    if (chatContainerRef.current) {
-                        chatContainerRef.current.scrollTop = parseInt(savedScroll, 10);
-                    }
-                }, 100);
-            } else {
-                setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+            if (!append) {
+                // Restore scroll position
+                const savedScroll = sessionStorage.getItem(`chat_scroll_${rId}`);
+                if (savedScroll && parseInt(savedScroll, 10) > 0) {
+                    setTimeout(() => {
+                        if (chatContainerRef.current) {
+                            chatContainerRef.current.scrollTop = parseInt(savedScroll, 10);
+                        }
+                    }, 50);
+                } else {
+                    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 50);
+                }
             }
         } catch (err: any) {
             // Attempt auto-join for open rooms on 403
@@ -124,20 +142,23 @@ export default function ChatRooms() {
                 if (room && (room.accessType === 'open' || isAdmin)) {
                     try {
                         await chatApi.joinRoom(rId);
-                        // Force socket to join room after DB join
                         if (socket) socket.emit('joinChat', rId);
-                        const data = await chatApi.getMessages(rId);
+                        const data = await chatApi.getMessages(rId, 1, 10);
                         setMessages(data.messages);
                         setMembers(data.members);
                         setRoomInfo(data.room);
+                        setHasMore(data.pagination.page < data.pagination.totalPages);
+                        setPage(1);
                         setRooms(prev => prev.map(r => r.id === rId ? { ...r, isJoined: true, memberCount: r.memberCount + 1 } : r));
-                        return; // Successfully joined and loaded
+                        return;
                     } catch (joinErr) {
                         console.error('Auto-join failed:', joinErr);
                     }
                 }
             }
             setError(err.message || 'Failed to load messages');
+        } finally {
+            if (pageNum > 1) setLoadingMore(false);
         }
     }, [rooms, isAdmin, socket]);
 
@@ -615,6 +636,17 @@ export default function ChatRooms() {
                                 const target = e.currentTarget;
                                 if (roomId) {
                                     sessionStorage.setItem(`chat_scroll_${roomId}`, target.scrollTop.toString());
+                                }
+                                
+                                if (target.scrollTop === 0 && hasMore && !loadingMore && roomId) {
+                                    const oldHeight = target.scrollHeight;
+                                    loadMessages(roomId, page + 1, true).then(() => {
+                                        setTimeout(() => {
+                                            if (chatContainerRef.current) {
+                                                chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight - oldHeight;
+                                            }
+                                        }, 0);
+                                    });
                                 }
                             }}
                         >

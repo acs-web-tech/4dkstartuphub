@@ -334,16 +334,14 @@ export const chatApi = {
         request(`/chatrooms/${roomId}/kick`, { method: 'POST', body: JSON.stringify({ userId }) }),
     muteMember: (roomId: string, userId: string) =>
         request<{ isMuted: number }>(`/chatrooms/${roomId}/mute`, { method: 'POST', body: JSON.stringify({ userId }) }),
-    getMessages: (id: string, page?: number) => {
-        const qs = page ? `?page=${page}` : '';
-        return request<{
+    getMessages: (id: string, page: number = 1, limit: number = 10) =>
+        request<{
             room: any;
             messages: import('../types').ChatMessage[];
             members: any[];
             isMuted?: boolean;
             pagination: import('../types').Pagination;
-        }>(`/chatrooms/${id}/messages${qs}`);
-    },
+        }>(`/chatrooms/${id}/messages?page=${page}&limit=${limit}`),
     sendMessage: (id: string, content: string) =>
         request<{ message: import('../types').ChatMessage }>(`/chatrooms/${id}/messages`, {
             method: 'POST',
@@ -404,6 +402,8 @@ export const notificationsApi = {
         request('/notifications/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) }),
     registerDevice: (token: string) =>
         request('/notifications/register-device', { method: 'POST', body: JSON.stringify({ token }) }),
+    unregisterDevice: (token: string) =>
+        request('/notifications/unregister-device', { method: 'POST', body: JSON.stringify({ token }) }),
 };
 
 // ── Public Settings (no auth) ───────────────────────────────

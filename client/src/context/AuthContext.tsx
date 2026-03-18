@@ -155,6 +155,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const logout = async () => {
         try {
+            // Unregister native token if exists
+            const nativeToken = localStorage.getItem('fcm_native_token');
+            if (nativeToken) {
+                await notificationsApi.unregisterDevice(nativeToken).catch(() => {});
+            }
+
+            // Unsubscribe web push if exists
+            if ('serviceWorker' in navigator) {
+                const reg = await navigator.serviceWorker.ready;
+                if (reg) {
+                    const sub = await reg.pushManager.getSubscription();
+                    if (sub) {
+                        await notificationsApi.unsubscribe(sub.endpoint).catch(() => {});
+                        await sub.unsubscribe().catch(() => {});
+                    }
+                }
+            }
+
             await authApi.logout();
         } finally {
             // Clear all storage completely
