@@ -16,7 +16,6 @@ import { rewriteContentUrls, getCdnUrl } from '../utils/cdn';
 import CommentsSection from '../components/Post/CommentsSection';
 import LinkPreview from '../components/Common/LinkPreview';
 import { useModal } from '../context/ModalContext';
-import { VideoModal } from '../components/Common/VideoModal';
 
 export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
     const { id } = useParams<{ id: string }>();
@@ -27,7 +26,6 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
     const location = useLocation();
     const [post, setPost] = useState<Post | null>(null);
     const [comments, setComments] = useState<Comment[]>([]);
-    const [showVideoModal, setShowVideoModal] = useState(false);
 
     useEffect(() => {
         if (socket && id && status === 'connected') {
@@ -682,23 +680,12 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                             if (!embedUrl) return null;
 
                                             return (
-                                                <>
-                                                    <div 
-                                                        className="post-video-container mt-6 mb-6 rounded-lg border border-[var(--border-color)]"
-                                                        style={{ cursor: 'pointer', position: 'relative' }}
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            setShowVideoModal(true);
-                                                        }}
-                                                    >
-                                                        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 20 }} />
-                                                        <div dangerouslySetInnerHTML={{
-                                                            __html: `<iframe src="${embedUrl}" title="YouTube video player" style="width: 100%; height: 100%; position: relative; z-index: 10; pointer-events: none;" class="rounded-lg" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`
-                                                        }} />
-                                                    </div>
-                                                    {showVideoModal && <VideoModal embedUrl={embedUrl} onClose={() => setShowVideoModal(false)} />}
-                                                </>
+                                                <div 
+                                                    className="post-video-container mt-6 mb-6 rounded-lg border border-[var(--border-color)]"
+                                                    dangerouslySetInnerHTML={{
+                                                        __html: `<iframe src="${embedUrl}" title="YouTube video player" style="width: 100%; height: 100%; position: relative; z-index: 10; pointer-events: auto;" class="rounded-lg" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`
+                                                    }}
+                                                />
                                             );
                                         })()}
 

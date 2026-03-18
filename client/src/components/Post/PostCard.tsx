@@ -6,7 +6,6 @@ import { Pin, Heart, MessageSquare, Eye, Video, MoreVertical, Calendar, Download
 import { SmartImage } from '../Common/SmartImage';
 import { rewriteContentUrls } from '../../utils/cdn';
 import LinkPreview from '../Common/LinkPreview';
-import { VideoModal } from '../Common/VideoModal';
 
 interface Props {
     post: Post;
@@ -18,7 +17,6 @@ interface Props {
 function PostCard({ post, onImageClick, priority = false }: Props) {
     const location = useLocation();
     const [showOptions, setShowOptions] = useState(false);
-    const [showVideoModal, setShowVideoModal] = useState(false);
     const cat = CATEGORY_CONFIG[post.category] || CATEGORY_CONFIG.general;
     const Icon = cat.icon;
 
@@ -291,24 +289,12 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
                         )}
                         {post.videoUrl && (
                             embedUrl ? (
-                                <>
-                                    <div 
-                                        className="post-card-media-video"
-                                        style={{ cursor: 'pointer', position: 'relative' }}
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            setShowVideoModal(true);
-                                        }}
-                                    >
-                                        {/* A transparent overlay to physically capture touch events before they hit the iframe */}
-                                        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 20 }} />
-                                        <div dangerouslySetInnerHTML={{
-                                            __html: `<iframe src="${embedUrl}" title="YouTube video player" style="width: 100%; height: 100%; position: relative; z-index: 10; pointer-events: none;" class="rounded-lg" loading="lazy" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`
-                                        }} />
-                                    </div>
-                                    {showVideoModal && <VideoModal embedUrl={embedUrl} onClose={() => setShowVideoModal(false)} />}
-                                </>
+                                <div 
+                                    className="post-card-media-video"
+                                    dangerouslySetInnerHTML={{
+                                        __html: `<iframe src="${embedUrl}" title="YouTube video player" style="width: 100%; height: 100%; position: relative; z-index: 10; pointer-events: auto;" class="rounded-lg" loading="lazy" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`
+                                    }}
+                                />
                             ) : (
                                 <a
                                     href={post.videoUrl}
