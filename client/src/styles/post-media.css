@@ -41,6 +41,19 @@
     height: 100%;
 }
 
+/* Ensure Safari / WebKit respects full screen natively without CSS interference */
+iframe:fullscreen,
+iframe:-webkit-full-screen,
+iframe:-moz-full-screen {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    aspect-ratio: auto !important;
+}
+
 /* Lightbox Overlay */
 .lightbox-overlay {
     position: fixed;

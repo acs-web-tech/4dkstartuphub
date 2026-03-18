@@ -261,7 +261,7 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
                         const u = new URL(url);
                         if (u.hostname.includes('youtube.com') || u.hostname.includes('youtu.be')) {
                             const id = u.hostname.includes('youtu.be') ? u.pathname.slice(1).split('?')[0] : u.searchParams.get('v');
-                            return id ? `https://www.youtube.com/embed/${id}` : null;
+                            return id ? `https://www.youtube.com/embed/${id}?fs=1&playsinline=1` : null;
                         }
                         if (u.hostname.includes('vimeo.com')) {
                             const id = u.pathname.split('/').filter(Boolean).pop();
@@ -289,16 +289,12 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
                         )}
                         {post.videoUrl && (
                             embedUrl ? (
-                                <div className="post-card-media-video">
-                                    <iframe
-                                        src={embedUrl}
-                                        title="Video"
-                                        allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                        allowFullScreen
-                                        {...({ webkitallowfullscreen: 'true', mozallowfullscreen: 'true' } as any)}
-                                        loading="lazy"
-                                    />
-                                </div>
+                                <div 
+                                    className="post-card-media-video"
+                                    dangerouslySetInnerHTML={{
+                                        __html: `<iframe src="${embedUrl}" title="YouTube video player" style="width: 100%; height: 100%; position: relative; z-index: 10; pointer-events: auto;" class="rounded-lg" loading="lazy" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`
+                                    }}
+                                />
                             ) : (
                                 <a
                                     href={post.videoUrl}

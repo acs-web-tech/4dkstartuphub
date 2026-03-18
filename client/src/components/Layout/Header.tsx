@@ -711,9 +711,9 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                     } else if (rawUrl.includes('youtu.be')) {
                                         videoId = rawUrl.split('/').pop() || '';
                                     } else if (rawUrl.includes('youtube.com/embed')) {
-                                        embedUrl = rawUrl;
+                                        embedUrl = rawUrl.includes('?') ? `${rawUrl}&fs=1&playsinline=1` : `${rawUrl}?fs=1&playsinline=1`;
                                     }
-                                    if (videoId && !embedUrl) embedUrl = `https://www.youtube.com/embed/${videoId}`;
+                                    if (videoId && !embedUrl) embedUrl = `https://www.youtube.com/embed/${videoId}?fs=1&playsinline=1`;
                                 } else if (rawUrl.includes('vimeo.com')) {
                                     const videoId = rawUrl.split('/').pop();
                                     if (videoId) embedUrl = `https://player.vimeo.com/video/${videoId}`;
@@ -753,7 +753,15 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
 
                             return (
                                 <>
-                                    <div className="notif-modal-content ql-editor-display" dangerouslySetInnerHTML={{ __html: displayContent }} />
+                                    <div className="notif-modal-content ql-editor-display" dangerouslySetInnerHTML={{ 
+                                        __html: displayContent.replace(/<iframe([^>]*)>/gi, (match, attrs) => {
+                                            let newAttrs = attrs;
+                                            if (!newAttrs.includes('allowfullscreen')) {
+                                                newAttrs += ' allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen="true" webkitallowfullscreen="true" mozallowfullscreen="true"';
+                                            }
+                                            return `<iframe${newAttrs}>`;
+                                        })
+                                    }} />
                                     {selectedNotif.imageUrl && (
                                         <div style={{ margin: '12px 0', borderRadius: '8px', overflow: 'hidden' }}>
                                             <img
@@ -764,16 +772,12 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                         </div>
                                     )}
                                     {embedUrl && (
-                                        <div className="notif-modal-video">
-                                            <iframe
-                                                src={embedUrl}
-                                                title="Video"
-                                                frameBorder="0"
-                                                allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                                allowFullScreen
-                                                {...({ webkitallowfullscreen: 'true', mozallowfullscreen: 'true' } as any)}
-                                            />
-                                        </div>
+                                        <div 
+                                            className="notif-modal-video"
+                                            dangerouslySetInnerHTML={{
+                                                __html: `<iframe src="${embedUrl}" title="YouTube video player" style="width: 100%; height: 100%; position: relative; z-index: 10; pointer-events: auto;" class="rounded-lg" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`
+                                            }}
+                                        />
                                     )}
                                     {selectedNotif.type === 'broadcast' && selectedNotif.referenceId?.startsWith('http') && (
                                         <div style={{ padding: '0 24px 12px' }}>

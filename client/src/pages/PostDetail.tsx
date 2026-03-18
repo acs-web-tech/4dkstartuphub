@@ -630,7 +630,15 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                                 <>
                                                     <div
                                                         className="post-detail-content ql-editor"
-                                                        dangerouslySetInnerHTML={{ __html: rewriteContentUrls(displayContent) }}
+                                                        dangerouslySetInnerHTML={{ 
+                                                            __html: rewriteContentUrls(displayContent).replace(/<iframe([^>]*)>/gi, (match, attrs) => {
+                                                                let newAttrs = attrs;
+                                                                if (!newAttrs.includes('allowfullscreen')) {
+                                                                    newAttrs += ' allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen="true" webkitallowfullscreen="true" mozallowfullscreen="true"';
+                                                                }
+                                                                return `<iframe${newAttrs}>`;
+                                                            }) 
+                                                        }}
                                                         onClick={handleContentClick}
                                                     />
                                                     {urls.map(url => <LinkPreview url={url} key={url} />)}
@@ -649,9 +657,9 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                                         } else if (url.includes('youtu.be')) {
                                                             videoId = url.split('/').pop() || '';
                                                         } else if (url.includes('youtube.com/embed')) {
-                                                            return url;
+                                                            return url.includes('?') ? `${url}&fs=1&playsinline=1` : `${url}?fs=1&playsinline=1`;
                                                         }
-                                                        return videoId ? `https://www.youtube.com/embed/${videoId}` : '';
+                                                        return videoId ? `https://www.youtube.com/embed/${videoId}?fs=1&playsinline=1` : '';
                                                     }
 
                                                     // Handle Vimeo
@@ -672,18 +680,12 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                             if (!embedUrl) return null;
 
                                             return (
-                                                <div className="post-video-container mt-6 mb-6 rounded-lg border border-[var(--border-color)]">
-                                                    <iframe
-                                                        src={embedUrl}
-                                                        title="Video player"
-                                                        className="rounded-lg"
-                                                        frameBorder="0"
-                                                        allow="fullscreen; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                                        allowFullScreen
-                                                        {...({ webkitallowfullscreen: 'true', mozallowfullscreen: 'true' } as any)}
-                                                        style={{ width: '100%', height: '100%' }}
-                                                    />
-                                                </div>
+                                                <div 
+                                                    className="post-video-container mt-6 mb-6 rounded-lg border border-[var(--border-color)]"
+                                                    dangerouslySetInnerHTML={{
+                                                        __html: `<iframe src="${embedUrl}" title="YouTube video player" style="width: 100%; height: 100%; position: relative; z-index: 10; pointer-events: auto;" class="rounded-lg" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`
+                                                    }}
+                                                />
                                             );
                                         })()}
 

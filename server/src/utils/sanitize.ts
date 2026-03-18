@@ -31,9 +31,10 @@ export function sanitizeHtml(input: string): string {
             span: ['style'],
             sub: [],
             sup: [],
+            iframe: ['src', 'class', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen', 'title'],
         },
         stripIgnoreTag: true,
-        stripIgnoreTagBody: ['script', 'style', 'iframe', 'form', 'input'],
+        stripIgnoreTagBody: ['script', 'style', 'form', 'input'],
         onTagAttr(tag, name, value) {
             // Allow safe styles on span (Quill uses inline styles for color etc.)
             if (tag === 'span' && name === 'style') {
