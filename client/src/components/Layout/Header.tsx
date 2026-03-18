@@ -12,6 +12,7 @@ import { markImageAsLoaded, isImageInSession } from '../../utils/imageCache';
 import { SmartImage } from '../Common/SmartImage';
 import LinkPreview from '../Common/LinkPreview';
 import { getCdnUrl } from '../../utils/cdn';
+import { VideoModal } from '../Common/VideoModal';
 
 // ── Notification Sound (Web Audio API — no external file needed) ──
 let sharedAudioCtx: AudioContext | null = null;
@@ -62,6 +63,7 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
     const [showDropdown, setShowDropdown] = useState(false);
     const [showNotif, setShowNotif] = useState(false);
     const [showContactModal, setShowContactModal] = useState(false);
+    const [showVideoModal, setShowVideoModal] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [notifications, setNotifications] = useState<AppNotification[]>([]);
     const [selectedNotif, setSelectedNotif] = useState<AppNotification | null>(null);
@@ -772,12 +774,23 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
                                         </div>
                                     )}
                                     {embedUrl && (
-                                        <div 
-                                            className="notif-modal-video"
-                                            dangerouslySetInnerHTML={{
-                                                __html: `<iframe src="${embedUrl}" title="YouTube video player" style="width: 100%; height: 100%; position: relative; z-index: 10; pointer-events: auto;" class="rounded-lg" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`
-                                            }}
-                                        />
+                                        <>
+                                            <div 
+                                                className="notif-modal-video"
+                                                style={{ cursor: 'pointer', position: 'relative' }}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    setShowVideoModal(true);
+                                                }}
+                                            >
+                                                <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 20 }} />
+                                                <div dangerouslySetInnerHTML={{
+                                                    __html: `<iframe src="${embedUrl}" title="YouTube video player" style="width: 100%; height: 100%; position: relative; z-index: 10; pointer-events: none;" class="rounded-lg" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`
+                                                }} />
+                                            </div>
+                                            {showVideoModal && <VideoModal embedUrl={embedUrl} onClose={() => setShowVideoModal(false)} />}
+                                        </>
                                     )}
                                     {selectedNotif.type === 'broadcast' && selectedNotif.referenceId?.startsWith('http') && (
                                         <div style={{ padding: '0 24px 12px' }}>
