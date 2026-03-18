@@ -650,6 +650,11 @@ export default function ChatRooms() {
                                 }
                             }}
                         >
+                            {loadingMore && (
+                                <div style={{ textAlign: 'center', padding: '10px 0', opacity: 0.6 }}>
+                                    <RefreshCw size={20} className="spin" style={{ margin: '0 auto' }} />
+                                </div>
+                            )}
                             {messages.map(msg => {
                                 const isOwn = msg.userId === user?.id;
                                 const msgUrl = extractFirstUrl(msg.content);
