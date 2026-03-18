@@ -4637,26 +4637,25 @@ img {
 
   .chatrooms-page {
     flex-direction: column;
-    height: calc(100vh - 120px) !important;
-    min-height: calc(100vh - 120px) !important;
-    max-height: calc(100vh - 120px) !important;
-    overflow: hidden !important;
-    margin: -16px;
-    padding: 0;
+    height: auto;
+    margin: 0;
   }
 
   .chat-sidebar {
     width: 100%;
-    max-height: 25vh;
+    max-height: none;
+    height: auto;
+    overflow: visible;
     flex-shrink: 0;
   }
 
   .chat-main {
     width: 100%;
-    flex: 1;
-    min-height: 0;
+    height: calc(100vh - 80px); /* Strictly binds chat area to viewport height */
+    min-height: 500px;
     display: flex;
     flex-direction: column;
+    border-top: 2px solid var(--border-color);
   }
 
   .chat-messages {
