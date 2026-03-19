@@ -68,6 +68,7 @@ export default function Admin() {
     const [pitchRequestAmount, setPitchRequestAmount] = useState('950');
     const [welcomeImageUrl, setWelcomeImageUrl] = useState('');
     const [settingsLoading, setSettingsLoading] = useState(false);
+    const [settingsLoaded, setSettingsLoaded] = useState(false);
     const [pendingUploads, setPendingUploads] = useState<Record<string, File>>({});
 
     const loadStats = useCallback(() => {
@@ -99,12 +100,10 @@ export default function Admin() {
             loadUsers();
         } else if (tab === 'rooms') {
             if (rooms.length === 0) loadRooms();
-        } else if (tab === 'broadcast') {
-            loadSettings();
-        } else if (tab === 'settings') {
-            if (!validityMonths) loadSettings();
+        } else if (tab === 'broadcast' || tab === 'settings') {
+            if (!settingsLoaded) loadSettings();
         }
-    }, [tab]);
+    }, [tab, stats, rooms.length, settingsLoaded]);
 
     useEffect(() => {
         if (tab === 'users') {
@@ -131,6 +130,7 @@ export default function Admin() {
                 setPitchUploadLimit(data.settings.pitch_upload_limit || '0');
                 setPitchRequestAmount(data.settings.pitch_request_payment_amount || '950');
                 setWelcomeImageUrl(data.settings.welcome_notification_image_url || '');
+                setSettingsLoaded(true);
             })
             .catch(() => {
                 setError(true);
@@ -781,7 +781,7 @@ export default function Admin() {
                                 else if (tab === 'users') loadUsers();
                                 else if (tab === 'rooms') loadRooms();
                                 else if (tab === 'pitch') loadPitches();
-                                else if (tab === 'settings') loadSettings();
+                                else if (tab === 'settings' || tab === 'broadcast') loadSettings();
                             }}
                         >
                             <RefreshCw size={18} /> Retry Connection
