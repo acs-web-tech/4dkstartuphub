@@ -729,7 +729,20 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
 
                                     {/* Share Button */}
                                     <div className="relative" ref={shareRef}>
-                                        <button className="action-btn" onClick={() => setShowShare(!showShare)} id="share-btn">
+                                        <button 
+                                            className="action-btn" 
+                                            id="share-btn"
+                                            onClick={() => {
+                                                if (navigator.share && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                                                    navigator.share({
+                                                        title: post.title,
+                                                        url: window.location.href,
+                                                    }).catch(() => setShowShare(!showShare));
+                                                } else {
+                                                    setShowShare(!showShare);
+                                                }
+                                            }}
+                                        >
                                             <Share2 size={18} /> Share
                                         </button>
                                         {showShare && (

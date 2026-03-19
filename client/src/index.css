@@ -7580,18 +7580,17 @@ img {
     padding: 4px 8px;
   }
 
-  /* Share dropdown - full width on small mobile */
+  /* Share dropdown - fix for trapping inside modals */
   .share-dropdown {
-    position: fixed;
-    bottom: 0;
+    position: absolute;
+    bottom: calc(100% + 8px);
     left: 0;
-    right: 0;
-    top: auto;
-    border-radius: 16px 16px 0 0;
-    min-width: 100%;
-    padding: 12px 0;
+    right: auto;
+    border-radius: var(--radius);
+    min-width: 200px;
+    padding: 6px 0;
     z-index: 9999;
-    animation: slideUp 0.2s ease-out;
+    animation: dropIn 0.15s ease-out;
   }
 
   .share-item {
