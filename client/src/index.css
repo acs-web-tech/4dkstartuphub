@@ -6075,15 +6075,7 @@ img {
     border-top: 1px solid var(--border-color);
   }
 
-  .share-dropdown {
-    position: fixed;
-    bottom: auto;
-    top: 50%;
-    left: 50%;
-    right: auto;
-    transform: translate(-50%, -50%);
-    min-width: 260px;
-  }
+
 
   .trending-card-thumb {
     width: 56px;
@@ -7580,18 +7572,7 @@ img {
     padding: 4px 8px;
   }
 
-  /* Share dropdown - fix for trapping inside modals */
-  .share-dropdown {
-    position: absolute;
-    bottom: calc(100% + 8px);
-    left: 0;
-    right: auto;
-    border-radius: var(--radius);
-    min-width: 200px;
-    padding: 6px 0;
-    z-index: 9999;
-    animation: dropIn 0.15s ease-out;
-  }
+
 
   .share-item {
     padding: 14px 20px;
