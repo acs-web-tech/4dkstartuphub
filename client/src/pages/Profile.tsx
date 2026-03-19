@@ -6,7 +6,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { CATEGORY_CONFIG } from '../config';
 import { SmartImage } from '../components/Common/SmartImage';
 import {
-    User, Camera, Pencil, Mail, MapPin, Globe, Briefcase, Twitter, Calendar, Save, CheckCircle, AlertCircle, Eye, EyeOff, X, Heart, MessageSquare
+    User, Camera, Pencil, Mail, MapPin, Globe, Briefcase, Twitter, Calendar, Save, CheckCircle, AlertCircle, Eye, EyeOff, X, Heart, MessageSquare, CreditCard
 } from 'lucide-react';
 import { validateFile } from '../utils/fileValidation';
 import { getCdnUrl } from '../utils/cdn';
@@ -466,6 +466,49 @@ export default function Profile() {
                         </div>
                     </form>
                 )}
+            </div>
+
+            <div className="card" style={{ marginTop: '24px' }}>
+                <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <CreditCard size={20} /> Subscription Details
+                </h3>
+                <div className="profile-meta-grid" style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '16px',
+                    background: 'var(--bg-secondary)',
+                    padding: '20px',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-color)'
+                }}>
+                    <div className="profile-meta-item">
+                        <span className="meta-label">Status</span>
+                        <span style={{
+                            color: user.paymentStatus === 'completed' ? 'var(--green)' : 'var(--red)',
+                            fontWeight: 600,
+                            textTransform: 'capitalize',
+                            display: 'inline-block',
+                            padding: '4px 12px',
+                            background: user.paymentStatus === 'completed' ? 'rgba(74, 222, 128, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            borderRadius: '20px',
+                            fontSize: '13px'
+                        }}>
+                            {user.paymentStatus === 'completed' ? 'Active ' + (user.userType === 'investor' ? 'Investor' : user.userType === 'startup' ? 'Startup' : 'Premium') + ' Plan' : (user.paymentStatus || 'Free')}
+                        </span>
+                    </div>
+                    {user.paymentStatus === 'completed' && user.createdAt && (
+                        <div className="profile-meta-item">
+                            <span className="meta-label">Subscription Date</span>
+                            <span style={{ fontWeight: 600 }}>{new Date(user.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        </div>
+                    )}
+                    {user.paymentStatus === 'completed' && user.premiumExpiry && (
+                        <div className="profile-meta-item">
+                            <span className="meta-label">Valid Until</span>
+                            <span style={{ fontWeight: 600 }}>{new Date(user.premiumExpiry).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                        </div>
+                    )}
+                </div>
             </div>
 
             <div className="card" style={{ marginTop: '24px' }}>
