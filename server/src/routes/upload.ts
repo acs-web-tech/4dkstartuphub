@@ -66,8 +66,11 @@ router.get('/download', async (req, res) => {
         const contentType = response.headers.get('content-type') || 'application/octet-stream';
         const contentLength = response.headers.get('content-length');
 
+        const asciiFilename = filename.replace(/[^\x20-\x7E]/g, '').replace(/["\\]/g, '') || 'download_document';
+        const encodedFilename = encodeURIComponent(filename).replace(/['()]/g, escape).replace(/\*/g, '%2A');
+
         res.setHeader('Content-Type', contentType);
-        res.setHeader('Content-Disposition', `attachment; filename="${filename.replace(/"/g, '\\"')}"`);
+        res.setHeader('Content-Disposition', `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodedFilename}`);
         if (contentLength) {
             res.setHeader('Content-Length', contentLength);
         }
