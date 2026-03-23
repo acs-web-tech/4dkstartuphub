@@ -89,9 +89,10 @@ async function finalizeUserActivation(user: any, paymentId: string) {
         } catch (e) { console.error('Sync activation OTP failed', e); }
         return { requireVerification: true };
     } else {
-        // Don't auto-set is_email_verified — it should only be true when user actually verifies.
         // If verification is off OR already verified, just activate.
-        user.is_active = true; // Payment done + no email verification required (or already verified)
+        console.log(`✅ Finalizing activation: Verification not required or already done for ${user.email}`);
+        user.is_active = true;
+        user.is_email_verified = true; // Mark as verified since they've satisfied all current requirements to be active
         await user.save({ validateModifiedOnly: true });
         await triggerWelcomeActions(user);
         return { requireVerification: false };
@@ -351,7 +352,7 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
             user.razorpay_order_id = orderId;
             user.payment_status = paymentRequired ? 'pending' : 'free';
             user.is_active = !paymentRequired && !isVerificationRequired;
-            user.is_email_verified = false; // Only true after actual verification
+            user.is_email_verified = !isVerificationRequired; // True if verification not required
             user.email_verification_otp = verificationOtp;
             user.email_verification_otp_expires = verificationOtpExpires;
             if (verificationOtp) trackOtpRequest(user);
@@ -367,7 +368,7 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
                 payment_status: paymentRequired ? 'pending' : 'free',
                 razorpay_order_id: orderId,
                 is_active: !paymentRequired && !isVerificationRequired,
-                is_email_verified: false, // Only true after actual verification
+                is_email_verified: !isVerificationRequired, // True if verification not required
                 email_verification_otp: verificationOtp,
                 email_verification_otp_expires: verificationOtpExpires
             });
@@ -797,14 +798,17 @@ router.post('/login', validate(loginSchema), async (req, res) => {
                     if (!user.is_active) {
                         // Registration flow auto-activates users once email and payment are resolved.
                         // If a user has BOTH resolved but is still inactive, they were manually deactivated by an admin.
+                        // Heuristic: If they are fully paid and verified (or considered verified because it was off), 
+                        // and they are still inactive, it's a ban.
                         const isAdminDeactivated = user.is_email_verified && (user.payment_status === 'free' || user.payment_status === 'completed');
 
-                        // If they are just stuck in registration + verification is now off → activate them
                         if (!isAdminDeactivated && (user.payment_status === 'free' || user.payment_status === 'completed')) {
+                            // If they are only inactive because verification was ON but is now OFF...
+                            // (And they haven't been banned)
                             user.is_active = true;
+                            user.is_email_verified = true; // Upgrade them to verified status since it's no longer required
                             await user.save({ validateModifiedOnly: true });
-                            console.log(`✅ Auto-activated user ${user.email} (payment: ${user.payment_status}, verification: off)`);
-                            // Fall through to normal login token generation
+                            console.log(`✅ Auto-activated user ${user.email} (payment: ${user.payment_status}, verification gate: off)`);
                         } else {
                             // Genuinely admin-deactivated or completely stuck
                             console.warn(`🛑 Login blocked: User ${user.email} is deactivated.`);

@@ -95,7 +95,9 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
                             if (hadToken && !publicPages.includes(window.location.pathname)) {
                                 window.dispatchEvent(new CustomEvent('auth_hard_logout'));
                             }
-                            throw new Error(errMessage);
+                            const err = new Error(errMessage) as any;
+                            err.status = 401;
+                            throw err;
                         }
                         if (error.name === 'AbortError') throw error;
                     }
@@ -104,7 +106,9 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
                         isRefreshing = false;
                         refreshQueue.forEach(cb => cb(null));
                         refreshQueue = [];
-                        throw new Error(errMessage);
+                        const err = new Error(errMessage) as any;
+                        err.status = 401;
+                        throw err;
                     }
 
                     isRefreshing = false;
@@ -127,8 +131,10 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
                     
                     if (!retryRes || !retryRes.ok) {
                         if (retryRes) {
-                            const err = await retryRes.json().catch(() => ({ error: 'Request failed' }));
-                            throw new Error(err.error || 'Request failed');
+                            const errData = await retryRes.json().catch(() => ({ error: 'Request failed' }));
+                            const err = new Error(errData.error || 'Request failed') as any;
+                            err.status = retryRes.status;
+                            throw err;
                         }
                         throw new Error('Network error on retry');
                     }
@@ -157,8 +163,10 @@ export async function request<T>(url: string, options: RequestInit = {}): Promis
 
                                 if (!queuedRes || !queuedRes.ok) {
                                     if (queuedRes) {
-                                        const err = await queuedRes.json().catch(() => ({ error: 'Request failed' }));
-                                        reject(new Error(err.error || 'Request failed'));
+                                        const errData = await queuedRes.json().catch(() => ({ error: 'Request failed' }));
+                                        const err = new Error(errData.error || 'Request failed') as any;
+                                        err.status = queuedRes.status;
+                                        reject(err);
                                     } else {
                                         reject(new Error('Network error on retry'));
                                     }
