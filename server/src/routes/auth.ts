@@ -795,14 +795,18 @@ router.post('/login', validate(loginSchema), async (req, res) => {
                 } else {
                     // Verification is off or already verified
                     if (!user.is_active) {
-                        // If they just got upgraded to free + verification is off → activate them now
-                        if (user.payment_status === 'free' || user.payment_status === 'completed') {
+                        // Registration flow auto-activates users once email and payment are resolved.
+                        // If a user has BOTH resolved but is still inactive, they were manually deactivated by an admin.
+                        const isAdminDeactivated = user.is_email_verified && (user.payment_status === 'free' || user.payment_status === 'completed');
+
+                        // If they are just stuck in registration + verification is now off → activate them
+                        if (!isAdminDeactivated && (user.payment_status === 'free' || user.payment_status === 'completed')) {
                             user.is_active = true;
                             await user.save({ validateModifiedOnly: true });
                             console.log(`✅ Auto-activated user ${user.email} (payment: ${user.payment_status}, verification: off)`);
                             // Fall through to normal login token generation
                         } else {
-                            // Genuinely admin-deactivated or stuck user
+                            // Genuinely admin-deactivated or completely stuck
                             console.warn(`🛑 Login blocked: User ${user.email} is deactivated.`);
                             return res.status(403).json({ error: 'Account has been deactivated. Contact admin.' });
                         }

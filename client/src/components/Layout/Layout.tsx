@@ -84,6 +84,22 @@ export default function Layout() {
         }).catch(() => { });
     }, []);
 
+    // Listen for real-time setting changes from admin
+    useEffect(() => {
+        if (!socket) return;
+        const handleSettingChanged = ({ key, value }: { key: string, value: string }) => {
+            if (key === 'global_payment_lock') {
+                setGlobalLock(value !== 'false');
+            } else if (key === 'registration_email_verification_required') {
+                setGlobalRequireVerify(value !== 'false');
+            }
+        };
+        socket.on('settingChanged', handleSettingChanged);
+        return () => {
+            socket.off('settingChanged', handleSettingChanged);
+        };
+    }, [socket]);
+
     useEffect(() => {
         // Detect offline/reconnecting status
         if (status === 'reconnecting' || status === 'disconnected') {
@@ -177,13 +193,10 @@ export default function Layout() {
     // Lock out if:
     // 1. Platform is globally locked and user is NOT premium (Free or Expired)
     // 2. OR user account has been deactivated (isActive: false) AND they aren't just pending verification
-    // 3. OR user payment status is explicitly 'expired' or 'free' (forced payment gate)
-    // 4. (Always allow Admin and Pricing page)
+    // 3. (Always allow Admin and Pricing page)
     const isLockedOut = user && user.role !== 'admin' && location.pathname !== '/pricing' && (
         (globalLock && !isPremium) ||
-        (user.isActive === false && !isUnverified) || 
-        (user.paymentStatus === 'expired') ||
-        (user.paymentStatus === 'free')
+        (user.isActive === false && !isUnverified)
     );
 
     return (
