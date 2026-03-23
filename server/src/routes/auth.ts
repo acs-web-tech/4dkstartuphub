@@ -70,7 +70,7 @@ async function finalizeUserActivation(user: any, paymentId: string) {
 
     // Honor verification setting
     const verifySetting = await Setting.findOne({ key: 'registration_email_verification_required' });
-    const isVerificationRequired = verifySetting?.value === 'true';
+    const isVerificationRequired = verifySetting?.value !== 'false';
 
     if (isVerificationRequired && !user.is_email_verified) {
         if (hasReachedOtpLimit(user)) {
@@ -89,7 +89,8 @@ async function finalizeUserActivation(user: any, paymentId: string) {
         } catch (e) { console.error('Sync activation OTP failed', e); }
         return { requireVerification: true };
     } else {
-        user.is_email_verified = true;
+        // Don't auto-set is_email_verified — it should only be true when user actually verifies.
+        // If verification is off OR already verified, just activate.
         user.is_active = true; // Payment done + no email verification required (or already verified)
         await user.save({ validateModifiedOnly: true });
         await triggerWelcomeActions(user);
@@ -258,7 +259,7 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
         }
 
         const paymentSetting = await Setting.findOne({ key: 'registration_payment_required' });
-        const paymentRequired = paymentSetting?.value === 'true';
+        const paymentRequired = paymentSetting?.value !== 'false';
 
         // Fix: Check if an existing user already paid using their current orderId (handles phone glitches)
         if (user && user.razorpay_order_id && razorpay && user.payment_status !== 'completed' && paymentRequired) {
@@ -325,9 +326,9 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
         const sanitizedName = sanitizeHtml(displayName);
 
         const verifySetting = await Setting.findOne({ key: 'registration_email_verification_required' });
-        const isVerificationRequired = verifySetting?.value === 'true';
+        const isVerificationRequired = verifySetting?.value !== 'false';
 
-        let emailVerified = false;
+        // Never auto-set emailVerified to true — it should only be true after actual verification.
         let verificationOtp = undefined;
         let verificationOtpExpires = undefined;
 
@@ -338,8 +339,6 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
             }
             verificationOtp = crypto.randomInt(100000, 999999).toString();
             verificationOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
-        } else {
-            emailVerified = true;
         }
 
         if (user) {
@@ -352,7 +351,7 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
             user.razorpay_order_id = orderId;
             user.payment_status = paymentRequired ? 'pending' : 'free';
             user.is_active = !paymentRequired && !isVerificationRequired;
-            user.is_email_verified = emailVerified;
+            user.is_email_verified = false; // Only true after actual verification
             user.email_verification_otp = verificationOtp;
             user.email_verification_otp_expires = verificationOtpExpires;
             if (verificationOtp) trackOtpRequest(user);
@@ -368,7 +367,7 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
                 payment_status: paymentRequired ? 'pending' : 'free',
                 razorpay_order_id: orderId,
                 is_active: !paymentRequired && !isVerificationRequired,
-                is_email_verified: emailVerified,
+                is_email_verified: false, // Only true after actual verification
                 email_verification_otp: verificationOtp,
                 email_verification_otp_expires: verificationOtpExpires
             });
@@ -500,7 +499,7 @@ router.post('/register', validate(registerSchema), async (req, res) => {
 
         // Check admin setting for whether payment is required
         const paymentSetting = await Setting.findOne({ key: 'registration_payment_required' });
-        const paymentRequired = paymentSetting?.value === 'true';
+        const paymentRequired = paymentSetting?.value !== 'false';
 
         if (paymentRequired && config.razorpay.keySecret && config.razorpay.keyId) {
             if (!payment || !payment.razorpay_order_id || !payment.razorpay_payment_id || !payment.razorpay_signature) {
@@ -538,17 +537,13 @@ router.post('/register', validate(registerSchema), async (req, res) => {
 
         // Check for Email Verification Setting
         const verifySetting = await Setting.findOne({ key: 'registration_email_verification_required' });
-        const isVerificationRequired = verifySetting?.value === 'true';
+        const isVerificationRequired = verifySetting?.value !== 'false';
 
-        let emailVerified = false;
-        let verificationToken = undefined;
+        // Never auto-set emailVerified — only true after actual verification
         let verificationOtp = undefined;
 
         if (isVerificationRequired) {
             verificationOtp = crypto.randomInt(100000, 999999).toString();
-            // Send email immediately
-        } else {
-            emailVerified = true; // Auto-verify if not required
         }
 
         const newUser = await User.create({
@@ -561,8 +556,8 @@ router.post('/register', validate(registerSchema), async (req, res) => {
             razorpay_payment_id: razorpayPaymentId,
             razorpay_order_id: razorpayOrderId,
             premium_expiry: expiryDate,
-            is_email_verified: emailVerified,
-            is_active: emailVerified, // ONLY active if they don't need to verify (since register handles paid already)
+            is_email_verified: false, // Only true after actual verification
+            is_active: !isVerificationRequired, // Active if verification is not currently required
             email_verification_otp: verificationOtp,
             email_verification_otp_expires: verificationOtp ? new Date(Date.now() + 10 * 60 * 1000) : undefined
         });
@@ -733,7 +728,7 @@ router.post('/login', validate(loginSchema), async (req, res) => {
         if (!user.is_active) {
             // Check for pending payment activation glitch
             const paymentSetting = await Setting.findOne({ key: 'registration_payment_required' });
-            const isPaymentRequired = paymentSetting?.value === 'true';
+            const isPaymentRequired = paymentSetting?.value !== 'false';
 
             if (isPaymentRequired && user.payment_status !== 'completed') {
                 // Try Sync if order ID exists
@@ -781,20 +776,28 @@ router.post('/login', validate(loginSchema), async (req, res) => {
                     return await rePromptPayment(res, user);
                 }
             } else {
-                // Check if they are just unverified
-                if (!user.is_email_verified) {
-                    // Allow through to the verification check below
-                    console.log(`ℹ️ User ${user.email} is inactive but unverified. Proceeding to verification check.`);
+                // Payment is done — user is inactive for another reason
+                if (user.payment_status === 'completed') {
+                    // If verification is required and they haven't verified, let them through to verify
+                    const verifCheckSetting = await Setting.findOne({ key: 'registration_email_verification_required' });
+                    if (verifCheckSetting?.value !== 'false' && !user.is_email_verified) {
+                        console.log(`ℹ️ User ${user.email} is inactive but unverified. Proceeding to verification check.`);
+                    } else {
+                        // They're verified (or verification is off) but still inactive → admin deactivated
+                        console.warn(`🛑 Login blocked: User ${user.email} is deactivated.`);
+                        return res.status(403).json({ error: 'Account has been deactivated. Contact admin.' });
+                    }
                 } else {
-                    console.warn(`🛑 Login blocked: User ${user.email} is deactivated.`);
-                    return res.status(403).json({ error: 'Account has been deactivated. Contact admin.' });
+                    // Free/pending users — shouldn't reach here normally but handle gracefully
+                    console.warn(`🛑 Login blocked: User ${user.email} has unresolved status: ${user.payment_status}`);
+                    return res.status(403).json({ error: 'Account pending activation. Contact admin.' });
                 }
             }
         }
 
         // Check if email verification is enabled and user is verified
         const verifySetting = await Setting.findOne({ key: 'registration_email_verification_required' });
-        if (verifySetting?.value === 'true' && !user.is_email_verified) {
+        if (verifySetting?.value !== 'false' && !user.is_email_verified) {
             const { accessToken, refreshToken } = generateTokens(user._id.toString(), user.role);
             setTokenCookies(res, accessToken, refreshToken);
 
@@ -998,7 +1001,7 @@ router.post('/verify-email-otp', authenticatePending, async (req: AuthRequest, r
 
         // Finalize activation ONLY if payment is also completed (or not required)
         const paymentSetting = await Setting.findOne({ key: 'registration_payment_required' });
-        const isPaymentRequired = paymentSetting?.value === 'true';
+        const isPaymentRequired = paymentSetting?.value !== 'false';
 
         if (!isPaymentRequired || user.payment_status === 'completed') {
             user.is_active = true;

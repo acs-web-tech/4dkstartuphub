@@ -15,7 +15,9 @@ export async function initializeDatabase(): Promise<void> {
     const defaultSettings = [
       { key: 'registration_payment_required', value: 'true' },
       { key: 'registration_payment_amount', value: '950' },
-      { key: 'membership_validity_months', value: '12' }
+      { key: 'membership_validity_months', value: '12' },
+      { key: 'registration_email_verification_required', value: 'true' },
+      { key: 'global_payment_lock', value: 'true' }
     ];
 
     for (const s of defaultSettings) {

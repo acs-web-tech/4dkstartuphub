@@ -573,7 +573,17 @@ router.get('/settings', async (_req: AuthRequest, res) => {
         ];
 
         const settings = await Setting.find({ key: { $in: allowedKeys } });
-        const settingsObj: Record<string, string> = {};
+
+        // Start with safe defaults for critical boolean settings
+        // These must match the server-side fallback behavior (default = enabled)
+        const settingsObj: Record<string, string> = {
+            registration_payment_required: 'true',
+            registration_email_verification_required: 'true',
+            global_payment_lock: 'true',
+            pitch_request_payment_required: 'true'
+        };
+
+        // Override with actual DB values
         settings.forEach(s => {
             settingsObj[s.key] = s.value;
         });

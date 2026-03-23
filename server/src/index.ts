@@ -187,13 +187,13 @@ app.get('/api/settings/public', async (_req, res) => {
         ]);
 
         res.json({
-            registration_payment_required: paymentSetting?.value === 'true',
+            registration_payment_required: paymentSetting?.value !== 'false',
             registration_payment_amount: parseInt(amountSetting?.value || '950', 10),
-            pitch_request_payment_required: pitchPaymentSetting?.value === 'true',
+            pitch_request_payment_required: pitchPaymentSetting?.value !== 'false',
             pitch_request_payment_amount: parseInt(pitchAmountSetting?.value || '950', 10),
             android_app_url: androidUrl?.value || '',
             ios_app_url: iosUrl?.value || '',
-            global_payment_lock: globalLockSetting?.value === 'true'
+            global_payment_lock: globalLockSetting?.value !== 'false'
         });
     } catch (err) {
         console.error('Public settings error:', err);

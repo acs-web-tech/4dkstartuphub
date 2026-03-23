@@ -153,37 +153,42 @@ export async function requirePayment(req: AuthRequest, res: Response, next: Next
     try {
         const Setting = (await import('../models/Setting')).default;
 
-        // Fetch both settings to determine current platform policy
-        const [lockSetting, regSetting] = await Promise.all([
-            Setting.findOne({ key: 'global_payment_lock' }),
-            Setting.findOne({ key: 'registration_payment_required' })
-        ]);
+        const lockSetting = await Setting.findOne({ key: 'global_payment_lock' });
 
-        // If 'global_payment_lock' is false, the platform is open for existing users.
-        // 'registration_payment_required' only affects new signups and specialized features like Pitches.
+        // If 'global_payment_lock' is explicitly false, the platform is open for everyone.
         if (lockSetting?.value === 'false') {
             return next();
         }
 
-        // If global lock is enabled, strictly enforce the payment status and expiry
-        if (lockSetting?.value === 'true') {
-            const User = (await import('../models/User')).default;
-            const user = await User.findById(req.user?.userId).select('payment_status premium_expiry');
+        // If global lock is enabled (or missing = default ON), enforce payment
+        const User = (await import('../models/User')).default;
+        const user = await User.findById(req.user?.userId).select('payment_status premium_expiry');
 
-            // Strictly check for a valid future expiry date. 
-            // 'completed' status alone is not enough if the subscription has expired.
-            const isPremium = user && user.payment_status === 'completed' &&
-                user.premium_expiry && new Date(user.premium_expiry) > new Date();
-
-            if (!isPremium) {
-                res.status(402).json({
-                    error: 'Payment required to access the platform.',
-                    code: 'PAYMENT_REQUIRED'
-                });
-                return;
-            }
+        if (!user) {
+            res.status(402).json({ error: 'Payment required to access the platform.', code: 'PAYMENT_REQUIRED' });
+            return;
         }
-        next();
+
+        // Paid users: check they have a valid, non-expired subscription
+        if (user.payment_status === 'completed') {
+            // If they have a premium_expiry date, check it hasn't passed
+            if (user.premium_expiry && new Date(user.premium_expiry) > new Date()) {
+                return next();
+            }
+            // If premium_expiry is null (edge case: data migration, admin manual update),
+            // still allow them through — they DID pay. Admin can expire them explicitly.
+            if (!user.premium_expiry) {
+                return next();
+            }
+            // premium_expiry exists but is in the past → subscription expired
+        }
+
+        // Block: free, pending, expired, or completed-but-expired users
+        res.status(402).json({
+            error: 'Payment required to access the platform.',
+            code: 'PAYMENT_REQUIRED'
+        });
+        return;
     } catch (err) {
         console.error('Payment check middleware error:', err);
         next(); // Allow if check fails to avoid blocking everyone due to code error
