@@ -406,11 +406,12 @@ export const notificationsApi = {
         request('/notifications/unregister-device', { method: 'POST', body: JSON.stringify({ token }) }),
 };
 
-// ── Public Settings (no auth) ───────────────────────────────
 export const settingsApi = {
     getPublic: () => request<{
         registration_payment_required: boolean;
         registration_payment_amount: number;
+        registration_email_verification_required: boolean;
+        global_payment_lock: boolean;
         android_app_url?: string;
         ios_app_url?: string;
     }>('/settings/public'),

@@ -176,14 +176,15 @@ app.get('/api/health', (_req, res) => {
 app.get('/api/settings/public', async (_req, res) => {
     try {
         const Setting = (await import('./models/Setting')).default;
-        const [paymentSetting, amountSetting, pitchPaymentSetting, pitchAmountSetting, androidUrl, iosUrl, globalLockSetting] = await Promise.all([
+        const [paymentSetting, amountSetting, pitchPaymentSetting, pitchAmountSetting, androidUrl, iosUrl, globalLockSetting, verifySetting] = await Promise.all([
             Setting.findOne({ key: 'registration_payment_required' }),
             Setting.findOne({ key: 'registration_payment_amount' }),
             Setting.findOne({ key: 'pitch_request_payment_required' }),
             Setting.findOne({ key: 'pitch_request_payment_amount' }),
             Setting.findOne({ key: 'android_app_url' }),
             Setting.findOne({ key: 'ios_app_url' }),
-            Setting.findOne({ key: 'global_payment_lock' })
+            Setting.findOne({ key: 'global_payment_lock' }),
+            Setting.findOne({ key: 'registration_email_verification_required' })
         ]);
 
         res.json({
@@ -193,7 +194,8 @@ app.get('/api/settings/public', async (_req, res) => {
             pitch_request_payment_amount: parseInt(pitchAmountSetting?.value || '950', 10),
             android_app_url: androidUrl?.value || '',
             ios_app_url: iosUrl?.value || '',
-            global_payment_lock: globalLockSetting?.value !== 'false'
+            global_payment_lock: globalLockSetting?.value !== 'false',
+            registration_email_verification_required: verifySetting?.value !== 'false'
         });
     } catch (err) {
         console.error('Public settings error:', err);
@@ -204,7 +206,8 @@ app.get('/api/settings/public', async (_req, res) => {
             pitch_request_payment_amount: 950,
             android_app_url: '',
             ios_app_url: '',
-            global_payment_lock: true
+            global_payment_lock: true,
+            registration_email_verification_required: true
         });
     }
 });

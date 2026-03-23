@@ -25,6 +25,7 @@ export default function Layout() {
     const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
     const [appUrls, setAppUrls] = useState<{ android?: string, ios?: string }>({});
     const [globalLock, setGlobalLock] = useState(false);
+    const [globalRequireVerify, setGlobalRequireVerify] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const { alert } = useModal();
 
@@ -60,6 +61,7 @@ export default function Layout() {
                 refreshUser();
                 settingsApi.getPublic().then((data: any) => {
                     setGlobalLock(data.global_payment_lock || false);
+                    setGlobalRequireVerify(data.registration_email_verification_required || false);
                 }).catch(() => { });
             }
             hasConnectedOnce.current = true;
@@ -78,6 +80,7 @@ export default function Layout() {
         settingsApi.getPublic().then((data: any) => {
             setAppUrls({ android: data.android_app_url, ios: data.ios_app_url });
             setGlobalLock(data.global_payment_lock || false);
+            setGlobalRequireVerify(data.registration_email_verification_required || false);
         }).catch(() => { });
     }, []);
 
@@ -168,7 +171,8 @@ export default function Layout() {
     };
 
     const isPremium = user?.paymentStatus === 'completed' && user?.premiumExpiry && new Date(user.premiumExpiry) > new Date();
-    const isUnverified = user && !user.isEmailVerified;
+    // Only lock them onto the verification screen if the global setting is ON AND they are unverified
+    const isUnverified = globalRequireVerify && user && !user.isEmailVerified;
 
     // Lock out if:
     // 1. Platform is globally locked and user is NOT premium (Free or Expired)
