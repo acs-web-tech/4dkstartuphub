@@ -9,6 +9,7 @@ export interface IUser extends Document {
     avatar_url: string;
     role: 'user' | 'admin' | 'moderator';
     is_active: boolean;
+    is_banned: boolean;
     profile_completed: boolean;
     location: string;
     website: string;
@@ -57,6 +58,7 @@ const UserSchema: Schema = new Schema({
     avatar_url: { type: String, default: '' },
     role: { type: String, enum: ['user', 'admin', 'moderator'], default: 'user' },
     is_active: { type: Boolean, default: false },
+    is_banned: { type: Boolean, default: false },
     profile_completed: { type: Boolean, default: false },
     location: { type: String, default: '' },
     website: { type: String, default: '' },
@@ -109,6 +111,7 @@ const UserSchema: Schema = new Schema({
             ret.isActive = ret.is_active;
             ret.profileCompleted = ret.profile_completed;
             ret.isEmailVerified = ret.is_email_verified;
+            ret.isBanned = ret.is_banned;
             ret.isChatMuted = ret.is_chat_muted;
             ret.createdAt = ret.created_at;
             ret.updatedAt = ret.updated_at;

@@ -296,6 +296,7 @@ router.put('/users/:id/toggle-active', async (req: AuthRequest, res) => {
         }
 
         user.is_active = !user.is_active;
+        user.is_banned = !user.is_active; // If we deactivate them, they are considered banned
         await user.save({ validateModifiedOnly: true });
 
         const action = user.is_active ? 'activated' : 'deactivated';

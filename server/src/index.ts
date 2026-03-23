@@ -243,20 +243,6 @@ async function start() {
     // Start Email Worker (Background Thread)
     startEmailWorker();
 
-    // Migration: Set existing ACTIVE users as verified if they missed the flag
-    try {
-        const User = (await import('./models/User')).default;
-        const result = await User.updateMany(
-            { is_active: true, is_email_verified: false }, 
-            { $set: { is_email_verified: true } }
-        );
-        if (result.modifiedCount > 0) {
-            console.log(`✅ Grandfathered ${result.modifiedCount} active users to verified status.`);
-        }
-    } catch (e) {
-        console.error('Grandfathering migration failed:', e);
-    }
-    
     // Migration: Repair direct S3 URLs back to proxy URLs
         try {
             const Post = (await import('./models/Post')).default;

@@ -92,7 +92,6 @@ async function finalizeUserActivation(user: any, paymentId: string) {
         // If verification is off OR already verified, just activate.
         console.log(`✅ Finalizing activation: Verification not required or already done for ${user.email}`);
         user.is_active = true;
-        user.is_email_verified = true; // Mark as verified since they've satisfied all current requirements to be active
         await user.save({ validateModifiedOnly: true });
         await triggerWelcomeActions(user);
         return { requireVerification: false };
@@ -352,7 +351,7 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
             user.razorpay_order_id = orderId;
             user.payment_status = paymentRequired ? 'pending' : 'free';
             user.is_active = !paymentRequired && !isVerificationRequired;
-            user.is_email_verified = !isVerificationRequired; // True if verification not required
+            user.is_email_verified = false; // Maintain state: they haven't actually OTP-verified
             user.email_verification_otp = verificationOtp;
             user.email_verification_otp_expires = verificationOtpExpires;
             if (verificationOtp) trackOtpRequest(user);
@@ -368,7 +367,7 @@ router.post('/register-init', validate(registerSchema), async (req, res) => {
                 payment_status: paymentRequired ? 'pending' : 'free',
                 razorpay_order_id: orderId,
                 is_active: !paymentRequired && !isVerificationRequired,
-                is_email_verified: !isVerificationRequired, // True if verification not required
+                is_email_verified: false, // Maintain state: they haven't actually OTP-verified
                 email_verification_otp: verificationOtp,
                 email_verification_otp_expires: verificationOtpExpires
             });
@@ -797,21 +796,26 @@ router.post('/login', validate(loginSchema), async (req, res) => {
                     // Verification is off or already verified
                     if (!user.is_active) {
                         // Registration flow auto-activates users once email and payment are resolved.
-                        // If a user has BOTH resolved but is still inactive, they were manually deactivated by an admin.
-                        // Heuristic: If they are fully paid and verified (or considered verified because it was off), 
-                        // and they are still inactive, it's a ban.
-                        const isAdminDeactivated = user.is_email_verified && (user.payment_status === 'free' || user.payment_status === 'completed');
+                        if (user.is_banned) {
+                            console.warn(`🛑 Login blocked: User ${user.email} is BANNED.`);
+                            return res.status(403).json({ error: 'Account has been deactivated. Contact admin.' });
+                        }
 
-                        if (!isAdminDeactivated && (user.payment_status === 'free' || user.payment_status === 'completed')) {
-                            // If they are only inactive because verification was ON but is now OFF...
-                            // (And they haven't been banned)
+                        // Heuristic for "Pending Registration" support: 
+                        // If they are only inactive because verification was REQUIRED (but is now OFF)
+                        // OR payment was REQUIRED (but is now OFF)...
+                        const canAutoActivate = (user.payment_status === 'free' || user.payment_status === 'completed');
+                        
+                        if (canAutoActivate) {
                             user.is_active = true;
-                            user.is_email_verified = true; // Upgrade them to verified status since it's no longer required
+                            // NOTE: We do NOT set is_email_verified here. 
+                            // This allows them into the app IF the setting is currently OFF, 
+                            // but will correctly hit the verification Wall if it's turned back ON later.
                             await user.save({ validateModifiedOnly: true });
-                            console.log(`✅ Auto-activated user ${user.email} (payment: ${user.payment_status}, verification gate: off)`);
+                            console.log(`✅ Auto-activated pending user ${user.email} (payment completed, verification gate currently open)`);
                         } else {
-                            // Genuinely admin-deactivated or completely stuck
-                            console.warn(`🛑 Login blocked: User ${user.email} is deactivated.`);
+                            // Still needs payment or genuinely stuck
+                            console.warn(`🛑 Login blocked: User ${user.email} is deactivated/pending.`);
                             return res.status(403).json({ error: 'Account has been deactivated. Contact admin.' });
                         }
                     }
