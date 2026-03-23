@@ -776,21 +776,37 @@ router.post('/login', validate(loginSchema), async (req, res) => {
                     return await rePromptPayment(res, user);
                 }
             } else {
-                // Payment is done — user is inactive for another reason
-                if (user.payment_status === 'completed') {
-                    // If verification is required and they haven't verified, let them through to verify
-                    const verifCheckSetting = await Setting.findOne({ key: 'registration_email_verification_required' });
-                    if (verifCheckSetting?.value !== 'false' && !user.is_email_verified) {
-                        console.log(`ℹ️ User ${user.email} is inactive but unverified. Proceeding to verification check.`);
-                    } else {
-                        // They're verified (or verification is off) but still inactive → admin deactivated
-                        console.warn(`🛑 Login blocked: User ${user.email} is deactivated.`);
-                        return res.status(403).json({ error: 'Account has been deactivated. Contact admin.' });
-                    }
+                // This block is reached when:
+                // A) Payment is NOT required (!isPaymentRequired) — user might have any payment_status
+                // B) Payment IS required AND user already paid (payment_status === 'completed')
+
+                // If payment is not required and user is still pending/free, upgrade to 'free' status
+                if (!isPaymentRequired && user.payment_status !== 'completed') {
+                    user.payment_status = 'free';
+                    await user.save({ validateModifiedOnly: true });
+                    console.log(`ℹ️ User ${user.email} upgraded to 'free' (payment no longer required).`);
+                }
+
+                // Now check verification
+                const verifCheckSetting = await Setting.findOne({ key: 'registration_email_verification_required' });
+                if (verifCheckSetting?.value !== 'false' && !user.is_email_verified) {
+                    // Need to verify email — let them through to the verification check below
+                    console.log(`ℹ️ User ${user.email} is inactive but unverified. Proceeding to verification check.`);
                 } else {
-                    // Free/pending users — shouldn't reach here normally but handle gracefully
-                    console.warn(`🛑 Login blocked: User ${user.email} has unresolved status: ${user.payment_status}`);
-                    return res.status(403).json({ error: 'Account pending activation. Contact admin.' });
+                    // Verification is off or already verified
+                    if (!user.is_active) {
+                        // If they just got upgraded to free + verification is off → activate them now
+                        if (user.payment_status === 'free' || user.payment_status === 'completed') {
+                            user.is_active = true;
+                            await user.save({ validateModifiedOnly: true });
+                            console.log(`✅ Auto-activated user ${user.email} (payment: ${user.payment_status}, verification: off)`);
+                            // Fall through to normal login token generation
+                        } else {
+                            // Genuinely admin-deactivated or stuck user
+                            console.warn(`🛑 Login blocked: User ${user.email} is deactivated.`);
+                            return res.status(403).json({ error: 'Account has been deactivated. Contact admin.' });
+                        }
+                    }
                 }
             }
         }
