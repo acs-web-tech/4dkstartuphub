@@ -53,9 +53,8 @@ export default function Admin() {
     const [messageType, setMessageType] = useState<'success' | 'error'>('success');
 
     // Settings State
-    const [paymentRequired, setPaymentRequired] = useState(true);
-    const [isImageUploading, setIsImageUploading] = useState(false);
     const [paymentAmount, setPaymentAmount] = useState('950');
+    const [isImageUploading, setIsImageUploading] = useState(false);
     const [validityMonths, setValidityMonths] = useState('12');
     const [welcomeTitle, setWelcomeTitle] = useState('');
     const [welcomeContent, setWelcomeContent] = useState('');
@@ -117,7 +116,6 @@ export default function Admin() {
         setError(false);
         adminApi.getSettings()
             .then(data => {
-                setPaymentRequired(data.settings.registration_payment_required === 'true');
                 setPaymentAmount(data.settings.registration_payment_amount || '950');
                 setValidityMonths(data.settings.membership_validity_months || '12');
                 setWelcomeTitle(data.settings.welcome_notification_title || '');
@@ -138,19 +136,6 @@ export default function Admin() {
             .finally(() => setSettingsLoading(false));
     }, []);
 
-
-    const handleTogglePayment = async () => {
-        const newValue = !paymentRequired;
-        try {
-            await adminApi.updateSetting('registration_payment_required', String(newValue));
-            setPaymentRequired(newValue);
-            setMessage(`Registration payment ${newValue ? 'enabled' : 'disabled'}`);
-            setMessageType('success');
-        } catch (err: any) {
-            setMessage(err.message || 'Failed to update setting');
-            setMessageType('error');
-        }
-    };
 
     const handleToggleEmailVerification = async () => {
         const newValue = !emailVerificationRequired;
@@ -214,6 +199,7 @@ export default function Admin() {
         }
     };
 
+
     const handleSaveAmount = async () => {
         const num = parseInt(paymentAmount, 10);
         if (isNaN(num) || num < 1) {
@@ -224,7 +210,7 @@ export default function Admin() {
         try {
             await adminApi.updateSetting('registration_payment_amount', String(num));
             setPaymentAmount(String(num));
-            setMessage(`Payment amount updated to ₹${num}`);
+            setMessage(`Premium access price updated to ₹${num}`);
             setMessageType('success');
         } catch (err: any) {
             setMessage(err.message || 'Failed to update amount');
@@ -1493,37 +1479,15 @@ export default function Admin() {
                                     </button>
                                 </div>
 
-                                <div className="settings-toggle-row">
-                                    <div className="settings-toggle-info">
-                                        <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '4px' }}>
-                                            {paymentRequired ? '🟢 Payment Required' : '🔴 Payment Disabled'}
-                                        </div>
-                                        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                                            {paymentRequired
-                                                ? `Users must pay ₹${paymentAmount} via Razorpay during registration. They get premium access (pitch requests, etc.)`
-                                                : 'Users can register for free. Pitch requests and other premium features are restricted to paid users only.'}
-                                        </div>
-                                    </div>
-                                    <button
-                                        className={`settings-toggle-btn ${paymentRequired ? 'active' : ''}`}
-                                        onClick={handleTogglePayment}
-                                        disabled={settingsLoading}
-                                        id="toggle-registration-payment"
-                                    >
-                                        {paymentRequired
-                                            ? <ToggleRight size={40} />
-                                            : <ToggleLeft size={40} />}
-                                    </button>
-                                </div>
 
-                                {/* Payment Amount */}
+                                {/* Premium Access Amount */}
                                 <div className="settings-toggle-row" style={{ marginTop: '16px' }}>
                                     <div className="settings-toggle-info">
                                         <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '4px' }}>
-                                            💰 Registration Price
+                                            💰 Premium Access Price
                                         </div>
                                         <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                                            Set the amount users must pay during registration (in INR).
+                                            Set the amount users must pay to upgrade to premium (in INR).
                                         </div>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

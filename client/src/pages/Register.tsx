@@ -25,17 +25,10 @@ export default function Register() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [step, setStep] = useState<'role' | 'details' | 'payment'>('role');
-    const [paymentRequired, setPaymentRequired] = useState<boolean | null>(null); // null = loading
-    const [paymentAmount, setPaymentAmount] = useState(950);
+    const [step, setStep] = useState<'role' | 'details'>('role');
     const [verificationSent, setVerificationSent] = useState(false);
     const [otp, setOtp] = useState('');
-    const [savedOrder, setSavedOrder] = useState<{ orderId: string, keyId: string, amount: number, currency: string, userId: string } | null>(null);
     const [resendLoading, setResendLoading] = useState(false);
-    // Stores Razorpay response for retry verification
-    const pendingPaymentRef = useRef<{ order_id: string; payment_id: string; signature: string } | null>(null);
-    const [showVerifyButton, setShowVerifyButton] = useState(false);
-    const [paymentVerifying, setPaymentVerifying] = useState(false);
 
     // Redirect if already logged in
     useEffect(() => {
@@ -44,15 +37,6 @@ export default function Register() {
         }
     }, [user, authLoading, navigate]);
 
-    // Fetch public settings on mount
-    useEffect(() => {
-        settingsApi.getPublic()
-            .then(data => {
-                setPaymentRequired(data.registration_payment_required);
-                setPaymentAmount(data.registration_payment_amount || 950);
-            })
-            .catch(() => setPaymentRequired(true));
-    }, []);
 
     const updateField = (field: string, value: string) => {
         setForm(prev => ({ ...prev, [field]: value }));
@@ -60,20 +44,6 @@ export default function Register() {
 
     if (authLoading) return <div className="loading-container"><div className="spinner" /></div>;
     if (user) return null;
-    if (paymentRequired === null) {
-        return (
-            <div className="auth-page">
-                <div className="auth-container">
-                    <div className="auth-brand">
-                        <Rocket size={64} className="logo-icon-lg text-primary" />
-                        <h1>StartupHub</h1>
-                        <p>Loading...</p>
-                    </div>
-                    <div className="loading-container"><div className="spinner" /></div>
-                </div>
-            </div>
-        );
-    }
 
     const passwordChecks = [
         { label: 'At least 8 characters', valid: form.password.length >= 8 },
@@ -109,61 +79,13 @@ export default function Register() {
 
         setLoading(true);
         try {
-            // Initiate Registration (check dupes + create pending user)
-            const res = await authApi.initiateRegistration({
+            const res = await authApi.register({
                 username: form.username,
                 email: form.email,
                 password: form.password,
                 displayName: form.displayName,
-                userType: userType!,
+                userType: userType as any,
             });
-
-            // Store tokens if returned (usually if payment is not required)
-            const regRes = res as any;
-            if (regRes.accessToken) {
-                localStorage.setItem('access_token', regRes.accessToken);
-                if (regRes.refreshToken) localStorage.setItem('refresh_token', regRes.refreshToken);
-
-                if (!regRes.requireVerification) {
-                    window.location.href = '/feed';
-                    return;
-                }
-            }
-
-            if (regRes.requireVerification) {
-                setVerificationSent(true);
-                setLoading(false);
-                return;
-            }
-
-            // Payment IS required
-            setSavedOrder(res as any);
-            setLoading(false);
-            setStep('payment');
-
-        } catch (err: any) {
-            setError(err.message || 'Registration failed');
-            setLoading(false);
-        }
-    };
-
-    // Retry verify payment with stored details
-    const retryVerifyPayment = async () => {
-        const details = pendingPaymentRef.current;
-        if (!details) {
-            setError('No payment details found. Please try paying again.');
-            setShowVerifyButton(false);
-            return;
-        }
-
-        setPaymentVerifying(true);
-        setError('');
-
-        try {
-            const res = await authApi.finalizeRegistration(details);
-
-            pendingPaymentRef.current = null;
-            setShowVerifyButton(false);
 
             if (res.accessToken) {
                 localStorage.setItem('access_token', res.accessToken);
@@ -172,102 +94,14 @@ export default function Register() {
 
             if (res.requireVerification) {
                 setVerificationSent(true);
-            } else {
-                window.location.href = '/feed';
-            }
-        } catch (err: any) {
-            setError(err.message || 'Verification failed. Please try again or contact support.');
-        } finally {
-            setPaymentVerifying(false);
-        }
-    };
-
-    const handlePayment = async () => {
-        if (!savedOrder) {
-            setError('Order details missing. Please go back and try again.');
-            return;
-        }
-
-        setLoading(true);
-        setError('');
-        setShowVerifyButton(false);
-
-        try {
-            // Step 2: Open Razorpay checkout using Saved Order
-            const options = {
-                key: savedOrder.keyId,
-                amount: savedOrder.amount,
-                currency: 'INR',
-                name: 'StartupHub',
-                description: `${userType === 'startup' ? 'Startup' : userType === 'investor' ? 'Investor' : 'Freelancer'} Registration — ₹${paymentAmount}`,
-                order_id: savedOrder.orderId,
-                handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
-                    // Store payment details immediately for retry safety
-                    const paymentDetails = {
-                        order_id: response.razorpay_order_id,
-                        payment_id: response.razorpay_payment_id,
-                        signature: response.razorpay_signature,
-                    };
-                    pendingPaymentRef.current = paymentDetails;
-
-                    try {
-                        // Step 3: Finalize Registration
-                        const res = await authApi.finalizeRegistration(paymentDetails);
-
-                        pendingPaymentRef.current = null;
-                        setShowVerifyButton(false);
-
-                        // Store tokens so we are authenticated for verification/resend
-                        if (res.accessToken) {
-                            localStorage.setItem('access_token', res.accessToken);
-                            if (res.refreshToken) localStorage.setItem('refresh_token', res.refreshToken);
-                        }
-
-                        if (res.requireVerification) {
-                            setVerificationSent(true);
-                            setLoading(false);
-                        } else {
-                            window.location.href = '/feed';
-                        }
-                    } catch (err: any) {
-                        // Payment succeeded at Razorpay but finalize failed
-                        // Show verify button so user can retry
-                        setError(err.message || 'Payment completed but registration finalization failed. Please click "Verify Payment" to complete.');
-                        setShowVerifyButton(true);
-                        setLoading(false);
-                    }
-                },
-                prefill: {
-                    name: form.displayName,
-                    email: form.email,
-                    contact: '', // Optional
-                },
-                theme: {
-                    color: '#6366f1',
-                    backdrop_color: 'rgba(15, 15, 20, 0.85)',
-                },
-                modal: {
-                    ondismiss: () => {
-                        setLoading(false);
-                    },
-                },
-            };
-
-            const isLoaded = await loadRazorpay();
-            if (!isLoaded) {
-                setError('Razorpay SDK failed to load. Are you offline?');
                 setLoading(false);
                 return;
             }
 
-            const rzp = new window.Razorpay(options);
-            rzp.on('payment.failed', (response: any) => {
-                setError(`Payment failed: ${response.error?.description || 'Unknown error'}. Please try again.`);
-                setLoading(false);
-            });
-            rzp.open();
+            window.location.href = '/feed';
+
         } catch (err: any) {
-            setError(err.message || 'Failed to initiate payment');
+            setError(err.message || 'Registration failed');
             setLoading(false);
         }
     };
@@ -307,9 +141,6 @@ export default function Register() {
         }
     };
 
-    // ── Step Indicator ──────────────────────────────────────────
-    const totalSteps = paymentRequired ? 3 : 2;
-
     const stepIndicator = (
         <div className="register-steps">
             <div className={`register-step ${step === 'role' ? 'active' : 'done'}`}>
@@ -317,37 +148,12 @@ export default function Register() {
                 <span>Role</span>
             </div>
             <div className="step-line" />
-            <div className={`register-step ${step === 'details' ? 'active' : (step === 'payment' ? 'done' : '')}`}>
+            <div className={`register-step ${step === 'details' ? 'active' : ''}`}>
                 <div className="step-dot">2</div>
                 <span>Details</span>
             </div>
-            {paymentRequired && (
-                <>
-                    <div className="step-line" />
-                    <div className={`register-step ${step === 'payment' ? 'active' : ''}`}>
-                        <div className="step-dot">3</div>
-                        <span>Payment</span>
-                    </div>
-                </>
-            )}
         </div>
     );
-
-    // Show loading while checking settings
-    if (paymentRequired === null) {
-        return (
-            <div className="auth-page">
-                <div className="auth-container">
-                    <div className="auth-brand">
-                        <Rocket size={64} className="logo-icon-lg text-primary" />
-                        <h1>StartupHub</h1>
-                        <p>Loading...</p>
-                    </div>
-                    <div className="loading-container"><div className="spinner" /></div>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="auth-page">
@@ -518,69 +324,12 @@ export default function Register() {
                                     <div className="form-actions-row">
                                         <button type="button" className="btn btn-ghost" onClick={() => setStep('role')}>← Back</button>
                                         <button type="submit" className="btn btn-primary" disabled={loading} id="register-details-submit">
-                                            {loading ? 'Creating Account...' : (paymentRequired ? 'Continue to Payment →' : 'Create Account')}
+                                            {loading ? 'Creating Account...' : 'Create Account'}
                                         </button>
                                     </div>
                                 </form>
                             )}
 
-                            {/* ── Step 3: Payment (only if required) ──────────── */}
-                            {step === 'payment' && paymentRequired && (
-                                <div className="payment-step">
-                                    <div className="payment-summary-card">
-                                        <div className="payment-summary-header">
-                                            <CreditCard size={20} /> Order Summary
-                                        </div>
-                                        <div className="payment-summary-body">
-                                            <div className="payment-line">
-                                                <span>Account Type</span>
-                                                <span className="payment-type-badge">
-                                                    {userType === 'startup' ? <Building2 size={14} /> : userType === 'investor' ? <TrendingUp size={14} /> : <Wrench size={14} />}
-                                                    {userType === 'startup' ? 'Startup' : userType === 'investor' ? 'Investor' : 'Freelancer'}
-                                                </span>
-                                            </div>
-                                            <div className="payment-line">
-                                                <span>User</span>
-                                                <span style={{ wordBreak: 'break-all', textAlign: 'right', maxWidth: '65%' }}>{form.displayName} (@{form.username})</span>
-                                            </div>
-                                            <div className="payment-divider" />
-                                            <div className="payment-line payment-total">
-                                                <span>Registration Fee</span>
-                                                <span className="payment-amount">₹{paymentAmount}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="payment-security">
-                                        <Shield size={16} />
-                                        <span>Secured by Razorpay — 256-bit encryption</span>
-                                    </div>
-
-                                    <div className="form-actions-row">
-                                        <button type="button" className="btn btn-ghost" onClick={() => setStep('details')}>← Back</button>
-                                        {showVerifyButton ? (
-                                            <button
-                                                className="btn btn-primary btn-pay"
-                                                onClick={retryVerifyPayment}
-                                                disabled={paymentVerifying}
-                                                id="verify-payment"
-                                                style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
-                                            >
-                                                {paymentVerifying ? 'Verifying Payment...' : '✅ Verify Payment'}
-                                            </button>
-                                        ) : (
-                                            <button
-                                                className="btn btn-primary btn-pay"
-                                                onClick={handlePayment}
-                                                disabled={loading}
-                                                id="pay-and-register"
-                                            >
-                                                {loading ? 'Processing...' : `💳 Pay ₹${paymentAmount} & Register`}
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
                         </>
                     )}
                 </div>

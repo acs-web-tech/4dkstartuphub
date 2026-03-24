@@ -176,8 +176,7 @@ app.get('/api/health', (_req, res) => {
 app.get('/api/settings/public', async (_req, res) => {
     try {
         const Setting = (await import('./models/Setting')).default;
-        const [paymentSetting, amountSetting, pitchPaymentSetting, pitchAmountSetting, androidUrl, iosUrl, globalLockSetting, verifySetting] = await Promise.all([
-            Setting.findOne({ key: 'registration_payment_required' }),
+        const [amountSetting, pitchPaymentSetting, pitchAmountSetting, androidUrl, iosUrl, globalLockSetting, verifySetting] = await Promise.all([
             Setting.findOne({ key: 'registration_payment_amount' }),
             Setting.findOne({ key: 'pitch_request_payment_required' }),
             Setting.findOne({ key: 'pitch_request_payment_amount' }),
@@ -188,7 +187,6 @@ app.get('/api/settings/public', async (_req, res) => {
         ]);
 
         res.json({
-            registration_payment_required: paymentSetting?.value !== 'false',
             registration_payment_amount: parseInt(amountSetting?.value || '950', 10),
             pitch_request_payment_required: pitchPaymentSetting?.value !== 'false',
             pitch_request_payment_amount: parseInt(pitchAmountSetting?.value || '950', 10),
@@ -200,7 +198,6 @@ app.get('/api/settings/public', async (_req, res) => {
     } catch (err) {
         console.error('Public settings error:', err);
         res.json({
-            registration_payment_required: true,
             registration_payment_amount: 950,
             pitch_request_payment_required: true,
             pitch_request_payment_amount: 950,

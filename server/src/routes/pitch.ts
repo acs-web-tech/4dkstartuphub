@@ -23,16 +23,13 @@ async function requirePremium(req: AuthRequest, res: Response, next: NextFunctio
         const Setting = (await import('../models/Setting')).default;
 
         // Check platform settings first: if it's open or free, bypass premium check
-        const [lockSetting, regSetting, pitchReqSetting] = await Promise.all([
+        const [lockSetting, pitchReqSetting] = await Promise.all([
             Setting.findOne({ key: 'global_payment_lock' }),
-            Setting.findOne({ key: 'registration_payment_required' }),
             Setting.findOne({ key: 'pitch_request_payment_required' })
         ]);
 
         // Only bypass if ALL relevant locks are disabled. 
-        if (lockSetting?.value === 'false' &&
-            regSetting?.value === 'false' &&
-            pitchReqSetting?.value === 'false') {
+        if (lockSetting?.value === 'false' && pitchReqSetting?.value === 'false') {
             next();
             return;
         }

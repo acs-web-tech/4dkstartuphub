@@ -557,7 +557,6 @@ router.post('/notifications/broadcast', async (req: AuthRequest, res) => {
 router.get('/settings', async (_req: AuthRequest, res) => {
     try {
         const allowedKeys = [
-            'registration_payment_required',
             'registration_payment_amount',
             'membership_validity_months',
             'welcome_notification_title',
@@ -578,7 +577,6 @@ router.get('/settings', async (_req: AuthRequest, res) => {
         // Start with safe defaults for critical boolean settings
         // These must match the server-side fallback behavior (default = enabled)
         const settingsObj: Record<string, string> = {
-            registration_payment_required: 'true',
             registration_email_verification_required: 'true',
             global_payment_lock: 'true',
             pitch_request_payment_required: 'true'
@@ -605,7 +603,6 @@ router.put('/settings', async (req: AuthRequest, res) => {
         }
 
         const allowedKeys = [
-            'registration_payment_required',
             'registration_payment_amount',
             'membership_validity_months',
             'welcome_notification_title',

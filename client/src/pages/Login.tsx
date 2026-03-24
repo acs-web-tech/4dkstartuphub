@@ -27,11 +27,6 @@ export default function Login() {
     const [showVerification, setShowVerification] = useState(false);
     const [otp, setOtp] = useState('');
     const [resendLoading, setResendLoading] = useState(false);
-    const [pendingPayment, setPendingPayment] = useState<any>(null);
-    // Stores Razorpay response for retry verification
-    const pendingPaymentRef = useRef<{ order_id: string; payment_id: string; signature: string } | null>(null);
-    const [showVerifyButton, setShowVerifyButton] = useState(false);
-    const [paymentVerifying, setPaymentVerifying] = useState(false);
 
     // Redirect if already logged in (prevents login page flicker)
     useEffect(() => {
@@ -43,124 +38,16 @@ export default function Login() {
     if (authLoading) return <div className="loading-container"><div className="spinner" /></div>;
     if (user) return null;
 
-    // Retry verify payment with stored details (login flow)
-    const retryVerifyPayment = async () => {
-        const details = pendingPaymentRef.current;
-        if (!details) {
-            setError('No payment details found. Please try paying again.');
-            setShowVerifyButton(false);
-            return;
-        }
-
-        setPaymentVerifying(true);
-        setError('');
-
-        try {
-            const finalizeRes = await authApi.finalizeRegistration(details);
-
-            pendingPaymentRef.current = null;
-            setShowVerifyButton(false);
-
-            if (finalizeRes.accessToken) localStorage.setItem('access_token', finalizeRes.accessToken);
-            if (finalizeRes.refreshToken) localStorage.setItem('refresh_token', finalizeRes.refreshToken);
-
-            if (finalizeRes.requireVerification) {
-                setShowVerification(true);
-                setPendingPayment(null);
-            } else {
-                await login(email, password);
-                navigate('/feed');
-            }
-        } catch (err: any) {
-            setError(err.message || 'Verification failed. Please try again or contact support.');
-        } finally {
-            setPaymentVerifying(false);
-        }
-    };
-
-    const handlePaymentRetry = async (data: any) => {
-        setShowVerifyButton(false);
-        const isLoaded = await loadRazorpay();
-        if (!isLoaded) {
-            setError('Razorpay SDK failed to load. Are you offline?');
-            return;
-        }
-
-        const options = {
-            key: data.keyId,
-            amount: data.amount,
-            currency: 'INR',
-            name: 'StartupHub',
-            description: `Registration Payment`,
-            order_id: data.orderId,
-            handler: async (response: any) => {
-                // Store payment details immediately for retry safety
-                const paymentDetails = {
-                    order_id: response.razorpay_order_id,
-                    payment_id: response.razorpay_payment_id,
-                    signature: response.razorpay_signature,
-                };
-                pendingPaymentRef.current = paymentDetails;
-
-                setLoading(true);
-                try {
-                    const finalizeRes = await authApi.finalizeRegistration(paymentDetails);
-
-                    pendingPaymentRef.current = null;
-                    setShowVerifyButton(false);
-
-                    // Set tokens if provided
-                    if (finalizeRes.accessToken) localStorage.setItem('access_token', finalizeRes.accessToken);
-                    if (finalizeRes.refreshToken) localStorage.setItem('refresh_token', finalizeRes.refreshToken);
-
-                    if (finalizeRes.requireVerification) {
-                        setShowVerification(true);
-                        setPendingPayment(null);
-                        setLoading(false);
-                    } else {
-                        // Successfully finalized and no verification needed
-                        await login(email, password);
-                        navigate('/feed');
-                    }
-                } catch (err: any) {
-                    // Payment succeeded at Razorpay but finalize failed
-                    setError(err.message || 'Payment completed but activation failed. Please click "Verify Payment" to complete.');
-                    setShowVerifyButton(true);
-                    setLoading(false);
-                }
-            },
-            prefill: {
-                name: data.displayName || '',
-                email: data.email || '',
-            },
-            theme: { color: '#6366f1' },
-            modal: {
-                ondismiss: () => {
-                    setLoading(false);
-                }
-            }
-        };
-
-        const rzp = new window.Razorpay(options);
-        rzp.on('payment.failed', (response: any) => {
-            setError(`Payment failed: ${response.error?.description || 'Unknown error'}. Please try again.`);
-            setLoading(false);
-        });
-        rzp.open();
-    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        setPendingPayment(null);
         setLoading(true);
         try {
             await login(email, password);
             navigate('/feed');
         } catch (err: any) {
-            if (err.data && err.data.error === 'PAYMENT_REQUIRED') {
-                setPendingPayment(err.data);
-            } else if (err.data && err.data.error === 'EMAIL_VERIFICATION_REQUIRED') {
+            if (err.data && err.data.error === 'EMAIL_VERIFICATION_REQUIRED') {
                 if (err.data.accessToken) localStorage.setItem('access_token', err.data.accessToken);
                 if (err.data.refreshToken) localStorage.setItem('refresh_token', err.data.refreshToken);
                 setShowVerification(true);
@@ -215,54 +102,7 @@ export default function Login() {
                     {verified && <div className="alert alert-success" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.2)' }}>Email Verified! Please log in.</div>}
                     {error && <div className="alert alert-error">{error}</div>}
 
-                    {pendingPayment ? (
-                        <div className="payment-prompt text-center p-6">
-                            <div className="payment-icon-lg mb-4" style={{ fontSize: '48px' }}>💳</div>
-                            <h2 className="mb-2">Payment Required</h2>
-                            <p className="text-gray-400 mb-6">Your registration is almost complete! Please pay the one-time fee to activate your account.</p>
-
-                            <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', marginBottom: '24px', textAlign: 'left' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Registration Fee</span>
-                                    <span style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--accent)' }}>₹{pendingPayment.amount / 100}</span>
-                                </div>
-                                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
-                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>User Account</span>
-                                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 500, wordBreak: 'break-all', display: 'block' }}>{pendingPayment.email}</span>
-                                </div>
-                            </div>
-
-                            <button
-                                className="btn btn-primary btn-full py-4 text-lg"
-                                onClick={() => handlePaymentRetry(pendingPayment)}
-                                disabled={loading}
-                            >
-                                {loading ? 'Processing...' : `Pay ₹${pendingPayment.amount / 100} & Continue`}
-                            </button>
-
-                            {showVerifyButton && (
-                                <button
-                                    className="btn btn-primary btn-full py-4 text-lg mt-3"
-                                    onClick={retryVerifyPayment}
-                                    disabled={paymentVerifying}
-                                    style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
-                                >
-                                    {paymentVerifying ? (
-                                        <><RefreshCw size={18} style={{ animation: 'spin 1s linear infinite', display: 'inline', marginRight: '8px' }} /> Verifying Payment...</>
-                                    ) : (
-                                        <><AlertTriangle size={18} style={{ display: 'inline', marginRight: '8px' }} /> Verify Payment</>
-                                    )}
-                                </button>
-                            )}
-
-                            <button
-                                className="btn btn-ghost btn-full mt-4"
-                                onClick={() => { setPendingPayment(null); setShowVerifyButton(false); }}
-                            >
-                                Back to Login
-                            </button>
-                        </div>
-                    ) : showVerification ? (
+                    {showVerification ? (
                         <>
                             <h2>Verify Your Email</h2>
                             <p className="auth-subtitle">We've sent a 6-digit code to <strong>{email}</strong></p>

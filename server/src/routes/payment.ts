@@ -63,7 +63,7 @@ router.post('/webhook', async (req, res) => {
 
             const user = await User.findOne({ razorpay_order_id: orderId });
 
-            if (user && user.payment_status !== 'completed') {
+            if (user && user.payment_status === 'pending') {
                 const validitySetting = await Setting.findOne({ key: 'membership_validity_months' });
                 const validityMonths = parseInt(validitySetting?.value || '12', 10);
                 const expiryDate = new Date();
@@ -262,6 +262,15 @@ router.post('/verify-status', authenticate, async (req: AuthRequest, res) => {
         // Already completed — no action needed
         if (user.payment_status === 'completed') {
             return res.json({ status: 'completed', message: 'Payment already verified' });
+        }
+
+        // Only re-verify for genuinely PENDING users (from registration flow).
+        // If admin explicitly set 'expired' or 'free', DO NOT touch it.
+        if (user.payment_status !== 'pending') {
+            return res.json({ 
+                status: user.payment_status, 
+                message: `Payment status is '${user.payment_status}'. No verification needed.` 
+            });
         }
 
         // SECURITY: Only use the order ID from the user's OWN database record.

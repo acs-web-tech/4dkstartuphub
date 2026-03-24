@@ -13,7 +13,6 @@ export async function initializeDatabase(): Promise<void> {
     // Seed default settings in MongoDB
     const Setting = (await import('../models/Setting')).default;
     const defaultSettings = [
-      { key: 'registration_payment_required', value: 'true' },
       { key: 'registration_payment_amount', value: '950' },
       { key: 'membership_validity_months', value: '12' },
       { key: 'registration_email_verification_required', value: 'true' },
