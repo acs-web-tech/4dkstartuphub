@@ -409,14 +409,23 @@ export const notificationsApi = {
         request('/notifications/unregister-device', { method: 'POST', body: JSON.stringify({ token }) }),
 };
 
+let publicCache: Promise<any> | null = null;
 export const settingsApi = {
-    getPublic: () => request<{
-        registration_payment_amount: number;
-        registration_email_verification_required: boolean;
-        global_payment_lock: boolean;
-        android_app_url?: string;
-        ios_app_url?: string;
-    }>('/settings/public'),
+    getPublic: () => {
+        if (!publicCache) {
+            publicCache = request<{
+                registration_payment_amount: number;
+                registration_email_verification_required: boolean;
+                global_payment_lock: boolean;
+                android_app_url?: string;
+                ios_app_url?: string;
+            }>('/settings/public').catch(err => {
+                publicCache = null;
+                throw err;
+            });
+        }
+        return publicCache;
+    },
 };
 
 export const uploadApi = {
