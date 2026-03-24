@@ -14,7 +14,7 @@ interface ModalOptions {
 
 interface ModalContextType {
     alert: (message: string, title?: string) => Promise<boolean>;
-    confirm: (message: string, title?: string) => Promise<boolean>;
+    confirm: (message: string, title?: string, confirmText?: string, cancelText?: string, isDanger?: boolean) => Promise<boolean>;
 }
 
 const ModalContext = createContext<ModalContextType | undefined>(undefined);
@@ -34,14 +34,14 @@ export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         });
     }, []);
 
-    const confirm = useCallback((message: string, title: string = 'Confirm') => {
+    const confirm = useCallback((message: string, title: string = 'Confirm', confirmText: string = 'Yes, Delete', cancelText: string = 'Cancel', isDanger: boolean = true) => {
         return new Promise<boolean>((resolve) => {
             setModal({
                 title,
                 message,
-                type: 'confirm',
-                confirmText: 'Yes, Delete',
-                cancelText: 'Cancel',
+                type: isDanger ? 'confirm' : ('alert' as any), // use the 'modal.type' for the danger coloring (hacky but it works since we check type === 'confirm' for btn-danger below)
+                confirmText,
+                cancelText,
                 resolve
             });
         });
@@ -71,9 +71,9 @@ export const ModalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                         <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: '1.5' }}>{modal.message}</p>
 
                         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                            {modal.type === 'confirm' && (
+                            {modal.cancelText && (
                                 <button className="btn btn-ghost" onClick={handleCancel}>
-                                    {modal.cancelText || 'Cancel'}
+                                    {modal.cancelText}
                                 </button>
                             )}
                             <button

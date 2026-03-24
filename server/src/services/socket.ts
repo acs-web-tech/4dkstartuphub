@@ -408,6 +408,22 @@ class SocketService {
     }
 
     /**
+     * Notify room that member list updated
+     */
+    emitMemberListUpdated(roomId: string) {
+        if (!this.io) return;
+        this.io.to(`chat:${roomId}`).emit('memberListUpdated', { roomId });
+    }
+
+    /**
+     * Notify an individual that they were explicitly added to a room
+     */
+    emitMemberAdded(roomId: string, userId: string) {
+        if (!this.io) return;
+        this.emitMemberListUpdated(roomId);
+        this.io.to(userId).emit('memberAdded', { roomId });
+    }
+    /**
      * Notify all users that room access type changed
      */
     emitRoomAccessChanged(roomId: string, accessType: string) {

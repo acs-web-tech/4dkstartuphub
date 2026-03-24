@@ -138,6 +138,12 @@ export default function ChatRooms() {
         } catch (err: any) {
             // Attempt auto-join for open rooms on 403
             if (err.message?.includes('403')) {
+                // If the user was kicked, don't attempt auto-join
+                if (kickedRooms.has(rId)) {
+                    setError('You have been removed from this room.');
+                    return;
+                }
+
                 const room = rooms.find(r => r.id === rId);
                 if (room && (room.accessType === 'open' || isAdmin)) {
                     try {
@@ -149,7 +155,7 @@ export default function ChatRooms() {
                         setRoomInfo(data.room);
                         setHasMore(data.pagination.page < data.pagination.totalPages);
                         setPage(1);
-                        setRooms(prev => prev.map(r => r.id === rId ? { ...r, isJoined: true, memberCount: r.memberCount + 1 } : r));
+                        setRooms(prev => prev.map(r => r.id === rId ? { ...r, isJoined: true, memberCount: (r.memberCount || 0) + 1 } : r));
                         return;
                     } catch (joinErr: any) {
                         console.error('Auto-join failed:', joinErr);
@@ -168,11 +174,16 @@ export default function ChatRooms() {
         } finally {
             if (pageNum > 1) setLoadingMore(false);
         }
-    }, [rooms, isAdmin, socket, alert, navigate]);
+    }, [rooms, isAdmin, socket, alert, navigate, kickedRooms]);
 
     // Handle room selection and synchronization with roomId param
     useEffect(() => {
         if (roomId) {
+            if (kickedRooms.has(roomId)) {
+                // Ignore load requests if actively kicked in current session
+                return;
+            }
+
             const roomInList = rooms.find(r => r.id === roomId);
             if (roomInList) {
                 // If the room is not joined and not open/admin, show message and redirect
@@ -191,7 +202,7 @@ export default function ChatRooms() {
             setRoomInfo(null);
             setMessages([]);
         }
-    }, [roomId, rooms, isAdmin, navigate, loadMessages, alert]);
+    }, [roomId, rooms, isAdmin, navigate, loadMessages, alert, kickedRooms]);
 
     const handleSelectRoom = (room: ChatRoom) => {
         if (kickedRooms.has(room.id)) {
@@ -243,9 +254,12 @@ export default function ChatRooms() {
                     setRoomInfo(null);
                     setMessages([]);
                     setRooms(prev => prev.map(r => r.id === errRoomId ? { ...r, isJoined: false, memberCount: Math.max(0, r.memberCount - 1) } : r));
-                    alert('⛔ You have been removed from this room.\nYou can no longer send or view messages here. Contact an admin if you believe this was a mistake.').then(() => {
+                    
+                    // Don't show alert if they are just quickly browsing or leaving
+                    setTimeout(() => {
                         navigate('/chatrooms');
-                    });
+                        alert('⛔ You have been removed from this room.\nYou can no longer send or view messages here. Contact an admin if you believe this was a mistake.');
+                    }, 0);
                 } else if (errText.toLowerCase().includes('muted')) {
                     setIsMuted(true);
                     alert('🔇 You have been muted in this room.\nYou can still read messages, but you cannot send new ones until an admin unmutes you.');
@@ -279,9 +293,10 @@ export default function ChatRooms() {
                 setIsMuted(true);
                 setRoomInfo(null);
                 setMessages([]);
-                alert('⛔ You have been removed from this room by an admin.\nYou will be redirected to the chat rooms list.').then(() => {
+                setTimeout(() => {
                     navigate('/chatrooms');
-                });
+                    alert('⛔ You have been removed from this room by an admin.\nYou have been redirected to the chat rooms list.');
+                }, 0);
             }
         });
 
@@ -323,6 +338,21 @@ export default function ChatRooms() {
             }
         });
 
+        socket.on('memberAdded', ({ roomId: addedRoomId }: { roomId: string }) => {
+            setKickedRooms(prev => {
+                const next = new Set(prev);
+                next.delete(addedRoomId);
+                return next;
+            });
+            setRooms(prev => prev.map(r => r.id === addedRoomId ? { ...r, isJoined: true, memberCount: (r.memberCount || 0) + 1 } : r));
+            
+            if (addedRoomId === roomId) {
+                setIsMuted(false);
+                setError(null);
+                loadMessages(roomId);
+            }
+        });
+
         return () => {
             socket.emit('leaveChat', roomId);
             socket.off('newChatMessage', handleNewMessage);
@@ -333,17 +363,22 @@ export default function ChatRooms() {
             socket.off('roomAccessChanged');
             socket.off('roomDeleted');
             socket.off('memberListUpdated');
+            socket.off('memberAdded');
         };
     }, [socket, roomId, status, navigate, loadMessages]);
 
     const handleJoin = async (room: ChatRoom) => {
         try {
             await chatApi.joinRoom(room.id);
-            setRooms(prev => prev.map(r => r.id === room.id ? { ...r, isJoined: true, memberCount: r.memberCount + 1 } : r));
+            setRooms(prev => prev.map(r => r.id === room.id ? { ...r, isJoined: true, memberCount: (r.memberCount || 0) + 1 } : r));
             navigate(`/chatrooms/${room.id}`);
         } catch (err: any) {
             console.error('Join failed:', err);
-            if (err.message?.includes('kicked')) {
+            if (err.message?.toLowerCase().includes('already')) {
+                // Recover silently for race conditions
+                setRooms(prev => prev.map(r => r.id === room.id ? { ...r, isJoined: true } : r));
+                navigate(`/chatrooms/${room.id}`);
+            } else if (err.message?.includes('kicked')) {
                 await alert('⛔ You have been removed from this room.\nOnly an admin can add you back.');
             } else if (err.message?.includes('invite')) {
                 await alert(`🔒 "${room.name}" is an invite-only room.\nContact an admin to get invited.`);
@@ -355,7 +390,7 @@ export default function ChatRooms() {
 
     const handleLeave = async (rId: string) => {
         const roomName = rooms.find(r => r.id === rId)?.name || 'this room';
-        const confirmed = await confirm(`Leave "${roomName}"?\nYou can rejoin anytime if the room is public, or ask an admin to re-invite you.`);
+        const confirmed = await confirm(`Leave "${roomName}"?\nYou can rejoin anytime if the room is public, or ask an admin to re-invite you.`, 'Confirm Leave', 'Leave Room', 'Cancel', false);
         if (!confirmed) return;
         try {
             await chatApi.leaveRoom(rId);

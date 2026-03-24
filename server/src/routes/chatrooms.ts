@@ -212,6 +212,7 @@ router.post('/:id/add-member', requireAdmin, async (req: AuthRequest, res) => {
 
         // Clear any previous kick status so the user can rejoin and chat
         socketService.clearKickStatus(req.params.id as string, userId);
+        socketService.emitMemberAdded(req.params.id as string, userId);
 
         await Notification.create({
             user_id: uObjectId,
