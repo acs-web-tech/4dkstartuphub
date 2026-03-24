@@ -215,7 +215,12 @@ export default function ChatRooms() {
             return;
         }
 
-        if (room.id !== roomId) {
+        if (room.id === roomId) {
+            if (!roomInfo) {
+                // If it's the active room but data is missing (e.g. from a past kick), attempt to fetch
+                loadMessages(room.id);
+            }
+        } else {
             navigate(`/chatrooms/${room.id}`);
         }
     };
@@ -643,8 +648,8 @@ export default function ChatRooms() {
                                 {room.isJoined ? (
                                     <>
                                         <button className="btn btn-ghost btn-xs" onClick={(e) => { e.stopPropagation(); handleLeave(room.id); }}>Leave</button>
-                                        {roomId !== room.id && (
-                                            <button className="btn btn-primary btn-xs" onClick={() => handleSelectRoom(room)}>Open</button>
+                                        {(roomId !== room.id || !roomInfo) && (
+                                            <button className="btn btn-primary btn-xs" onClick={(e) => { e.stopPropagation(); handleSelectRoom(room); }}>Open</button>
                                         )}
                                     </>
                                 ) : kickedRooms.has(room.id) ? (
