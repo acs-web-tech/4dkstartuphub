@@ -239,10 +239,30 @@ class SocketService {
 
         // Native Push
         const cleanBody = (notification.content || '').replace(/<[^>]*>?/gm, '').trim();
+
+        // Determine the correct URL based on notification type
+        let pushUrl = '/';
+        if (notification.referenceId) {
+            const isChat = notification.type === 'chat';
+            const isChatMention = notification.type === 'mention' && notification.title?.includes('mentioned you in ');
+            const isPitch = notification.type === 'admin' &&
+                (notification.title?.startsWith('Pitch') || (notification.content || '').toLowerCase().includes('pitch request'));
+
+            if (isChat || isChatMention) {
+                pushUrl = `/chatrooms/${notification.referenceId}`;
+            } else if (isPitch) {
+                pushUrl = '/pitch-requests';
+            } else if (notification.referenceId.startsWith('http')) {
+                pushUrl = notification.referenceId;
+            } else {
+                pushUrl = `/posts/${notification.referenceId}`;
+            }
+        }
+
         pushService.sendToUser(userId, {
             title: notification.title,
             body: cleanBody || 'Tap to view',
-            url: notification.referenceId ? `/posts/${notification.referenceId}` : '/',
+            url: pushUrl,
             icon: notification.senderAvatarUrl || '/logo.png',
             image: notification.imageUrl
         });

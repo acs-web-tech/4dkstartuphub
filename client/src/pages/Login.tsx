@@ -1,16 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { authApi } from '../services/api';
-import { loadRazorpay } from '../utils/razorpay';
 import { useModal } from '../context/ModalContext';
 
-declare global {
-    interface Window {
-        Razorpay: any;
-    }
-}
 
 export default function Login() {
     const { login, user, loading: authLoading, refreshUser } = useAuth();
