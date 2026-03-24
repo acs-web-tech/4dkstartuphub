@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { chatApi } from '../services/api';
 import { ChatRoom, ChatMessage } from '../types';
-import { MessageCircle, Trash2, Send, Plus, Lock, Shield, Users, Volume2, VolumeX, LogOut, Wifi, RefreshCw, ArrowLeft } from 'lucide-react';
+import { MessageCircle, Trash2, Send, Plus, Lock, Shield, Users, VolumeX, Wifi, RefreshCw, ArrowLeft, AlertTriangle } from 'lucide-react';
 import LinkPreview from '../components/Common/LinkPreview';
 import { useModal } from '../context/ModalContext';
 import { getCdnUrl } from '../utils/cdn';
@@ -39,7 +39,7 @@ export default function ChatRooms() {
     const [showMentionDropdown, setShowMentionDropdown] = useState(false);
     const [mentionIndex, setMentionIndex] = useState(0);
     const [mentionStartPos, setMentionStartPos] = useState(-1);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
 
     const isAdmin = user?.role === 'admin';
     // Track rooms the user has been kicked from to prevent UI glitches
@@ -151,24 +151,33 @@ export default function ChatRooms() {
                         setPage(1);
                         setRooms(prev => prev.map(r => r.id === rId ? { ...r, isJoined: true, memberCount: r.memberCount + 1 } : r));
                         return;
-                    } catch (joinErr) {
+                    } catch (joinErr: any) {
                         console.error('Auto-join failed:', joinErr);
+                        await alert(joinErr.message || 'Unable to join this room. You may need an admin to invite you.');
+                        navigate('/chatrooms');
+                        return;
                     }
                 }
+                // Invite-only room that user can't access
+                const roomName = rooms.find(r => r.id === rId)?.name || 'this room';
+                await alert(`🔒 ${roomName} is a private room.\nOnly invited members can view messages. Contact an admin to get invited.`);
+                navigate('/chatrooms');
+                return;
             }
             setError(err.message || 'Failed to load messages');
         } finally {
             if (pageNum > 1) setLoadingMore(false);
         }
-    }, [rooms, isAdmin, socket]);
+    }, [rooms, isAdmin, socket, alert, navigate]);
 
     // Handle room selection and synchronization with roomId param
     useEffect(() => {
         if (roomId) {
             const roomInList = rooms.find(r => r.id === roomId);
             if (roomInList) {
-                // If the room is not joined and not open/admin, redirect away
+                // If the room is not joined and not open/admin, show message and redirect
                 if (!roomInList.isJoined && roomInList.accessType !== 'open' && !isAdmin) {
+                    alert(`🔒 "${roomInList.name}" is an invite-only room.\nYou need an admin to invite you before you can view or send messages.`);
                     navigate('/chatrooms');
                     return;
                 }
@@ -182,12 +191,16 @@ export default function ChatRooms() {
             setRoomInfo(null);
             setMessages([]);
         }
-    }, [roomId, rooms, isAdmin, navigate, loadMessages]);
+    }, [roomId, rooms, isAdmin, navigate, loadMessages, alert]);
 
     const handleSelectRoom = (room: ChatRoom) => {
         if (kickedRooms.has(room.id)) {
-            setError('You have been kicked from this room. Only an admin can add you back.');
-            setTimeout(() => setError(null), 4000);
+            alert('⛔ You have been removed from this room by an admin.\nOnly an admin can add you back.');
+            return;
+        }
+
+        if (!room.isJoined && room.accessType === 'invite' && !isAdmin) {
+            alert(`🔒 "${room.name}" is an invite-only room.\nContact an admin to get invited.`);
             return;
         }
 
@@ -223,18 +236,21 @@ export default function ChatRooms() {
 
         const handleChatError = ({ roomId: errRoomId, error: errText }: { roomId: string, error: string }) => {
             if (errRoomId === roomId) {
-                setError(errText);
                 if (errText.toLowerCase().includes('kicked') || errText.toLowerCase().includes('no longer a member')) {
                     socket.emit('leaveChat', errRoomId);
                     setIsMuted(true);
                     setKickedRooms(prev => new Set(prev).add(errRoomId));
-                    setTimeout(() => {
+                    setRoomInfo(null);
+                    setMessages([]);
+                    setRooms(prev => prev.map(r => r.id === errRoomId ? { ...r, isJoined: false, memberCount: Math.max(0, r.memberCount - 1) } : r));
+                    alert('⛔ You have been removed from this room.\nYou can no longer send or view messages here. Contact an admin if you believe this was a mistake.').then(() => {
                         navigate('/chatrooms');
-                        setRoomInfo(null);
-                        setMessages([]);
-                        setRooms(prev => prev.map(r => r.id === errRoomId ? { ...r, isJoined: false, memberCount: Math.max(0, r.memberCount - 1) } : r));
-                    }, 2000);
+                    });
+                } else if (errText.toLowerCase().includes('muted')) {
+                    setIsMuted(true);
+                    alert('🔇 You have been muted in this room.\nYou can still read messages, but you cannot send new ones until an admin unmutes you.');
                 } else {
+                    setError(errText);
                     setTimeout(() => setError(null), 5000);
                 }
             }
@@ -258,14 +274,15 @@ export default function ChatRooms() {
         socket.on('memberKicked', ({ roomId: kickedRoomId }: { roomId: string }) => {
             socket.emit('leaveChat', kickedRoomId);
             setKickedRooms(prev => new Set(prev).add(kickedRoomId));
+            setRooms(prev => prev.map(r => r.id === kickedRoomId ? { ...r, isJoined: false, memberCount: Math.max(0, r.memberCount - 1) } : r));
             if (kickedRoomId === roomId) {
                 setIsMuted(true);
-                setError('You have been kicked from this room by an admin.');
-                setTimeout(() => {
+                setRoomInfo(null);
+                setMessages([]);
+                alert('⛔ You have been removed from this room by an admin.\nYou will be redirected to the chat rooms list.').then(() => {
                     navigate('/chatrooms');
-                }, 2000);
+                });
             }
-            setRooms(prev => prev.map(r => r.id === kickedRoomId ? { ...r, isJoined: false, memberCount: Math.max(0, r.memberCount - 1) } : r));
         });
 
         socket.on('roomAccessChanged', ({ roomId: changeRoomId, accessType }: { roomId: string, accessType: 'open' | 'invite' }) => {
@@ -292,8 +309,11 @@ export default function ChatRooms() {
         socket.on('roomDeleted', ({ roomId: deletedRoomId }: { roomId: string }) => {
             setRooms(prev => prev.filter(r => r.id !== deletedRoomId));
             if (deletedRoomId === roomId) {
-                setError('This chat room has been deleted by an admin.');
-                setTimeout(() => navigate('/chatrooms'), 2000);
+                setRoomInfo(null);
+                setMessages([]);
+                alert('🗑️ This chat room has been deleted by an admin.\nAll messages have been removed.').then(() => {
+                    navigate('/chatrooms');
+                });
             }
         });
 
@@ -321,20 +341,31 @@ export default function ChatRooms() {
             await chatApi.joinRoom(room.id);
             setRooms(prev => prev.map(r => r.id === room.id ? { ...r, isJoined: true, memberCount: r.memberCount + 1 } : r));
             navigate(`/chatrooms/${room.id}`);
-        } catch (err) {
+        } catch (err: any) {
             console.error('Join failed:', err);
+            if (err.message?.includes('kicked')) {
+                await alert('⛔ You have been removed from this room.\nOnly an admin can add you back.');
+            } else if (err.message?.includes('invite')) {
+                await alert(`🔒 "${room.name}" is an invite-only room.\nContact an admin to get invited.`);
+            } else {
+                await alert(err.message || 'Failed to join this room. Please try again.');
+            }
         }
     };
 
     const handleLeave = async (rId: string) => {
+        const roomName = rooms.find(r => r.id === rId)?.name || 'this room';
+        const confirmed = await confirm(`Leave "${roomName}"?\nYou can rejoin anytime if the room is public, or ask an admin to re-invite you.`);
+        if (!confirmed) return;
         try {
             await chatApi.leaveRoom(rId);
             setRooms(prev => prev.map(r => r.id === rId ? { ...r, isJoined: false, memberCount: Math.max(0, r.memberCount - 1) } : r));
             if (rId === roomId) {
                 navigate('/chatrooms');
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error('Leave failed:', err);
+            await alert(err.message || 'Failed to leave room. Please try again.');
         }
     };
 
@@ -355,7 +386,7 @@ export default function ChatRooms() {
             setNewMessage('');
             setShowMentionDropdown(false);
         } catch (err: any) {
-            setError(err.message || 'Failed to send message');
+            await alert(err.message || 'Failed to send message. Please check your connection and try again.');
         }
         setSending(false);
     };
@@ -405,18 +436,23 @@ export default function ChatRooms() {
         const val = e.target.value;
         setNewMessage(val);
 
-        const cursorPos = e.target.selectionStart || 0;
+        // Read cursor position from the native DOM ref to avoid React synthetic event pooling issues
+        const cursorPos = inputRef.current?.selectionStart ?? e.target.selectionStart ?? val.length;
         const textBeforeCursor = val.substring(0, cursorPos);
         const lastAtIndex = textBeforeCursor.lastIndexOf('@');
 
         if (lastAtIndex >= 0) {
-            const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-            if (!/\s/.test(textAfterAt)) {
-                setMentionQuery(textAfterAt);
-                setMentionStartPos(lastAtIndex);
-                setShowMentionDropdown(true);
-                setMentionIndex(0);
-                return;
+            const charBeforeAt = lastAtIndex > 0 ? textBeforeCursor[lastAtIndex - 1] : ' ';
+            // Only trigger mention if @ is at the start or preceded by whitespace
+            if (charBeforeAt === ' ' || charBeforeAt === '\n' || lastAtIndex === 0) {
+                const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
+                if (!/\s/.test(textAfterAt) && textAfterAt.length <= 30) {
+                    setMentionQuery(textAfterAt);
+                    setMentionStartPos(lastAtIndex);
+                    setShowMentionDropdown(true);
+                    setMentionIndex(0);
+                    return;
+                }
             }
         }
         setShowMentionDropdown(false);
@@ -425,7 +461,7 @@ export default function ChatRooms() {
     const insertMention = (username: string) => {
         if (mentionStartPos < 0) return;
         const before = newMessage.substring(0, mentionStartPos);
-        const cursorPos = inputRef.current?.selectionStart || newMessage.length;
+        const cursorPos = inputRef.current?.selectionStart ?? newMessage.length;
         const after = newMessage.substring(cursorPos);
         const newVal = `${before}@${username} ${after}`;
         setNewMessage(newVal);
@@ -558,8 +594,8 @@ export default function ChatRooms() {
                     {rooms.map(room => (
                         <div
                             key={room.id}
-                            className={`room-item ${roomId === room.id ? 'active' : ''}`}
-                            onClick={() => (room.isJoined || room.accessType === 'open' || isAdmin) ? handleSelectRoom(room) : undefined}
+                            className={`room-item ${roomId === room.id ? 'active' : ''} ${(!room.isJoined && room.accessType === 'invite' && !isAdmin) ? 'room-item-locked' : ''}`}
+                            onClick={() => handleSelectRoom(room)}
                         >
                             <div className="room-item-info">
                                 <div className="flex items-center gap-1">
@@ -662,6 +698,13 @@ export default function ChatRooms() {
                                     <RefreshCw size={20} className="spin" style={{ margin: '0 auto' }} />
                                 </div>
                             )}
+                            {messages.length === 0 && !loadingMore && (
+                                <div className="chat-empty-messages">
+                                    <MessageCircle size={36} style={{ opacity: 0.3, margin: '0 auto 12px' }} />
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No messages yet</p>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', opacity: 0.6 }}>Be the first to say something!</p>
+                                </div>
+                            )}
                             {messages.map(msg => {
                                 const isOwn = msg.userId === user?.id;
                                 const msgUrl = extractFirstUrl(msg.content);
@@ -730,13 +773,15 @@ export default function ChatRooms() {
 
                         {error && (
                             <div className="chat-error-bar" onClick={() => setError(null)}>
-                                {error}
+                                <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+                                <span>{error}</span>
+                                <span style={{ fontSize: '0.7rem', opacity: 0.6, marginLeft: 'auto' }}>tap to dismiss</span>
                             </div>
                         )}
 
                         {isMuted && (
                             <div className="muted-bar">
-                                <Shield size={16} /> You are muted in this room and cannot send messages.
+                                <VolumeX size={16} /> You are muted in this room. Contact an admin to get unmuted.
                             </div>
                         )}
 
@@ -765,7 +810,7 @@ export default function ChatRooms() {
                                 </div>
                             )}
                             <textarea
-                                ref={inputRef as any}
+                                ref={inputRef}
                                 className="form-input chat-input chat-textarea"
                                 placeholder="Type a message..."
                                 value={newMessage}
@@ -785,7 +830,11 @@ export default function ChatRooms() {
                     <div className="chat-empty">
                         <span className="empty-icon"><MessageCircle size={48} /></span>
                         <h2>Select a Chat Room</h2>
-                        <p>Join a room and start chatting with the community</p>
+                        <p>Choose a room from the sidebar to start chatting</p>
+                        <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Users size={14} /> <strong>Public rooms</strong> — anyone can join and chat</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Lock size={14} /> <strong>Private rooms</strong> — admin invitation required</span>
+                        </div>
                     </div>
                 )}
             </div>
