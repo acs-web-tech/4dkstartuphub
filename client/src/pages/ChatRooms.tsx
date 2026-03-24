@@ -647,9 +647,13 @@ export default function ChatRooms() {
                                             <button className="btn btn-primary btn-xs" onClick={() => handleSelectRoom(room)}>Open</button>
                                         )}
                                     </>
+                                ) : kickedRooms.has(room.id) ? (
+                                    <span className="text-xs text-red-400 italic flex items-center" title="Removed by admin">
+                                        <Shield size={10} className="mr-1" /> Removed
+                                    </span>
                                 ) : (
                                     (room.accessType === 'open' || isAdmin) ? (
-                                        <button className="btn btn-primary btn-xs" onClick={() => handleJoin(room)}>Join</button>
+                                        <button className="btn btn-primary btn-xs" onClick={(e) => { e.stopPropagation(); handleJoin(room); }}>Join</button>
                                     ) : (
                                         <span className="text-xs text-gray-500 italic flex items-center" title="Only an admin can invite you to this room">
                                             <Shield size={10} className="mr-1" /> Invite Only
