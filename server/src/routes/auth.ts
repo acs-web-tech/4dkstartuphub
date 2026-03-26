@@ -163,6 +163,12 @@ router.post('/check-availability', async (req, res) => {
 // ── POST /api/auth/register ──────────────────────────────────
 router.post('/register', validate(registerSchema), async (req, res) => {
     try {
+        // Clear any stale auth cookies from previous sessions/registration attempts
+        // This prevents old cookies from pointing to a different user during OTP verification
+        res.clearCookie('access_token', { path: '/' });
+        res.clearCookie('refresh_token', { path: '/' });
+        res.clearCookie('refresh_token', { path: '/api/auth/refresh' });
+
         const { username, email, password, displayName, userType } = req.body;
 
         // Check existing user
@@ -223,9 +229,18 @@ router.post('/register', validate(registerSchema), async (req, res) => {
         }
 
         if (isVerificationRequired) {
+            // Issue tokens so the user can call /send-verification-otp and /verify-email-otp
+            // These routes use authenticatePending middleware which requires a valid JWT
+            const { accessToken: pendingAccessToken, refreshToken: pendingRefreshToken } = generateTokens(newUser._id.toString(), 'user');
+            setTokenCookies(res, pendingAccessToken, pendingRefreshToken);
+
+            const isMobile = req.headers['x-mobile-app'] === 'true';
+
             res.status(201).json({
                 message: 'Registration successful. A verification code has been sent to your email.',
-                requireVerification: true
+                requireVerification: true,
+                accessToken: pendingAccessToken,
+                refreshToken: isMobile ? pendingRefreshToken : undefined
             });
             return;
         }

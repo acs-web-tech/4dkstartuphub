@@ -30,6 +30,13 @@ export default function Register() {
     const [otp, setOtp] = useState('');
     const [resendLoading, setResendLoading] = useState(false);
 
+    // Clear stale auth tokens when visiting register page to prevent
+    // old cookies from interfering with new registration OTP flow
+    useEffect(() => {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+    }, []);
+
     // Redirect if already logged in
     useEffect(() => {
         if (!authLoading && user) {
@@ -79,6 +86,10 @@ export default function Register() {
 
         setLoading(true);
         try {
+            // Clear any old tokens before registering to prevent stale session issues
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+
             const res = await authApi.register({
                 username: form.username,
                 email: form.email,
@@ -87,9 +98,12 @@ export default function Register() {
                 userType: userType as any,
             });
 
+            // Store tokens — needed for OTP verification routes (authenticatePending)
             if (res.accessToken) {
                 localStorage.setItem('access_token', res.accessToken);
-                if (res.refreshToken) localStorage.setItem('refresh_token', res.refreshToken);
+            }
+            if (res.refreshToken) {
+                localStorage.setItem('refresh_token', res.refreshToken);
             }
 
             if (res.requireVerification) {
