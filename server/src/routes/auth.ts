@@ -347,6 +347,12 @@ router.post('/reset-password', async (req, res) => {
             return;
         }
 
+        const validation = passwordSchema.safeParse(password);
+        if (!validation.success) {
+            res.status(400).json({ error: validation.error.errors[0].message });
+            return;
+        }
+
         const user = await User.findOne({
             reset_password_token: token,
             reset_password_expires: { $gt: Date.now() }
@@ -381,9 +387,29 @@ router.post('/login', validate(loginSchema), async (req, res) => {
 
         const user = await User.findOne({ email: email.toLowerCase() });
 
+        if (user && user.locked_until && user.locked_until > new Date()) {
+            const minutesLeft = Math.ceil((user.locked_until.getTime() - Date.now()) / 60000);
+            res.status(403).json({ error: `Account locked due to multiple failed login attempts. Try again in ${minutesLeft} mins.` });
+            return;
+        }
+
         if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+            if (user) {
+                user.failed_login_attempts = (user.failed_login_attempts || 0) + 1;
+                if (user.failed_login_attempts >= 10) {
+                    user.locked_until = new Date(Date.now() + 15 * 60 * 1000); // Lock for 15 minutes
+                }
+                await user.save({ validateModifiedOnly: true });
+            }
             res.status(401).json({ error: 'Invalid email or password' });
             return;
+        }
+
+        // Reset failed login attempts on successful login
+        if (user.failed_login_attempts > 0 || user.locked_until) {
+            user.failed_login_attempts = 0;
+            user.locked_until = null;
+            await user.save({ validateModifiedOnly: true });
         }
 
         if (!user.is_active) {
@@ -570,7 +596,7 @@ router.post('/send-verification-otp', authenticatePending, async (req: AuthReque
         }
 
         const otp = crypto.randomInt(100000, 999999).toString();
-        user.email_verification_otp = otp;
+        user.email_verification_otp = bcrypt.hashSync(otp, config.bcryptRounds);
         user.email_verification_otp_expires = new Date(Date.now() + 10 * 60 * 1000);
         trackOtpRequest(user);
         await user.save({ validateModifiedOnly: true });
@@ -603,7 +629,7 @@ router.post('/verify-email-otp', authenticatePending, async (req: AuthRequest, r
             return;
         }
 
-        if (user.email_verification_otp !== otp) {
+        if (!bcrypt.compareSync(otp, user.email_verification_otp)) {
             res.status(400).json({ error: 'Invalid OTP' });
             return;
         }
@@ -666,7 +692,7 @@ router.post('/forgot-password-otp', async (req, res) => {
             }
 
             const otp = crypto.randomInt(100000, 999999).toString();
-            user.reset_password_otp = otp;
+            user.reset_password_otp = bcrypt.hashSync(otp, config.bcryptRounds);
             user.reset_password_expires = new Date(Date.now() + 10 * 60 * 1000);
             trackOtpRequest(user);
             await user.save({ validateModifiedOnly: true });
@@ -686,11 +712,10 @@ router.post('/reset-password-otp', validate(resetPasswordSchema), async (req, re
 
         const user = await User.findOne({
             email: email.toLowerCase(),
-            reset_password_otp: otp,
             reset_password_expires: { $gt: Date.now() }
         });
 
-        if (!user) {
+        if (!user || !user.reset_password_otp || !bcrypt.compareSync(otp, user.reset_password_otp)) {
             res.status(400).json({ error: 'Invalid or expired OTP' });
             return;
         }
@@ -775,7 +800,7 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res) => {
             }
 
             const otpCode = crypto.randomInt(100000, 999999).toString();
-            user.reset_password_otp = otpCode;
+            user.reset_password_otp = bcrypt.hashSync(otpCode, config.bcryptRounds);
             user.reset_password_expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
             trackOtpRequest(user);
             await user.save({ validateModifiedOnly: true });
@@ -801,7 +826,7 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res) => {
             return;
         }
 
-        if (user.reset_password_otp !== otp) {
+        if (!bcrypt.compareSync(otp, user.reset_password_otp)) {
             res.status(400).json({ error: 'Invalid OTP. Please check and try again.' });
             return;
         }

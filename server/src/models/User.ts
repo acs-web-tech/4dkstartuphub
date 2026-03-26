@@ -47,6 +47,8 @@ export interface IUser extends Document {
     otp_count: number;
     otp_last_request_date: string;
     is_chat_muted: boolean;
+    failed_login_attempts: number;
+    locked_until: Date | null;
 }
 
 const UserSchema: Schema = new Schema({
@@ -93,7 +95,9 @@ const UserSchema: Schema = new Schema({
     },
     otp_count: { type: Number, default: 0 },
     otp_last_request_date: { type: String, default: '' },
-    is_chat_muted: { type: Boolean, default: false }
+    is_chat_muted: { type: Boolean, default: false },
+    failed_login_attempts: { type: Number, default: 0 },
+    locked_until: { type: Date, default: null }
 }, {
     timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
     toJSON: {
@@ -140,6 +144,8 @@ const UserSchema: Schema = new Schema({
             delete ret.reset_password_token;
             delete ret.fcm_tokens;
             delete ret.is_chat_muted;
+            delete ret.failed_login_attempts;
+            delete ret.locked_until;
 
             return ret;
         }

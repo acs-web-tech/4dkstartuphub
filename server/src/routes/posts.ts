@@ -876,7 +876,7 @@ router.post('/:id/comments', validate(createCommentSchema), async (req: AuthRequ
         if (matches.length > 0) {
             const mentionedUsernames = [...new Set(matches.map(m => m[1].toLowerCase()))];
             for (const username of mentionedUsernames) {
-                const targetUser = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } });
+                const targetUser = await User.findOne({ username: { $regex: new RegExp(`^${escapeRegExp(username)}$`, 'i') } });
 
                 if (targetUser && targetUser._id.toString() !== userId.toString()) {
                     mentionedUserIds.add(targetUser._id.toString());

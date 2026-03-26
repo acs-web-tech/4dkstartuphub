@@ -4,6 +4,7 @@ import { requireAdmin } from '../middleware/admin';
 import { validate } from '../middleware/validate';
 import { createChatRoomSchema, chatMessageSchema } from '../validators/schemas';
 import { sanitizeHtml } from '../utils/sanitize';
+import { escapeRegExp } from '../utils/regex';
 import ChatRoom from '../models/ChatRoom';
 import ChatRoomMember from '../models/ChatRoomMember';
 import ChatMessage from '../models/ChatMessage';
@@ -453,7 +454,7 @@ router.post('/:id/messages', validate(chatMessageSchema), async (req: AuthReques
         const matches = [...content.matchAll(mentionPattern)];
         for (const match of matches) {
             const username = match[1];
-            const targetUser = await User.findOne({ username: { $regex: new RegExp(`^${username}$`, 'i') } });
+            const targetUser = await User.findOne({ username: { $regex: new RegExp(`^${escapeRegExp(username)}$`, 'i') } });
             if (targetUser && targetUser._id.toString() !== req.user!.userId) {
                 // Check if target is in room
                 const isMember = await ChatRoomMember.findOne({ room_id: room._id, user_id: targetUser._id });

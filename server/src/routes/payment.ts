@@ -42,6 +42,9 @@ router.post('/webhook', async (req, res) => {
             }
         } else {
             console.warn('⚠️ RAZORPAY_WEBHOOK_SECRET not configured — webhook signature verification skipped');
+            if (process.env.NODE_ENV === 'production') {
+                return res.status(500).json({ error: 'Webhook secret not configured in production' });
+            }
         }
 
         const { event, payload } = req.body;
