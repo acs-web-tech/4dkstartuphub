@@ -246,7 +246,7 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                 title: editForm.title.trim(),
                 content: finalContent,
                 category: editForm.category,
-                videoUrl: editForm.videoUrl.trim() || undefined
+                videoUrl: editForm.videoUrl.trim()
             });
             // Refresh post data
             const data = await postsApi.getById(id);
