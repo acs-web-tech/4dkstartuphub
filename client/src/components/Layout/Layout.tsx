@@ -50,6 +50,34 @@ export default function Layout() {
         prevPath.current = location.pathname;
     }, [location.pathname, closeSidebar]);
 
+    // ── Preserve scroll position across fullscreen (video iframes) ────────
+    // When an iframe goes fullscreen the browser resets scrollY → 0.
+    // We save the position on enter and restore it on exit.
+    useEffect(() => {
+        let savedScrollY = 0;
+        const handleFullscreenChange = () => {
+            if (document.fullscreenElement) {
+                // Entering fullscreen — save current position
+                savedScrollY = window.scrollY;
+            } else {
+                // Exiting fullscreen — restore position
+                const target = savedScrollY;
+                requestAnimationFrame(() => {
+                    window.scrollTo(0, target);
+                    // Double-tap for WebView quirks
+                    setTimeout(() => window.scrollTo(0, target), 50);
+                    setTimeout(() => window.scrollTo(0, target), 150);
+                });
+            }
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        return () => {
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+        };
+    }, []);
+
     // Force re-verification ONLY when the socket genuinely drops and reconnects 
     // (Bypasses the first successful connection since AuthContext handles initial load)
     const prevSocketState = useRef(socketState);
