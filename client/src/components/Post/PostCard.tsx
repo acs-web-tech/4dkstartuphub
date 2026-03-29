@@ -291,7 +291,7 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
                         )}
                         {post.videoUrl && (
                             embedUrl ? (
-                                <div className="post-card-media-video">
+                                <div key={embedUrl} className="post-card-media-video">
                                     <div
                                         style={{ width: '100%', height: '100%', display: expandedVideo ? 'none' : 'block' }}
                                         dangerouslySetInnerHTML={{

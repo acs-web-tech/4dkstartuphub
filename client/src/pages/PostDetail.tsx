@@ -686,7 +686,7 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                             if (!embedUrl) return null;
 
                                             return (
-                                                <div className="post-video-container mt-6 mb-6 rounded-lg border border-[var(--border-color)]">
+                                                <div key={embedUrl} className="post-video-container mt-6 mb-6 rounded-lg border border-[var(--border-color)]">
                                                     <div
                                                         style={{ width: '100%', height: '100%', display: expandedVideo ? 'none' : 'block' }}
                                                         dangerouslySetInnerHTML={{
