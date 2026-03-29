@@ -221,8 +221,8 @@ export default function CreatePost() {
                     title: title.trim(),
                     content: finalContent.trim(),
                     category,
-                    videoUrl: videoUrl.trim() || undefined,
-                    imageUrl: finalImageUrl || undefined,
+                    videoUrl: videoUrl.trim(),
+                    imageUrl: finalImageUrl,
                     eventDate: eventDate ? new Date(eventDate).toISOString() : undefined
                 });
                 if (location.state?.previousBackground) {
@@ -235,8 +235,8 @@ export default function CreatePost() {
                     title: title.trim(),
                     content: finalContent.trim(),
                     category,
-                    videoUrl: videoUrl.trim() || undefined,
-                    imageUrl: finalImageUrl || undefined,
+                    videoUrl: videoUrl.trim(),
+                    imageUrl: finalImageUrl,
                     eventDate: eventDate ? new Date(eventDate).toISOString() : undefined
                 });
                 clearFeedCache(); // Invalidate cache so Feed fetches new post
