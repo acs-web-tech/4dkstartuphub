@@ -293,7 +293,7 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
                             embedUrl ? (
                                 <div className="post-card-media-video">
                                     <iframe
-                                        src={embedUrl}
+                                        src={expandedVideo ? 'about:blank' : embedUrl}
                                         title="Video player"
                                         style={{ width: '100%', height: '100%', position: 'relative', zIndex: 10, pointerEvents: 'auto' }}
                                         className="rounded-lg"

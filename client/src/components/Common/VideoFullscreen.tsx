@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface Props {
@@ -7,10 +8,9 @@ interface Props {
 }
 
 /**
- * CSS-based fullscreen video overlay.
- * Standard approach used by YouTube, Instagram, Facebook apps —
- * uses position:fixed instead of browser Fullscreen API.
- * This avoids all scroll-position issues in WebView/mobile.
+ * CSS-based fullscreen video overlay using React Portal.
+ * Portal ensures position:fixed works correctly even when parent
+ * elements have CSS transforms (which break fixed positioning).
  */
 export default function VideoFullscreen({ embedUrl, onClose }: Props) {
     // Lock body scroll while overlay is open
@@ -39,7 +39,8 @@ export default function VideoFullscreen({ embedUrl, onClose }: Props) {
         return () => window.removeEventListener('keydown', handleKey);
     }, [onClose]);
 
-    return (
+    // Render via Portal to document.body — bypasses any parent transforms
+    return createPortal(
         <div className="video-fullscreen-overlay" onClick={onClose}>
             <button className="video-fullscreen-close" onClick={onClose} aria-label="Close">
                 <X size={24} />
@@ -54,6 +55,7 @@ export default function VideoFullscreen({ embedUrl, onClose }: Props) {
                     style={{ width: '100%', height: '100%', border: 'none' }}
                 />
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

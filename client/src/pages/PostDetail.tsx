@@ -688,7 +688,7 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                             return (
                                                 <div className="post-video-container mt-6 mb-6 rounded-lg border border-[var(--border-color)]">
                                                     <iframe
-                                                        src={embedUrl}
+                                                        src={expandedVideo ? 'about:blank' : embedUrl}
                                                         title="Video player"
                                                         style={{ width: '100%', height: '100%', position: 'relative', zIndex: 10, pointerEvents: 'auto' }}
                                                         className="rounded-lg"
