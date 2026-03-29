@@ -63,6 +63,7 @@ export default function Login() {
             if (res.refreshToken) localStorage.setItem('refresh_token', res.refreshToken);
 
             await refreshUser();
+            window.dispatchEvent(new Event('notifications_refresh'));
             navigate('/feed');
         } catch (err: any) {
             setError(err.message || 'Verification failed');

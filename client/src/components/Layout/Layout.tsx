@@ -166,6 +166,7 @@ export default function Layout() {
             if (res.accessToken) localStorage.setItem('access_token', res.accessToken);
             if (res.refreshToken) localStorage.setItem('refresh_token', res.refreshToken);
             await refreshUser();
+            window.dispatchEvent(new Event('notifications_refresh'));
             setOtp('');
         } catch (err: any) {
             setVerifyError(err.message || 'Verification failed');

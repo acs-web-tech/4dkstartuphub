@@ -213,6 +213,9 @@ const App = () => {
         domStorageEnabled={true}
         sharedCookiesEnabled={true}
         thirdPartyCookiesEnabled={true}
+        allowsFullscreenVideo={true}
+        allowsInlineMediaPlayback={true}
+        mediaPlaybackRequiresUserAction={false}
         onMessage={onMessage}
         onLoadEnd={() => {
           // WebView is ready — mark it and send any pending token

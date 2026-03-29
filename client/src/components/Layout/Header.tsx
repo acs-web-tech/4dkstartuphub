@@ -84,8 +84,8 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
     // Track previous state to detect NEW notifications
     const isFirstFetchRef = useRef(true);
 
-    // Initial fetch - Only trigger IF user ID changed
-    useEffect(() => {
+    // Fetch notifications whenever user identity or key status changes
+    const fetchNotifications = useCallback(() => {
         if (user?.id) {
             usersApi.getNotifications({ page: 1, limit: 20 }).then(d => {
                 setUnreadCount(d.unreadCount);
@@ -96,6 +96,21 @@ function Header({ toggleSidebar }: { toggleSidebar?: () => void }) {
             }).catch(() => { });
         }
     }, [user?.id]);
+
+    // Re-fetch when user identity, email verification, or payment status changes
+    useEffect(() => {
+        fetchNotifications();
+    }, [fetchNotifications, user?.isEmailVerified, user?.paymentStatus]);
+
+    // Listen for manual refresh trigger (fired after verification/payment flows)
+    useEffect(() => {
+        const handler = () => {
+            // Small delay to ensure server has committed the notification to the database
+            setTimeout(() => fetchNotifications(), 500);
+        };
+        window.addEventListener('notifications_refresh', handler);
+        return () => window.removeEventListener('notifications_refresh', handler);
+    }, [fetchNotifications]);
 
     const loadMoreNotifications = async () => {
         if (!user?.id || loadingMoreNotifs || !hasMoreNotifs) return;

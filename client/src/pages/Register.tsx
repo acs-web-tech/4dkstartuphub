@@ -130,10 +130,13 @@ export default function Register() {
             if (res.refreshToken) localStorage.setItem('refresh_token', res.refreshToken);
 
             await refreshUser();
+            // Force notification refresh so the welcome notification is loaded immediately
+            window.dispatchEvent(new Event('notifications_refresh'));
             navigate('/feed');
         } catch (err: any) {
             if (err.message && err.message.includes('Already verified')) {
                 await refreshUser();
+                window.dispatchEvent(new Event('notifications_refresh'));
                 navigate('/feed');
             } else {
                 setError(err.message || 'Verification failed');

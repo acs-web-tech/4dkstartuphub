@@ -112,7 +112,7 @@ export const startEmailWorker = () => {
 
         try {
             await transporter.sendMail({
-                from: `"4DK StartupHub" <${config.email.from}>`,
+                from: config.email.from.includes('<') ? config.email.from : `"4DK StartupHub" <${config.email.from}>`,
                 to: email.to,
                 subject: email.subject,
                 html: email.html,

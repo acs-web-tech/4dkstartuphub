@@ -44,7 +44,10 @@ export default function Pricing() {
                         localStorage.removeItem('pending_upgrade_payment');
                         pendingPaymentRef.current = null;
                         setShowVerifyButton(false);
-                        refreshUser().then(() => navigate('/feed'));
+                        refreshUser().then(() => {
+                            window.dispatchEvent(new Event('notifications_refresh'));
+                            navigate('/feed');
+                        });
                     }
                 })
                 .catch(() => { /* silent — non-critical check */ });
@@ -64,6 +67,7 @@ export default function Pricing() {
                     localStorage.removeItem('pending_upgrade_payment');
                     setShowVerifyButton(false);
                     await refreshUser();
+                    window.dispatchEvent(new Event('notifications_refresh'));
                     navigate('/feed');
                     return;
                 }
@@ -83,6 +87,7 @@ export default function Pricing() {
             localStorage.removeItem('pending_upgrade_payment');
             setShowVerifyButton(false);
             await refreshUser();
+            window.dispatchEvent(new Event('notifications_refresh'));
             navigate('/feed');
         } catch (err: any) {
             // Signature verify failed — try server-side direct check as fallback
@@ -93,6 +98,7 @@ export default function Pricing() {
                     pendingPaymentRef.current = null;
                     setShowVerifyButton(false);
                     await refreshUser();
+                    window.dispatchEvent(new Event('notifications_refresh'));
                     navigate('/feed');
                     return;
                 }
@@ -140,6 +146,7 @@ export default function Pricing() {
                         localStorage.removeItem('pending_upgrade_payment');
                         setShowVerifyButton(false);
                         await refreshUser();
+                        window.dispatchEvent(new Event('notifications_refresh'));
                         navigate('/feed');
                     } catch (err: any) {
                         // Payment succeeded at Razorpay but our verify call failed
