@@ -2,10 +2,11 @@ import { memo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Post } from '../../types';
 import { CATEGORY_CONFIG } from '../../config';
-import { Pin, Heart, MessageSquare, Eye, Video, MoreVertical, Calendar, Download, ArrowRight } from 'lucide-react';
+import { Pin, Heart, MessageSquare, Eye, Video, MoreVertical, Calendar, Download, ArrowRight, Maximize } from 'lucide-react';
 import { SmartImage } from '../Common/SmartImage';
 import { rewriteContentUrls } from '../../utils/cdn';
 import LinkPreview from '../Common/LinkPreview';
+import VideoFullscreen from '../Common/VideoFullscreen';
 
 interface Props {
     post: Post;
@@ -17,6 +18,7 @@ interface Props {
 function PostCard({ post, onImageClick, priority = false }: Props) {
     const location = useLocation();
     const [showOptions, setShowOptions] = useState(false);
+    const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
     const cat = CATEGORY_CONFIG[post.category] || CATEGORY_CONFIG.general;
     const Icon = cat.icon;
 
@@ -261,7 +263,7 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
                         const u = new URL(url);
                         if (u.hostname.includes('youtube.com') || u.hostname.includes('youtu.be')) {
                             const id = u.hostname.includes('youtu.be') ? u.pathname.slice(1).split('?')[0] : u.searchParams.get('v');
-                            return id ? `https://www.youtube.com/embed/${id}?fs=1&playsinline=1` : null;
+                            return id ? `https://www.youtube.com/embed/${id}?fs=0&playsinline=1` : null;
                         }
                         if (u.hostname.includes('vimeo.com')) {
                             const id = u.pathname.split('/').filter(Boolean).pop();
@@ -289,12 +291,26 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
                         )}
                         {post.videoUrl && (
                             embedUrl ? (
-                                <div 
-                                    className="post-card-media-video"
-                                    dangerouslySetInnerHTML={{
-                                        __html: `<iframe src="${embedUrl}" title="YouTube video player" style="width: 100%; height: 100%; position: relative; z-index: 10; pointer-events: auto;" class="rounded-lg" loading="lazy" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`
-                                    }}
-                                />
+                                <div className="post-card-media-video">
+                                    <iframe
+                                        src={embedUrl}
+                                        title="Video player"
+                                        style={{ width: '100%', height: '100%', position: 'relative', zIndex: 10, pointerEvents: 'auto' }}
+                                        className="rounded-lg"
+                                        loading="lazy"
+                                        frameBorder="0"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                        referrerPolicy="strict-origin-when-cross-origin"
+                                    />
+                                    <button
+                                        className="video-expand-btn"
+                                        onClick={(e) => { e.stopPropagation(); setExpandedVideo(embedUrl.replace('fs=0', 'fs=1')); }}
+                                        title="Expand video"
+                                        aria-label="Expand video"
+                                    >
+                                        <Maximize size={18} />
+                                    </button>
+                                </div>
                             ) : (
                                 <a
                                     href={post.videoUrl}
@@ -394,6 +410,13 @@ function PostCard({ post, onImageClick, priority = false }: Props) {
                     </Link>
                 </div>
             </div>
+
+            {expandedVideo && (
+                <VideoFullscreen
+                    embedUrl={expandedVideo}
+                    onClose={() => setExpandedVideo(null)}
+                />
+            )}
         </article>
     );
 }

@@ -50,51 +50,6 @@ export default function Layout() {
         prevPath.current = location.pathname;
     }, [location.pathname, closeSidebar]);
 
-    // ── Prevent forced scroll-to-top from fullscreen/WebView glitches ─────
-    // Cross-origin iframes (YouTube) don't fire any detectable fullscreen events.
-    // Instead, we intercept the SYMPTOM: if scroll suddenly jumps from a deep
-    // position to near 0 WITHOUT a route change, it's a forced reset → revert it.
-    const lastIntentionalNav = useRef(Date.now());
-    // Mark route changes as intentional scroll-to-top
-    useEffect(() => {
-        lastIntentionalNav.current = Date.now();
-    }, [location.pathname, location.search, location.key]);
-
-    useEffect(() => {
-        let stableScroll = 0;
-        let ignoreNextScroll = false;
-
-        const handleScroll = () => {
-            const now = window.scrollY;
-
-            // If we just restored scroll, ignore this event
-            if (ignoreNextScroll) {
-                ignoreNextScroll = false;
-                stableScroll = now;
-                return;
-            }
-
-            // Detect glitch: was scrolled > 300px deep, now jumped to < 5px,
-            // and no route change happened in the last 500ms
-            const timeSinceNav = Date.now() - lastIntentionalNav.current;
-            if (stableScroll > 300 && now < 5 && timeSinceNav > 500) {
-                // This is a forced scroll reset — revert immediately
-                const target = stableScroll;
-                ignoreNextScroll = true;
-                window.scrollTo(0, target);
-                // Retry in case layout hasn't settled
-                setTimeout(() => { ignoreNextScroll = true; window.scrollTo(0, target); }, 50);
-                setTimeout(() => { ignoreNextScroll = true; window.scrollTo(0, target); }, 150);
-                setTimeout(() => { ignoreNextScroll = true; window.scrollTo(0, target); }, 300);
-                return;
-            }
-
-            stableScroll = now;
-        };
-
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
 
     // Force re-verification ONLY when the socket genuinely drops and reconnects 
     // (Bypasses the first successful connection since AuthContext handles initial load)

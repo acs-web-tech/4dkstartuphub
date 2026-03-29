@@ -8,7 +8,7 @@ import { Post, Comment } from '../types';
 import { CATEGORY_CONFIG } from '../config';
 import { useAuth } from '../context/AuthContext';
 import {
-    Pin, Lock, Heart, MessageSquare, Bookmark, Pencil, Trash2, PinOff, Unlock, ArrowLeft, X, MoreVertical, Calendar as CalendarIcon, Download, Share2, Link2, Check, Copy, Wifi
+    Pin, Lock, Heart, MessageSquare, Bookmark, Pencil, Trash2, PinOff, Unlock, ArrowLeft, X, MoreVertical, Calendar as CalendarIcon, Download, Share2, Link2, Check, Copy, Wifi, Maximize
 } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 import { SmartImage } from '../components/Common/SmartImage';
@@ -16,6 +16,7 @@ import { rewriteContentUrls, getCdnUrl } from '../utils/cdn';
 import CommentsSection from '../components/Post/CommentsSection';
 import LinkPreview from '../components/Common/LinkPreview';
 import { useModal } from '../context/ModalContext';
+import VideoFullscreen from '../components/Common/VideoFullscreen';
 
 export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
     const { id } = useParams<{ id: string }>();
@@ -91,6 +92,7 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
     const [showShare, setShowShare] = useState(false);
     const [linkCopied, setLinkCopied] = useState(false);
     const [pendingUploads, setPendingUploads] = useState<Record<string, File>>({});
+    const [expandedVideo, setExpandedVideo] = useState<string | null>(null);
     const quillRef = useRef<ReactQuill>(null);
     const shareRef = useRef<HTMLDivElement>(null);
 
@@ -661,9 +663,9 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                                         } else if (url.includes('youtu.be')) {
                                                             videoId = url.split('/').pop() || '';
                                                         } else if (url.includes('youtube.com/embed')) {
-                                                            return url.includes('?') ? `${url}&fs=1&playsinline=1` : `${url}?fs=1&playsinline=1`;
+                                                            return url.includes('?') ? `${url}&fs=0&playsinline=1` : `${url}?fs=0&playsinline=1`;
                                                         }
-                                                        return videoId ? `https://www.youtube.com/embed/${videoId}?fs=1&playsinline=1` : '';
+                                                        return videoId ? `https://www.youtube.com/embed/${videoId}?fs=0&playsinline=1` : '';
                                                     }
 
                                                     // Handle Vimeo
@@ -684,12 +686,25 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                                             if (!embedUrl) return null;
 
                                             return (
-                                                <div 
-                                                    className="post-video-container mt-6 mb-6 rounded-lg border border-[var(--border-color)]"
-                                                    dangerouslySetInnerHTML={{
-                                                        __html: `<iframe src="${embedUrl}" title="YouTube video player" style="width: 100%; height: 100%; position: relative; z-index: 10; pointer-events: auto;" class="rounded-lg" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`
-                                                    }}
-                                                />
+                                                <div className="post-video-container mt-6 mb-6 rounded-lg border border-[var(--border-color)]">
+                                                    <iframe
+                                                        src={embedUrl}
+                                                        title="Video player"
+                                                        style={{ width: '100%', height: '100%', position: 'relative', zIndex: 10, pointerEvents: 'auto' }}
+                                                        className="rounded-lg"
+                                                        frameBorder="0"
+                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                                        referrerPolicy="strict-origin-when-cross-origin"
+                                                    />
+                                                    <button
+                                                        className="video-expand-btn"
+                                                        onClick={(e) => { e.stopPropagation(); setExpandedVideo(embedUrl.replace('fs=0', 'fs=1')); }}
+                                                        title="Expand video"
+                                                        aria-label="Expand video"
+                                                    >
+                                                        <Maximize size={18} />
+                                                    </button>
+                                                </div>
                                             );
                                         })()}
 
@@ -845,6 +860,12 @@ export default function PostDetail({ isModal = false }: { isModal?: boolean }) {
                     </div>
                 </div>
             </div>
+            {expandedVideo && (
+                <VideoFullscreen
+                    embedUrl={expandedVideo}
+                    onClose={() => setExpandedVideo(null)}
+                />
+            )}
         </div>
     );
 }
