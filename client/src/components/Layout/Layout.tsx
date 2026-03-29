@@ -50,84 +50,50 @@ export default function Layout() {
         prevPath.current = location.pathname;
     }, [location.pathname, closeSidebar]);
 
-    // ── Preserve scroll position across fullscreen (video iframes) ────────
-    // Cross-origin iframes (YouTube) do NOT fire fullscreenchange on parent.
-    // Android WebView handles fullscreen natively, which triggers resize.
-    // Strategy: continuously track scroll, restore on resize/visibility change.
+    // ── Prevent forced scroll-to-top from fullscreen/WebView glitches ─────
+    // Cross-origin iframes (YouTube) don't fire any detectable fullscreen events.
+    // Instead, we intercept the SYMPTOM: if scroll suddenly jumps from a deep
+    // position to near 0 WITHOUT a route change, it's a forced reset → revert it.
+    const lastIntentionalNav = useRef(Date.now());
+    // Mark route changes as intentional scroll-to-top
     useEffect(() => {
-        let lastKnownScroll = 0;
-        let isFullscreenLikely = false;
-        let restoreTimeout: ReturnType<typeof setTimeout>;
+        lastIntentionalNav.current = Date.now();
+    }, [location.pathname, location.search, location.key]);
 
-        const trackScroll = () => {
-            // Only track when not in a fullscreen-like state
-            if (!isFullscreenLikely) {
-                lastKnownScroll = window.scrollY;
+    useEffect(() => {
+        let stableScroll = 0;
+        let ignoreNextScroll = false;
+
+        const handleScroll = () => {
+            const now = window.scrollY;
+
+            // If we just restored scroll, ignore this event
+            if (ignoreNextScroll) {
+                ignoreNextScroll = false;
+                stableScroll = now;
+                return;
             }
-        };
 
-        const handleResize = () => {
-            // Detect fullscreen: viewport height becomes close to screen height
-            const isNowFullscreen = window.innerHeight >= screen.height - 50;
-
-            if (isNowFullscreen && !isFullscreenLikely) {
-                // Entering fullscreen — lock the scroll value
-                isFullscreenLikely = true;
-            } else if (!isNowFullscreen && isFullscreenLikely) {
-                // Exiting fullscreen — restore after layout settles
-                isFullscreenLikely = false;
-                const target = lastKnownScroll;
-                clearTimeout(restoreTimeout);
-                restoreTimeout = setTimeout(() => {
-                    window.scrollTo(0, target);
-                    requestAnimationFrame(() => window.scrollTo(0, target));
-                    setTimeout(() => window.scrollTo(0, target), 100);
-                    setTimeout(() => window.scrollTo(0, target), 250);
-                }, 50);
+            // Detect glitch: was scrolled > 300px deep, now jumped to < 5px,
+            // and no route change happened in the last 500ms
+            const timeSinceNav = Date.now() - lastIntentionalNav.current;
+            if (stableScroll > 300 && now < 5 && timeSinceNav > 500) {
+                // This is a forced scroll reset — revert immediately
+                const target = stableScroll;
+                ignoreNextScroll = true;
+                window.scrollTo(0, target);
+                // Retry in case layout hasn't settled
+                setTimeout(() => { ignoreNextScroll = true; window.scrollTo(0, target); }, 50);
+                setTimeout(() => { ignoreNextScroll = true; window.scrollTo(0, target); }, 150);
+                setTimeout(() => { ignoreNextScroll = true; window.scrollTo(0, target); }, 300);
+                return;
             }
+
+            stableScroll = now;
         };
 
-        const handleVisibilityChange = () => {
-            // WebView may hide/show page during native fullscreen
-            if (!document.hidden && isFullscreenLikely) {
-                isFullscreenLikely = false;
-                const target = lastKnownScroll;
-                setTimeout(() => {
-                    window.scrollTo(0, target);
-                    setTimeout(() => window.scrollTo(0, target), 100);
-                }, 50);
-            }
-        };
-
-        // Also keep the native fullscreen API listener for non-YouTube cases
-        const handleFullscreenChange = () => {
-            if (document.fullscreenElement) {
-                lastKnownScroll = window.scrollY;
-                isFullscreenLikely = true;
-            } else if (isFullscreenLikely) {
-                isFullscreenLikely = false;
-                const target = lastKnownScroll;
-                requestAnimationFrame(() => {
-                    window.scrollTo(0, target);
-                    setTimeout(() => window.scrollTo(0, target), 50);
-                    setTimeout(() => window.scrollTo(0, target), 150);
-                });
-            }
-        };
-
-        window.addEventListener('scroll', trackScroll, { passive: true });
-        window.addEventListener('resize', handleResize);
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-        return () => {
-            window.removeEventListener('scroll', trackScroll);
-            window.removeEventListener('resize', handleResize);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            document.removeEventListener('fullscreenchange', handleFullscreenChange);
-            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-            clearTimeout(restoreTimeout);
-        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
     // Force re-verification ONLY when the socket genuinely drops and reconnects 
