@@ -51,30 +51,82 @@ export default function Layout() {
     }, [location.pathname, closeSidebar]);
 
     // ── Preserve scroll position across fullscreen (video iframes) ────────
-    // When an iframe goes fullscreen the browser resets scrollY → 0.
-    // We save the position on enter and restore it on exit.
+    // Cross-origin iframes (YouTube) do NOT fire fullscreenchange on parent.
+    // Android WebView handles fullscreen natively, which triggers resize.
+    // Strategy: continuously track scroll, restore on resize/visibility change.
     useEffect(() => {
-        let savedScrollY = 0;
+        let lastKnownScroll = 0;
+        let isFullscreenLikely = false;
+        let restoreTimeout: ReturnType<typeof setTimeout>;
+
+        const trackScroll = () => {
+            // Only track when not in a fullscreen-like state
+            if (!isFullscreenLikely) {
+                lastKnownScroll = window.scrollY;
+            }
+        };
+
+        const handleResize = () => {
+            // Detect fullscreen: viewport height becomes close to screen height
+            const isNowFullscreen = window.innerHeight >= screen.height - 50;
+
+            if (isNowFullscreen && !isFullscreenLikely) {
+                // Entering fullscreen — lock the scroll value
+                isFullscreenLikely = true;
+            } else if (!isNowFullscreen && isFullscreenLikely) {
+                // Exiting fullscreen — restore after layout settles
+                isFullscreenLikely = false;
+                const target = lastKnownScroll;
+                clearTimeout(restoreTimeout);
+                restoreTimeout = setTimeout(() => {
+                    window.scrollTo(0, target);
+                    requestAnimationFrame(() => window.scrollTo(0, target));
+                    setTimeout(() => window.scrollTo(0, target), 100);
+                    setTimeout(() => window.scrollTo(0, target), 250);
+                }, 50);
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            // WebView may hide/show page during native fullscreen
+            if (!document.hidden && isFullscreenLikely) {
+                isFullscreenLikely = false;
+                const target = lastKnownScroll;
+                setTimeout(() => {
+                    window.scrollTo(0, target);
+                    setTimeout(() => window.scrollTo(0, target), 100);
+                }, 50);
+            }
+        };
+
+        // Also keep the native fullscreen API listener for non-YouTube cases
         const handleFullscreenChange = () => {
             if (document.fullscreenElement) {
-                // Entering fullscreen — save current position
-                savedScrollY = window.scrollY;
-            } else {
-                // Exiting fullscreen — restore position
-                const target = savedScrollY;
+                lastKnownScroll = window.scrollY;
+                isFullscreenLikely = true;
+            } else if (isFullscreenLikely) {
+                isFullscreenLikely = false;
+                const target = lastKnownScroll;
                 requestAnimationFrame(() => {
                     window.scrollTo(0, target);
-                    // Double-tap for WebView quirks
                     setTimeout(() => window.scrollTo(0, target), 50);
                     setTimeout(() => window.scrollTo(0, target), 150);
                 });
             }
         };
+
+        window.addEventListener('scroll', trackScroll, { passive: true });
+        window.addEventListener('resize', handleResize);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
         return () => {
+            window.removeEventListener('scroll', trackScroll);
+            window.removeEventListener('resize', handleResize);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
             document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+            clearTimeout(restoreTimeout);
         };
     }, []);
 
